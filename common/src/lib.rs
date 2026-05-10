@@ -63,3 +63,13 @@ pub struct VehicleWithAccess {
     pub owner_id: Uuid,
     pub my_role: AccessRole,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct User {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    #[serde(skip_serializing)] // Sécurité : on n'envoie JAMAIS le hash au frontend
+    pub password_hash: String,
+    pub created_at: DateTime<Utc>,
+}

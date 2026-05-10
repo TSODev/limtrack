@@ -1,36 +1,42 @@
 use axum::{
-    extract::{State, Request},
-    routing::get,
-    Json, Router, http::StatusCode,
+    extract::{Request, State},
+    http::StatusCode,
     middleware::{self, Next},
     response::Response,
+    routing::get,
+    routing::post,
+    Json, Router,
 };
-use sqlx::PgPool;
-use common::{Vehicle, AccessRole, VehicleWithAccess};
-use std::net::SocketAddr;
+use common::{AccessRole, Vehicle, VehicleWithAccess};
 use dotenvy::dotenv;
+use sqlx::PgPool;
 use std::env;
+use std::net::SocketAddr;
 use uuid::Uuid;
 
-use tracing::{info, error, instrument};
-use tracing_subscriber;
-use tower_http::trace::TraceLayer;
-use tower_http::cors::{Any, CorsLayer};
 use axum::http::Method;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
+use tracing::{error, info, instrument};
+use tracing_subscriber;
+
+mod handlers; // Déclare le module handler
 
 #[tokio::main]
 async fn main() {
-
     // 1. Charge les variables du fichier .env dans l'environnement du processus
-    dotenv().ok(); 
-    let db_url = std::env::var("DATABASE_URL").expect("La variable DATABASE_URL doit être définie dans le fichier .env");
-    let pool = PgPool::connect(&db_url).await.expect("Impossible de se connecter à la base de données Neon");
+    dotenv().ok();
+    let db_url = std::env::var("DATABASE_URL")
+        .expect("La variable DATABASE_URL doit être définie dans le fichier .env");
+    let pool = PgPool::connect(&db_url)
+        .await
+        .expect("Impossible de se connecter à la base de données Neon");
 
     // 1. Initialise le tracing
     tracing_subscriber::fmt()
         .pretty() // Ajoute des couleurs et indente le JSON/Structs
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-    //        .add_directive(tracing::Level::DEBUG.into()))
+        //        .add_directive(tracing::Level::DEBUG.into()))
         .init();
 
     info!("Le backend démarre...");
@@ -38,23 +44,23 @@ async fn main() {
     // Configuration CORS
     let cors = CorsLayer::new()
         // Autorise ton frontend (ex: Tauri ou React)
-        // .allow_origin("http://localhost:1420".parse::<HeaderValue>().unwrap()) 
+        // .allow_origin("http://localhost:1420".parse::<HeaderValue>().unwrap())
         // Ou plus simple pour le dev :
-        .allow_origin(Any) 
+        .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(Any);
 
     let app = Router::new()
-        .route("/api/vehicles", get(list_vehicles))
+        .route("/api/vehicles", get(handlers::list_vehicles))
+        .route("/api/user/register", post(handlers::register))
         .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(|request: &axum::http::Request<_>| {
-                    tracing::info_span!(
-                        "http_request",
-                        method = %request.method(),
-                        uri = %request.uri(),
-                    )
-                })
+            TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
+                tracing::info_span!(
+                    "http_request",
+                    method = %request.method(),
+                    uri = %request.uri(),
+                )
+            }),
         )
         .layer(cors)
         .with_state(pool);
@@ -64,33 +70,4 @@ async fn main() {
     info!("Connexion à la base de données Neon réussie !");
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-// --- Handler pour lister les véhicules ---
-async fn list_vehicles(
-    State(pool): State<PgPool>,
-    // En production, on ajouterait ici notre extracteur ClaimsUser
-) -> Result<Json<Vec<VehicleWithAccess>>, StatusCode> {
-    
-    // Simulation d'un ID utilisateur (à remplacer par user.0.sub plus tard)
-    let mock_user_id = Uuid::parse_str("a7985c6d-7acd-4384-ade3-c5764dd8edf0").unwrap();
-
-    let vehicles = sqlx::query_as!(
-        VehicleWithAccess,
-        r#"
-        SELECT v.id as "id!", v.make, v.model, v.plate_number, v.owner_id, va.role as "my_role: AccessRole"
-        FROM public.vehicles v
-        JOIN public.vehicle_access va ON v.id = va.vehicle_id
-        WHERE va.user_id = $1
-        "#,
-        mock_user_id
-    )
-    .fetch_all(&pool)
-    .await
-    .map_err(|e| {
-        eprintln!("Erreur SQL: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    Ok(Json(vehicles))
 }
