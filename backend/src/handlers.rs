@@ -19,6 +19,7 @@ use uuid::Uuid;
 use bcrypt::verify;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
+use regex::Regex;
 use serde::Serialize;
 
 use crate::auth::AuthenticatedUser;
@@ -184,6 +185,14 @@ pub async fn create_vehicle(
     Json(payload): Json<CreateVehicleRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let user_id = auth.0;
+
+    let re = Regex::new(r"^[A-Z]{2}-\d{3}-[A-Z]{2}$").unwrap();
+    if !re.is_match(&payload.plate_number) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Format d'immatriculation invalide (attendu : AA-111-AA)".into(),
+        ));
+    }
 
     // 1. Démarrer une transaction
     let mut tx = pool.begin().await.map_err(|_| {

@@ -6,7 +6,7 @@ pub fn HomePage() -> impl IntoView {
         <nav class="bg-blue-200 pt-3" data-pg-collapsed>
             <div class="gap-10 mt-15 text-right">
                 <a class="bg-sky-500 font-bold hover:bg-sky-700 m-5 p-4 rounded-lg text-white" href="/login">Login</a>
-                <a class="bg-blue-500 font-bold hover:bg-blue-700 m-5 p-4 rounded-lg text-white" href="/signup">Inscription</a>
+                <a class="bg-blue-500 font-bold hover:bg-blue-700 m-5 p-4 rounded-lg text-white" href="/register">Inscription</a>
             </div>
         </nav>
         <header class="bg-blue-200 p-20" data-pg-collapsed>

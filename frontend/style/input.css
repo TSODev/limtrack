@@ -2,3 +2,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@theme {
+    --color-primary: #6366f1;
+    --color-secondary: #f43f5e;
+    --font-display: "Geist", sans-serif;
+    /* ... toutes tes customisations */
+}

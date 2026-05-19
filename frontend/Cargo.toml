@@ -5,12 +5,13 @@ edition.workspace = true
 
 [dependencies]
 # Framework UI
-leptos = { version = "0.6", features = ["csr"] } # CSR = Client Side Rendering
+leptos = { version = "0.6", features = ["csr"] }        # CSR = Client Side Rendering
 leptos_router = { version = "0.6", features = ["csr"] }
 leptos_meta = { version = "0.6", features = ["csr"] }
 
 # Communication avec l'API Axum
 gloo-net = { version = "0.5", features = ["http"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
 wasm-bindgen = "0.2"
 
 # Nos modèles de données partagés
@@ -19,12 +20,30 @@ common = { path = "../common" }
 # Dépendances héritées du workspace
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { version = "1.7", features = ["serde", "v4", "js"] } # "js" est requis pour l'UUID en WASM
+uuid = { version = "1.7", features = [
+    "serde",
+    "v4",
+    "js",
+] } # "js" est requis pour l'UUID en WASM
 chrono = { workspace = true, features = ["wasmbind"] }
+reqwest = { version = "0.12", features = ["json"] }
+wasm-bindgen-futures = "0.4"
+serde-wasm-bindgen = "0.6"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Headers",
+    "Request",
+    "RequestInit",
+    "Response",
+    "Storage",     # <-- pour set_item / get_item
+] }
 
 # Gestion du style (Optionnel mais recommandé pour charger du CSS)
 stylist = { version = "0.13", features = ["macros"] }
 console_error_panic_hook = "0.1"
+
+
+#```</Action>
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

@@ -1,11 +1,15 @@
- // On utilise le type partagé !
+// On utilise le type partagé !
 use leptos::*;
 use leptos_router::*;
+
+pub mod components;
+pub mod models;
 
 mod pages; // On importe notre nouveau module
 use pages::home::HomePage;
 use pages::login::LoginPage;
-use pages::signup::SignupPage;
+use pages::mainpage::MainPage;
+use pages::register::RegisterPage;
 
 #[component]
 fn App() -> impl IntoView {
@@ -15,7 +19,8 @@ fn App() -> impl IntoView {
                 <Routes>
                     <Route path="/" view=HomePage/>
                     <Route path="/login" view=LoginPage/>
-                    <Route path="/signup" view=SignupPage/>
+                    <Route path="mainpage" view=MainPage/>
+                    <Route path="/register" view=RegisterPage />
                 </Routes>
             </main>
         </Router>
