@@ -8,6 +8,7 @@ mod pages; // On importe notre nouveau module
 use pages::home::HomePage;
 use pages::login::LoginPage;
 use pages::mainpage::MainPage;
+use pages::profile::ProfilePage;
 use pages::register::RegisterPage;
 
 #[component]
@@ -20,6 +21,7 @@ fn App() -> impl IntoView {
                     <Route path="/login" view=LoginPage/>
                     <Route path="mainpage" view=MainPage/>
                     <Route path="/register" view=RegisterPage />
+                    <Route path="/profile" view=ProfilePage />
                 </Routes>
             </main>
         </Router>

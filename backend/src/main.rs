@@ -12,13 +12,15 @@ use crate::contracts_handler::{create_insurance, create_loa, list_insurance, lis
 use crate::mileage_handler::{create_mileage, list_mileage};
 use crate::share_handler::{create_share_code, join_with_code};
 use crate::state::AppState;
-use crate::user_handler::{login, register};
+use crate::user_handler::{
+    change_password, get_profile, get_shares, leave_vehicle, login, register, revoke_access,
+};
 use crate::vehicles_handler::{
     create_vehicle, delete_vehicle, get_vehicle, join_vehicle, list_vehicles, update_vehicle,
 };
 
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use dotenvy::dotenv;
@@ -79,6 +81,11 @@ async fn main() {
         .route("/api/vehicles/:id/join", post(join_vehicle))
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))
+        .route("/api/profile", get(get_profile))
+        .route("/api/profile/password", post(change_password))
+        .route("/api/profile/shares", get(get_shares))
+        .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
+        .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
                 tracing::info_span!(

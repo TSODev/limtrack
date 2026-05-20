@@ -1,0 +1,496 @@
+// src/pages/profile.rs
+use crate::components::ui::{format_km, get_token, input_class};
+use leptos::*;
+use leptos_router::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use wasm_bindgen::JsCast;
+
+// ─── Types ───────────────────────────────────────────────────────
+
+#[derive(Clone, Serialize, Deserialize)]
+struct UserProfile {
+    id: Uuid,
+    username: String,
+    email: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct SharedUser {
+    user_id: Uuid,
+    username: String,
+    role: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct OwnedVehicleAccesses {
+    vehicle_id: Uuid,
+    make: String,
+    model: String,
+    plate_number: String,
+    accesses: Vec<SharedUser>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct SharedVehicle {
+    vehicle_id: Uuid,
+    make: String,
+    model: String,
+    plate_number: String,
+    role: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct ProfileShares {
+    owned: Vec<OwnedVehicleAccesses>,
+    shared_with_me: Vec<SharedVehicle>,
+}
+
+// ─── Page principale ─────────────────────────────────────────────
+
+#[component]
+pub fn ProfilePage() -> impl IntoView {
+    let navigate = use_navigate();
+    let (profile, set_profile) = create_signal(Option::<UserProfile>::None);
+    let (shares, set_shares) = create_signal(Option::<ProfileShares>::None);
+    let (loading, set_loading) = create_signal(true);
+
+    // Charge les données au montage
+    create_effect(move |_| {
+        let token = get_token();
+        let Some(token) = token else {
+            navigate("/", NavigateOptions::default());
+            return;
+        };
+
+        spawn_local(async move {
+            let p = fetch_json::<UserProfile>("/api/profile", &token).await;
+            let s = fetch_json::<ProfileShares>("/api/profile/shares", &token).await;
+
+            if let Ok(p) = p {
+                set_profile.set(Some(p));
+            }
+            if let Ok(s) = s {
+                set_shares.set(Some(s));
+            }
+            set_loading.set(false);
+        });
+    });
+
+    let reload_shares = move || {
+        if let Some(token) = get_token() {
+            spawn_local(async move {
+                if let Ok(s) = fetch_json::<ProfileShares>("/api/profile/shares", &token).await {
+                    set_shares.set(Some(s));
+                }
+            });
+        }
+    };
+
+    view! {
+        <div class="min-h-screen bg-gray-100">
+            // Navbar
+            <nav class="bg-white shadow-sm border-b border-gray-200">
+                <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                    <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                        </svg>
+                        "Retour"
+                    </A>
+                    <span class="text-xl font-bold text-indigo-600">"odo.io"</span>
+                    <div class="w-20" /> // spacer
+                </div>
+            </nav>
+
+            <div class="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+                <Show when=move || loading.get() fallback=|| ()>
+                    <div class="flex justify-center py-12">
+                        <p class="text-gray-400 animate-pulse">"Chargement..."</p>
+                    </div>
+                </Show>
+
+                <Show when=move || !loading.get() fallback=|| ()>
+                    // Section : Mes informations
+                    {move || profile.get().map(|p| view! {
+                        <ProfileInfoSection profile=p />
+                    })}
+
+                    // Section : Modifier le mot de passe
+                    <ChangePasswordSection />
+
+                    // Section : Mes partages
+                    {move || shares.get().map(|s| view! {
+                        <SharesSection
+                            shares=s
+                            on_change=reload_shares
+                        />
+                    })}
+                </Show>
+            </div>
+        </div>
+    }
+}
+
+// ─── Section Informations ─────────────────────────────────────────
+
+#[component]
+fn ProfileInfoSection(profile: UserProfile) -> impl IntoView {
+    view! {
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <h2 class="text-lg font-bold text-gray-900">"Mes informations"</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">"Nom d'utilisateur"</p>
+                    <p class="text-sm font-semibold text-gray-800">{profile.username}</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">"Email"</p>
+                    <p class="text-sm font-semibold text-gray-800">{profile.email}</p>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// ─── Section Mot de passe ─────────────────────────────────────────
+
+#[component]
+fn ChangePasswordSection() -> impl IntoView {
+    let (current, set_current) = create_signal(String::new());
+    let (new_pass, set_new_pass) = create_signal(String::new());
+    let (confirm, set_confirm) = create_signal(String::new());
+    let (error, set_error) = create_signal(String::new());
+    let (success, set_success) = create_signal(false);
+
+    let submit = create_action(
+        move |(current, new_pass, confirm): &(String, String, String)| {
+            let (current, new_pass, confirm) = (current.clone(), new_pass.clone(), confirm.clone());
+            async move {
+                set_error.set(String::new());
+                set_success.set(false);
+
+                if new_pass != confirm {
+                    set_error.set("Les mots de passe ne correspondent pas.".to_string());
+                    return;
+                }
+                if new_pass.len() < 8 {
+                    set_error
+                        .set("Le mot de passe doit contenir au moins 8 caractères.".to_string());
+                    return;
+                }
+
+                let token = get_token().unwrap_or_default();
+                let body = serde_json::json!({
+                    "current_password": current,
+                    "new_password": new_pass,
+                });
+
+                match post_json("/api/profile/password", &token, &body).await {
+                    Ok(_) => {
+                        set_success.set(true);
+                        set_current.set(String::new());
+                        set_new_pass.set(String::new());
+                        set_confirm.set(String::new());
+                    }
+                    Err(e) => set_error.set(e),
+                }
+            }
+        },
+    );
+
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        submit.dispatch((current.get(), new_pass.get(), confirm.get()));
+    };
+
+    view! {
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <h2 class="text-lg font-bold text-gray-900">"Modifier le mot de passe"</h2>
+            <form on:submit=on_submit class="space-y-4">
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-700 block">"Mot de passe actuel"</label>
+                    <input type="password" required prop:value=current
+                        on:input=move |ev| set_current.set(event_target_value(&ev))
+                        class=input_class() />
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-gray-700 block">"Nouveau mot de passe"</label>
+                        <input type="password" required prop:value=new_pass
+                            on:input=move |ev| set_new_pass.set(event_target_value(&ev))
+                            placeholder="8 caractères minimum"
+                            class=input_class() />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-gray-700 block">"Confirmer"</label>
+                        <input type="password" required prop:value=confirm
+                            on:input=move |ev| set_confirm.set(event_target_value(&ev))
+                            class=input_class() />
+                    </div>
+                </div>
+
+                <Show when=move || !error.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-red-600">{move || error.get()}</p>
+                </Show>
+                <Show when=move || success.get() fallback=|| ()>
+                    <p class="text-sm text-green-600 font-medium">"Mot de passe modifié avec succès !"</p>
+                </Show>
+
+                <button
+                    type="submit"
+                    prop:disabled=move || submit.pending().get()
+                    class="px-6 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+                >
+                    {move || if submit.pending().get() { "Modification..." } else { "Modifier" }}
+                </button>
+            </form>
+        </div>
+    }
+}
+
+// ─── Section Partages ─────────────────────────────────────────────
+
+#[component]
+fn SharesSection(shares: ProfileShares, on_change: impl Fn() + 'static + Copy) -> impl IntoView {
+    view! {
+        <div class="space-y-6">
+            // Véhicules que je possède
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <h2 class="text-lg font-bold text-gray-900">"Mes véhicules partagés"</h2>
+                {if shares.owned.is_empty() {
+                    view! {
+                        <p class="text-sm text-gray-400 italic">"Aucun véhicule partagé."</p>
+                    }.into_view()
+                } else {
+                    shares.owned.into_iter().map(|v| view! {
+                        <OwnedVehicleCard vehicle=v on_revoke=on_change />
+                    }).collect_view()
+                }}
+            </div>
+
+            // Véhicules partagés avec moi
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <h2 class="text-lg font-bold text-gray-900">"Véhicules partagés avec moi"</h2>
+                {if shares.shared_with_me.is_empty() {
+                    view! {
+                        <p class="text-sm text-gray-400 italic">"Aucun véhicule partagé avec vous."</p>
+                    }.into_view()
+                } else {
+                    shares.shared_with_me.into_iter().map(|v| view! {
+                        <SharedVehicleCard vehicle=v on_leave=Callback::new(move |_| on_change())/>
+                    }).collect_view()
+                }}
+            </div>
+        </div>
+    }
+}
+
+// ─── Carte véhicule possédé ───────────────────────────────────────
+
+#[component]
+fn OwnedVehicleCard(
+    vehicle: OwnedVehicleAccesses,
+    on_revoke: impl Fn() + 'static + Copy,
+) -> impl IntoView {
+    view! {
+        <div class="border border-gray-100 rounded-xl p-4 space-y-3">
+            // En-tête véhicule
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">
+                        {format!("{} {}", vehicle.make, vehicle.model)}
+                    </p>
+                    <p class="text-xs font-mono text-indigo-600">{vehicle.plate_number}</p>
+                </div>
+            </div>
+
+            // Liste des accès
+            {if vehicle.accesses.is_empty() {
+                view! {
+                    <p class="text-xs text-gray-400 italic pl-11">"Aucun utilisateur partagé."</p>
+                }.into_view()
+            } else {
+                let vehicle_id = vehicle.vehicle_id;
+                vehicle.accesses.into_iter().map(move |user| {
+                    let user_id = user.user_id;
+                    let role_label = match user.role.as_str() {
+                        "editor" => ("Éditeur", "bg-amber-100 text-amber-700"),
+                        _        => ("Lecteur", "bg-gray-100 text-gray-600"),
+                    };
+                    view! {
+                        <div class="flex items-center justify-between pl-11 py-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-700">{user.username}</span>
+                                <span class=format!("text-xs px-2 py-0.5 rounded-full font-medium {}", role_label.1)>
+                                    {role_label.0}
+                                </span>
+                            </div>
+                            <button
+                                on:click=move |_| {
+                                    spawn_local(async move {
+                                        let token = get_token().unwrap_or_default();
+                                        let url = format!("/api/vehicles/{}/access/{}", vehicle_id, user_id);
+                                        if delete_request(&url, &token).await.is_ok() {
+                                            on_revoke();
+                                        }
+                                    });
+                                }
+                                class="text-xs px-3 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition duration-150"
+                            >
+                                "Révoquer"
+                            </button>
+                        </div>
+                    }
+                }).collect_view()
+            }}
+        </div>
+    }
+}
+
+// ─── Carte véhicule partagé avec moi ─────────────────────────────
+
+#[component]
+fn SharedVehicleCard(
+    vehicle: SharedVehicle,
+    on_leave: Callback<()>, // <-- Callback au lieu de impl Fn()
+) -> impl IntoView {
+    let vehicle_id = vehicle.vehicle_id;
+    let role_label = match vehicle.role.as_str() {
+        "editor" => ("Éditeur", "bg-amber-100 text-amber-700"),
+        _ => ("Lecteur", "bg-gray-100 text-gray-600"),
+    };
+
+    view! {
+            <div class="flex items-center justify-between border border-gray-100 rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-800">
+                            {format!("{} {}", vehicle.make, vehicle.model)}
+                        </p>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <p class="text-xs font-mono text-indigo-600">{vehicle.plate_number}</p>
+                            <span class=format!("text-xs px-2 py-0.5 rounded-full font-medium {}", role_label.1)>
+                                {role_label.0}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button
+    on:click=move |_| {
+        spawn_local(async move {
+            let token = get_token().unwrap_or_default();
+            let url = format!("/api/vehicles/{}/leave", vehicle_id);
+            if delete_request(&url, &token).await.is_ok() {
+                on_leave.call(());  // <-- .call(()) au lieu de on_leave()
+            }
+        });
+    }
+                    class="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition duration-150"
+                >
+                    "Quitter"
+                </button>
+            </div>
+        }
+}
+
+// ─── Helpers réseau ───────────────────────────────────────────────
+
+async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
+    url: &str,
+    token: &str,
+) -> Result<T, String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("GET");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Cache-Control", "no-cache").ok();
+    opts.headers(&headers);
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if !resp.ok() {
+        return Err(format!("Erreur HTTP : {}", resp.status()));
+    }
+    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
+}
+
+async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("POST");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 200 {
+        Ok(())
+    } else {
+        let json =
+            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+                .await
+                .ok();
+        let msg = json
+            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
+            .and_then(|v| {
+                v.get("error")
+                    .and_then(|e| e.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
+        Err(msg)
+    }
+}
+
+async fn delete_request(url: &str, token: &str) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("DELETE");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    opts.headers(&headers);
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 204 {
+        Ok(())
+    } else {
+        Err(format!("Erreur HTTP : {}", resp.status()))
+    }
+}
