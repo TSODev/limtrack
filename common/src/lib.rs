@@ -179,3 +179,8 @@ pub struct CreateMileagePayload {
     pub contract_insurance_id: Option<Uuid>,
     pub source: Option<String>, // défaut : "manual"
 }
+
+#[derive(Debug, Deserialize)]
+pub struct JoinVehiclePayload {
+    pub role: String, // "editor" ou "viewer"
+}

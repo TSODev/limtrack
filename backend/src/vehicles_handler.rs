@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
 use crate::state::AppState; // <-- AppState vient de state.rs, plus défini ici
+use common::JoinVehiclePayload;
 use common::Vehicle;
 
 // ─── Payloads ────────────────────────────────────────────────────
@@ -35,13 +36,13 @@ pub struct UpdateVehiclePayload {
 
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
-#[derive(Debug, Serialize)]
+#[derive(serde::Serialize)]
 struct ApiError {
-    error: &'static str,
+    error: String,
 }
 
-fn err(status: StatusCode, msg: &'static str) -> (StatusCode, Json<ApiError>) {
-    (status, Json(ApiError { error: msg }))
+fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ApiError>) {
+    (status, Json(ApiError { error: msg.into() }))
 }
 
 // ─── GET /vehicles ───────────────────────────────────────────────
@@ -315,5 +316,83 @@ pub async fn delete_vehicle(
     match result {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+    }
+}
+
+// ─── POST /api/vehicles/:id/join ─────────────────────────────────
+// Permet à un utilisateur de rejoindre un véhicule via un code de partage
+
+pub async fn join_vehicle(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+    Json(payload): Json<JoinVehiclePayload>,
+) -> impl IntoResponse {
+    // 1. Vérifie que le rôle est valide (pas owner — réservé au créateur)
+    if !matches!(payload.role.as_str(), "editor" | "viewer") {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Rôle invalide — doit être 'editor' ou 'viewer'",
+        )
+        .into_response();
+    }
+
+    // 2. Vérifie que le véhicule existe
+    let vehicle_exists = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM public.vehicles WHERE id = $1)",
+        vehicle_id
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(Some(false))
+    .unwrap_or(false);
+
+    if !vehicle_exists {
+        return err(StatusCode::NOT_FOUND, "Véhicule introuvable").into_response();
+    }
+
+    // 3. Vérifie que l'utilisateur n'a pas déjà accès
+    let already_has_access = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM public.vehicle_access
+         WHERE vehicle_id = $1 AND user_id = $2)",
+        vehicle_id,
+        user_id
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(Some(false))
+    .unwrap_or(false);
+
+    if already_has_access {
+        return err(StatusCode::CONFLICT, "Vous avez déjà accès à ce véhicule").into_response();
+    }
+
+    // 4. Insertion dans vehicle_access
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO public.vehicle_access (vehicle_id, user_id, role)
+        VALUES ($1, $2, $3)
+        "#,
+        vehicle_id,
+        user_id,
+        payload.role,
+    )
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(_) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "vehicle_id": vehicle_id,
+                "role": payload.role,
+            })),
+        )
+            .into_response(),
+        Err(e) => err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &format!("Erreur lors de l'ajout de l'accès : {}", e),
+        )
+        .into_response(),
     }
 }

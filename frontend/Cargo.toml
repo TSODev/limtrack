@@ -36,6 +36,8 @@ web-sys = { version = "0.3", features = [
     "RequestInit",
     "Response",
     "Storage",     # <-- pour set_item / get_item
+    "Navigator",   # <-- pour .navigator()
+    "Clipboard",   # <-- pour .clipboard()
 ] }
 futures = "0.3"
 

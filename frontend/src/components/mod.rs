@@ -1,5 +1,6 @@
 pub mod add_vehicle_button;
 pub mod contracts;
+pub mod join_vehicle_button;
 pub mod mileage;
 pub mod ui;
 pub mod vehicle;

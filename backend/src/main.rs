@@ -12,8 +12,9 @@ use crate::mileage_handler::{create_mileage, list_mileage};
 use crate::state::AppState;
 use crate::user_handler::{login, register};
 use crate::vehicles_handler::{
-    create_vehicle, delete_vehicle, get_vehicle, list_vehicles, update_vehicle,
+    create_vehicle, delete_vehicle, get_vehicle, join_vehicle, list_vehicles, update_vehicle,
 };
+
 use axum::{
     routing::{get, post},
     Router,
@@ -73,6 +74,7 @@ async fn main() {
             "/api/vehicles/:vehicle_id/mileage",
             get(list_mileage).post(create_mileage),
         )
+        .route("/api/vehicles/:id/join", post(join_vehicle))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
                 tracing::info_span!(
