@@ -1,3 +1,9 @@
 pub mod add_vehicle_button;
+pub mod contracts;
+pub mod mileage;
+pub mod ui;
 pub mod vehicle;
+pub mod vehicle_dashboard;
+pub mod vehicle_detail;
+pub mod vehicle_header;
 pub mod vehicle_list;

@@ -15,7 +15,13 @@ uuid = { version = "1.7", features = ["serde", "v4"] }
 
 # SQLx est nécessaire ici uniquement pour le trait Type 
 # permettant de lier ton Enum Rust à ton Enum Postgres
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-native-tls", "postgres", "chrono", "uuid"], optional = true }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    "postgres",
+    "chrono",
+    "uuid",
+], optional = true }
 
 [features]
 # On crée une feature "backend" qui active sqlx

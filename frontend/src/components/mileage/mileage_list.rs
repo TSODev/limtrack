@@ -1,0 +1,361 @@
+// src/components/mileage/mileage_list.rs
+// Version COMPLÈTE — affiché dans l'onglet Kilométrage
+
+use crate::components::ui::{format_km, get_token, input_class};
+use common::MileageLog;
+use leptos::*;
+use uuid::Uuid;
+use wasm_bindgen::JsCast;
+
+#[component]
+pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
+    let (entries, set_entries) = create_signal(Vec::<MileageLog>::new());
+    let (loading, set_loading) = create_signal(false);
+    let (show_modal, set_show_modal) = create_signal(false);
+
+    let load_mileage = move |id: Uuid| {
+        set_loading.set(true);
+        spawn_local(async move {
+            let Some(token) = get_token() else { return };
+            let data =
+                fetch_json::<Vec<MileageLog>>(&format!("/api/vehicles/{}/mileage", id), &token)
+                    .await
+                    .unwrap_or_default();
+            set_entries.set(data);
+            set_loading.set(false);
+        });
+    };
+
+    create_effect(move |_| {
+        if let Some(id) = vehicle_id.get() {
+            set_entries.set(vec![]);
+            load_mileage(id);
+        }
+    });
+
+    let on_created = move || {
+        if let Some(id) = vehicle_id.get() {
+            load_mileage(id);
+        }
+    };
+
+    view! {
+        <div class="flex flex-col gap-6">
+
+            // En-tête
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-bold text-gray-900">"Historique kilométrique"</h2>
+                <button
+                    on:click=move |_| set_show_modal.set(true)
+                    class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
+                >
+                    "+ Saisir un relevé"
+                </button>
+            </div>
+
+            <Show when=move || loading.get() fallback=|| ()>
+                <p class="text-sm text-gray-400 animate-pulse">"Chargement..."</p>
+            </Show>
+
+            <Show when=move || !loading.get() fallback=|| ()>
+                {move || {
+                    let data = entries.get();
+                    if data.is_empty() {
+                        return view! {
+                            <div class="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
+                                <p class="text-sm text-gray-400 italic">
+                                    "Aucun relevé kilométrique enregistré."
+                                </p>
+                            </div>
+                        }.into_view();
+                    }
+
+                    let last = data.first().unwrap().clone();
+                    let first_entry = data.last().unwrap().clone();
+                    let total_entries = data.len();
+                    let km_parcourus = last.value - first_entry.value;
+
+                    view! {
+                        <div class="flex flex-col gap-4">
+
+                            // Cartes de résumé
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">
+                                        "Compteur actuel"
+                                    </p>
+                                    <p class="text-2xl font-extrabold text-indigo-600">
+                                        {format_km(last.value)}
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        "au "{last.recorded_at.to_string()}
+                                    </p>
+                                </div>
+                                <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">
+                                        "Km parcourus"
+                                    </p>
+                                    <p class="text-2xl font-extrabold text-gray-800">
+                                        {format_km(km_parcourus)}
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        "depuis le premier relevé"
+                                    </p>
+                                </div>
+                                <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">
+                                        "Relevés"
+                                    </p>
+                                    <p class="text-2xl font-extrabold text-gray-800">
+                                        {total_entries}
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-1">
+                                        "enregistrés"
+                                    </p>
+                                </div>
+                            </div>
+
+                            // Tableau avec scroll limité à 5 lignes
+                            <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                                <div class="overflow-y-auto max-h-[280px]">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-gray-50 z-10">
+                                            <tr class="border-b border-gray-100">
+                                                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    "Date"
+                                                </th>
+                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    "Compteur"
+                                                </th>
+                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    "Écart"
+                                                </th>
+                                                <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    "Source"
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.iter().enumerate().map(|(i, entry)| {
+                                                let entry = entry.clone();
+                                                let next = data.get(i + 1).cloned();
+                                                let ecart = next.map(|n| entry.value - n.value);
+                                                let source_label = match entry.source.as_str() {
+                                                    "manual" => ("Manuelle", "bg-gray-100 text-gray-600"),
+                                                    "import" => ("Import",   "bg-blue-100 text-blue-600"),
+                                                    "api"    => ("API",      "bg-purple-100 text-purple-600"),
+                                                    _        => ("—",        "bg-gray-100 text-gray-400"),
+                                                };
+                                                view! {
+                                                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-100">
+                                                        <td class="px-4 py-3 text-gray-700">
+                                                            {entry.recorded_at.to_string()}
+                                                        </td>
+                                                        <td class="px-4 py-3 text-right font-semibold text-gray-900">
+                                                            {format_km(entry.value)}
+                                                        </td>
+                                                        <td class="px-4 py-3 text-right text-gray-500">
+                                                            {ecart.map(|e| format!("+ {}", format_km(e)))
+                                                                  .unwrap_or("—".to_string())}
+                                                        </td>
+                                                        <td class="px-4 py-3 text-center">
+                                                            <span class=format!(
+                                                                "text-xs font-medium px-2 py-0.5 rounded-full {}",
+                                                                source_label.1
+                                                            )>
+                                                                {source_label.0}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }).collect_view()}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    }.into_view()
+                }}
+            </Show>
+        </div>
+
+        <Show when=move || show_modal.get() fallback=|| ()>
+            <MileageModal
+                vehicle_id=vehicle_id
+                on_close=Callback::new(move |_| set_show_modal.set(false))
+                on_created=Callback::new(move |_| on_created())
+            />
+        </Show>
+    }
+}
+
+// ─── Modal saisie ────────────────────────────────────────────────
+
+#[component]
+fn MileageModal(
+    vehicle_id: ReadSignal<Option<Uuid>>,
+    on_close: Callback<()>,
+    on_created: Callback<()>,
+) -> impl IntoView {
+    let (value, set_value) = create_signal(String::new());
+    let (recorded_at, set_recorded_at) = create_signal(today_str());
+    let (error, set_error) = create_signal(String::new());
+
+    let submit = create_action(move |(vid, val, date): &(Uuid, String, String)| {
+        let (vid, val, date) = (*vid, val.clone(), date.clone());
+        async move {
+            let token = get_token().unwrap_or_default();
+            let body = serde_json::json!({
+                "value": val.parse::<i32>().unwrap_or(0),
+                "recorded_at": date,
+                "source": "manual",
+            });
+            match post_json(&format!("/api/vehicles/{}/mileage", vid), &token, &body).await {
+                Ok(_) => {
+                    on_created.call(());
+                    on_close.call(());
+                }
+                Err(e) => set_error.set(e),
+            }
+        }
+    });
+
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        let Some(id) = vehicle_id.get() else { return };
+        set_error.set(String::new());
+        submit.dispatch((id, value.get(), recorded_at.get()));
+    };
+
+    view! {
+        <div
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm"
+            on:click=move |_| on_close.call(())
+        />
+        <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-8 space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">"Nouveau relevé"</h2>
+                        <p class="text-xs text-gray-400 mt-1">
+                            "Ce relevé sera appliqué à tous les contrats actifs."
+                        </p>
+                    </div>
+                    <button
+                        on:click=move |_| on_close.call(())
+                        class="text-gray-400 hover:text-gray-600 text-xl font-light"
+                    >
+                        "✕"
+                    </button>
+                </div>
+
+                <form on:submit=on_submit class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-gray-700 block">
+                            "Kilométrage au compteur"
+                        </label>
+                        <input
+                            type="number" min="0" required
+                            prop:value=value
+                            on:input=move |ev| set_value.set(event_target_value(&ev))
+                            placeholder="ex: 48500"
+                            class=input_class()
+                        />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-gray-700 block">
+                            "Date du relevé"
+                        </label>
+                        <input
+                            type="date" required
+                            prop:value=recorded_at
+                            on:input=move |ev| set_recorded_at.set(event_target_value(&ev))
+                            class=input_class()
+                        />
+                    </div>
+
+                    <Show when=move || !error.get().is_empty() fallback=|| ()>
+                        <p class="text-sm text-center text-red-600">{move || error.get()}</p>
+                    </Show>
+
+                    <div class="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            on:click=move |_| on_close.call(())
+                            class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
+                        >
+                            "Annuler"
+                        </button>
+                        <button
+                            type="submit"
+                            prop:disabled=move || submit.pending().get()
+                            class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+                        >
+                            {move || if submit.pending().get() { "Envoi..." } else { "Enregistrer" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+fn today_str() -> String {
+    chrono::Local::now().format("%Y-%m-%d").to_string()
+}
+
+async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
+    url: &str,
+    token: &str,
+) -> Result<T, String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("GET");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Cache-Control", "no-cache").ok();
+    opts.headers(&headers);
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if !resp.ok() {
+        return Err(format!("Erreur HTTP : {}", resp.status()));
+    }
+    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
+}
+
+async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("POST");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 201 {
+        Ok(())
+    } else {
+        Err(format!("Erreur HTTP : {}", resp.status()))
+    }
+}

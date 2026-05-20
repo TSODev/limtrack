@@ -1,40 +1,22 @@
 use crate::components::add_vehicle_button::AddVehicleButton;
+use crate::components::vehicle_dashboard::VehicleDashboard;
+use crate::components::vehicle_detail::VehicleDetail;
 use crate::components::vehicle_list::{fetch_vehicles, Vehicle_list};
-use crate::models::Vehicle;
+
+//use crate::models::Vehicle;
+use common::Vehicle;
 use leptos::*;
 use leptos_router::*;
 use wasm_bindgen::JsCast;
 
 #[component]
 pub fn MainPage() -> impl IntoView {
-    //    let vehicles = create_signal(vec![
-    //        Vehicle {
-    //            id: uuid::Uuid::new_v4(),
-    //            make: "Renault".into(),
-    //            model: "Mégane IV 1.5 dCi".into(),
-    //            plate_number: "AB-123-CD".into(),
-    //            kilometrage: 47_320,
-    //        },
-    //        Vehicle {
-    //            id: uuid::Uuid::new_v4(),
-    //            make: "Peugeot".into(),
-    //            model: "308 SW 2.0 BlueHDi".into(),
-    //            plate_number: "EF-456-GH".into(),
-    //            kilometrage: 112_840,
-    //        },
-    //        Vehicle {
-    //            id: uuid::Uuid::new_v4(),
-    //            make: "Citroën".into(),
-    //            model: "Berlingo III 1.6 HDi".into(),
-    //            plate_number: "IJ-789-KL".into(),
-    //            kilometrage: 203_150,
-    //        },
-    //    ]);
-
     let (vehicles, set_vehicles) = create_signal(vec![]);
 
     let navigate = use_navigate();
     let (is_authenticated, set_is_authenticated) = create_signal(false);
+
+    let (selected_vehicle_id, set_selected_vehicle_id) = create_signal(Option::<uuid::Uuid>::None);
 
     // 1. Clone pour l'effet de vérification de session
     let navigate_effect = navigate.clone();
@@ -98,18 +80,13 @@ pub fn MainPage() -> impl IntoView {
             // Ligne du milieu : deux colonnes
             <div class="flex flex-1 gap-4 p-4 overflow-hidden min-h-0">
            <aside class="w-1/4 flex flex-col overflow-auto gap-3 p-2">
-                <Vehicle_list vehicles=vehicles />
+              <Vehicle_list vehicles=vehicles set_selected=set_selected_vehicle_id />
                <AddVehicleButton set_vehicles=set_vehicles />
             </aside>
 
                 <main class="max-w-7xl flex flex-col mx-auto py-12 px-4 sm:px-6 lg:px-8">
                     <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100 text-center space-y-4">
-                        <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">
-                            "Bienvenue dans votre espace !"
-                        </h1>
-                        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                            "Vous êtes correctement connecté."
-                        </p>
+                         <VehicleDashboard selected_id=selected_vehicle_id />
                     </div>
                 </main>
 

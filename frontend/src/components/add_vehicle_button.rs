@@ -1,4 +1,5 @@
-use crate::models::Vehicle;
+//use crate::models::Vehicle;
+use common::Vehicle;
 use leptos::*;
 use wasm_bindgen::JsCast;
 

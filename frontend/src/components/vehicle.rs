@@ -1,16 +1,21 @@
 // src/components/vehicle_card.rs
-use crate::models::vehicle::Vehicle;
+//use crate::models::vehicle::Vehicle;
+use common::Vehicle;
 use leptos::*;
+use uuid::Uuid;
 
 #[component]
-pub fn VehicleCard(vehicle: Vehicle) -> impl IntoView {
+pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) -> impl IntoView {
+    let id = vehicle.id;
+
     view! {
-        <div class="
-            bg-white rounded-xl border border-gray-100
-            px-4 py-3 flex items-center gap-3
-            cursor-pointer hover:border-gray-300
-            transition-colors duration-150
-        ">
+        <div
+            on:click=move |_| set_selected.set(Some(id))
+            class="bg-white rounded-xl border border-gray-100
+                   px-4 py-3 flex items-center gap-3
+                   cursor-pointer hover:border-indigo-300 hover:shadow-sm
+                   transition-all duration-150"
+        >
             // Icône
             <div class="shrink-0 w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
                 <svg class="w-5 h-5 text-blue-500" /* icône voiture */ />

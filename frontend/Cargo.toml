@@ -37,6 +37,7 @@ web-sys = { version = "0.3", features = [
     "Response",
     "Storage",     # <-- pour set_item / get_item
 ] }
+futures = "0.3"
 
 # Gestion du style (Optionnel mais recommandé pour charger du CSS)
 stylist = { version = "0.13", features = ["macros"] }
