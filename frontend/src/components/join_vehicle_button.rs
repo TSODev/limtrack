@@ -10,12 +10,10 @@ pub fn JoinVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVi
     let (show_modal, set_show_modal) = create_signal(false);
 
     view! {
-        // Bouton déclencheur
         <button
             on:click=move |_| set_show_modal.set(true)
             class="w-full flex items-center justify-center gap-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition duration-150"
         >
-            // Icône lien
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round"
                     d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
@@ -46,36 +44,21 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
             set_error.set(String::new());
             set_success.set(String::new());
 
-            // Décode le code : "vehicle_uuid:role"
-            let parts: Vec<&str> = code.trim().splitn(2, ':').collect();
-            if parts.len() != 2 {
-                set_error.set("Code invalide — format attendu : uuid:role".to_string());
-                return;
-            }
-
-            let vehicle_id = parts[0];
-            let role = parts[1];
-
-            if !matches!(role, "editor" | "viewer") {
-                set_error.set("Rôle invalide dans le code.".to_string());
-                return;
-            }
-
-            // Valide que vehicle_id est un UUID
-            if uuid::Uuid::parse_str(vehicle_id).is_err() {
-                set_error.set("Code invalide — identifiant de véhicule incorrect.".to_string());
+            // Validation basique du format XXX-XXX-XXX
+            let trimmed = code.trim().to_uppercase();
+            let parts: Vec<&str> = trimmed.split('-').collect();
+            if parts.len() != 3 || parts.iter().any(|p| p.len() != 3) {
+                set_error.set("Code invalide — format attendu : XXX-XXX-XXX".to_string());
                 return;
             }
 
             let token = get_token().unwrap_or_default();
-            let url = format!("/api/vehicles/{}/join", vehicle_id);
-            let body = serde_json::json!({ "role": role });
+            let body = serde_json::json!({ "code": trimmed });
 
-            match post_json(&url, &token, &body).await {
+            match post_json("/api/vehicles/join", &token, &body).await {
                 Ok(_) => {
                     set_success
                         .set("Accès accordé ! Le véhicule apparaît dans votre liste.".to_string());
-                    // Recharge la liste des véhicules
                     if let Ok(vehicles) = fetch_vehicles(&token).await {
                         set_vehicles.set(vehicles);
                     }
@@ -123,15 +106,15 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
                             required
                             prop:value=code
                             on:input=move |ev| set_code.set(event_target_value(&ev))
-                            placeholder="ex: 550e8400-e29b-41d4-a716-...:viewer"
-                            class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono transition duration-150"
+                            placeholder="ex: XK7-M2P-9QR"
+                            maxlength="11"
+                            class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono tracking-widest text-center transition duration-150"
                         />
-                        <p class="text-xs text-gray-400">
-                            "Le code vous a été communiqué par le propriétaire du véhicule."
+                        <p class="text-xs text-gray-400 text-center">
+                            "Format : XXX-XXX-XXX — communiqué par le propriétaire"
                         </p>
                     </div>
 
-                    // Messages
                     <Show when=move || !error.get().is_empty() fallback=|| ()>
                         <p class="text-sm text-center text-red-600">{move || error.get()}</p>
                     </Show>
@@ -141,7 +124,6 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
                         </p>
                     </Show>
 
-                    // Actions
                     <div class="flex gap-3 pt-2">
                         <button
                             type="button"
@@ -218,7 +200,6 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     if resp.ok() || resp.status() == 201 {
         Ok(())
     } else {
-        // Essaie de lire le message d'erreur du backend
         let json =
             wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
                 .await

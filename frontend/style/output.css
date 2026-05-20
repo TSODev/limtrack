@@ -819,9 +819,6 @@
     --tw-tracking: var(--tracking-widest);
     letter-spacing: var(--tracking-widest);
   }
-  .break-all {
-    word-break: break-all;
-  }
   .text-amber-600 {
     color: var(--color-amber-600);
   }

@@ -184,3 +184,20 @@ pub struct CreateMileagePayload {
 pub struct JoinVehiclePayload {
     pub role: String, // "editor" ou "viewer"
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ShareCode {
+    pub code: String,
+    pub role: String,
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateShareCodePayload {
+    pub role: String, // "editor" | "viewer"
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UseShareCodePayload {
+    pub code: String,
+}

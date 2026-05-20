@@ -3,12 +3,14 @@
 mod auth;
 mod contracts_handler;
 mod mileage_handler;
+mod share_handler;
 mod state;
 mod user_handler;
 mod vehicles_handler;
 
 use crate::contracts_handler::{create_insurance, create_loa, list_insurance, list_loa};
 use crate::mileage_handler::{create_mileage, list_mileage};
+use crate::share_handler::{create_share_code, join_with_code};
 use crate::state::AppState;
 use crate::user_handler::{login, register};
 use crate::vehicles_handler::{
@@ -75,6 +77,8 @@ async fn main() {
             get(list_mileage).post(create_mileage),
         )
         .route("/api/vehicles/:id/join", post(join_vehicle))
+        .route("/api/vehicles/:id/share", post(create_share_code))
+        .route("/api/vehicles/join", post(join_with_code))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
                 tracing::info_span!(

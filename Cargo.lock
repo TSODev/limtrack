@@ -226,6 +226,7 @@ dependencies = [
  "common",
  "dotenvy",
  "jsonwebtoken",
+ "rand",
  "regex",
  "serde",
  "serde_json",
