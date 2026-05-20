@@ -1,6 +1,4 @@
 // src/components/mileage/mileage_list.rs
-// Version COMPLÈTE — affiché dans l'onglet Kilométrage
-
 use crate::components::ui::{format_km, get_token, input_class};
 use common::MileageLog;
 use leptos::*;
@@ -8,7 +6,7 @@ use uuid::Uuid;
 use wasm_bindgen::JsCast;
 
 #[component]
-pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
+pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -> impl IntoView {
     let (entries, set_entries) = create_signal(Vec::<MileageLog>::new());
     let (loading, set_loading) = create_signal(false);
     let (show_modal, set_show_modal) = create_signal(false);
@@ -41,16 +39,17 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
 
     view! {
         <div class="flex flex-col gap-6">
-
-            // En-tête
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-bold text-gray-900">"Historique kilométrique"</h2>
-                <button
-                    on:click=move |_| set_show_modal.set(true)
-                    class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
-                >
-                    "+ Saisir un relevé"
-                </button>
+                // Bouton visible uniquement pour owner et editor
+                <Show when=move || can_edit.get() fallback=|| ()>
+                    <button
+                        on:click=move |_| set_show_modal.set(true)
+                        class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
+                    >
+                        "+ Saisir un relevé"
+                    </button>
+                </Show>
             </div>
 
             <Show when=move || loading.get() fallback=|| ()>
@@ -63,9 +62,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                     if data.is_empty() {
                         return view! {
                             <div class="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
-                                <p class="text-sm text-gray-400 italic">
-                                    "Aucun relevé kilométrique enregistré."
-                                </p>
+                                <p class="text-sm text-gray-400 italic">"Aucun relevé kilométrique enregistré."</p>
                             </div>
                         }.into_view();
                     }
@@ -77,62 +74,33 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
 
                     view! {
                         <div class="flex flex-col gap-4">
-
-                            // Cartes de résumé
                             <div class="grid grid-cols-3 gap-4">
                                 <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
-                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">
-                                        "Compteur actuel"
-                                    </p>
-                                    <p class="text-2xl font-extrabold text-indigo-600">
-                                        {format_km(last.value)}
-                                    </p>
-                                    <p class="text-xs text-gray-400 mt-1">
-                                        "au "{last.recorded_at.to_string()}
-                                    </p>
+                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">"Compteur actuel"</p>
+                                    <p class="text-2xl font-extrabold text-indigo-600">{format_km(last.value)}</p>
+                                    <p class="text-xs text-gray-400 mt-1">"au "{last.recorded_at.to_string()}</p>
                                 </div>
                                 <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
-                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">
-                                        "Km parcourus"
-                                    </p>
-                                    <p class="text-2xl font-extrabold text-gray-800">
-                                        {format_km(km_parcourus)}
-                                    </p>
-                                    <p class="text-xs text-gray-400 mt-1">
-                                        "depuis le premier relevé"
-                                    </p>
+                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">"Km parcourus"</p>
+                                    <p class="text-2xl font-extrabold text-gray-800">{format_km(km_parcourus)}</p>
+                                    <p class="text-xs text-gray-400 mt-1">"depuis le premier relevé"</p>
                                 </div>
                                 <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
-                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">
-                                        "Relevés"
-                                    </p>
-                                    <p class="text-2xl font-extrabold text-gray-800">
-                                        {total_entries}
-                                    </p>
-                                    <p class="text-xs text-gray-400 mt-1">
-                                        "enregistrés"
-                                    </p>
+                                    <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">"Relevés"</p>
+                                    <p class="text-2xl font-extrabold text-gray-800">{total_entries}</p>
+                                    <p class="text-xs text-gray-400 mt-1">"enregistrés"</p>
                                 </div>
                             </div>
 
-                            // Tableau avec scroll limité à 5 lignes
                             <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                                 <div class="overflow-y-auto max-h-[280px]">
                                     <table class="w-full text-sm">
                                         <thead class="sticky top-0 bg-gray-50 z-10">
                                             <tr class="border-b border-gray-100">
-                                                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                                    "Date"
-                                                </th>
-                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                                    "Compteur"
-                                                </th>
-                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                                    "Écart"
-                                                </th>
-                                                <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                                    "Source"
-                                                </th>
+                                                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Date"</th>
+                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Compteur"</th>
+                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Écart"</th>
+                                                <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Source"</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -148,21 +116,13 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                                 };
                                                 view! {
                                                     <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-100">
-                                                        <td class="px-4 py-3 text-gray-700">
-                                                            {entry.recorded_at.to_string()}
-                                                        </td>
-                                                        <td class="px-4 py-3 text-right font-semibold text-gray-900">
-                                                            {format_km(entry.value)}
-                                                        </td>
+                                                        <td class="px-4 py-3 text-gray-700">{entry.recorded_at.to_string()}</td>
+                                                        <td class="px-4 py-3 text-right font-semibold text-gray-900">{format_km(entry.value)}</td>
                                                         <td class="px-4 py-3 text-right text-gray-500">
-                                                            {ecart.map(|e| format!("+ {}", format_km(e)))
-                                                                  .unwrap_or("—".to_string())}
+                                                            {ecart.map(|e| format!("+ {}", format_km(e))).unwrap_or("—".to_string())}
                                                         </td>
                                                         <td class="px-4 py-3 text-center">
-                                                            <span class=format!(
-                                                                "text-xs font-medium px-2 py-0.5 rounded-full {}",
-                                                                source_label.1
-                                                            )>
+                                                            <span class=format!("text-xs font-medium px-2 py-0.5 rounded-full {}", source_label.1)>
                                                                 {source_label.0}
                                                             </span>
                                                         </td>
@@ -173,7 +133,6 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                     </table>
                                 </div>
                             </div>
-
                         </div>
                     }.into_view()
                 }}
@@ -190,8 +149,6 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
     }
 }
 
-// ─── Modal saisie ────────────────────────────────────────────────
-
 #[component]
 fn MileageModal(
     vehicle_id: ReadSignal<Option<Uuid>>,
@@ -206,11 +163,7 @@ fn MileageModal(
         let (vid, val, date) = (*vid, val.clone(), date.clone());
         async move {
             let token = get_token().unwrap_or_default();
-            let body = serde_json::json!({
-                "value": val.parse::<i32>().unwrap_or(0),
-                "recorded_at": date,
-                "source": "manual",
-            });
+            let body = serde_json::json!({ "value": val.parse::<i32>().unwrap_or(0), "recorded_at": date, "source": "manual" });
             match post_json(&format!("/api/vehicles/{}/mileage", vid), &token, &body).await {
                 Ok(_) => {
                     on_created.call(());
@@ -229,70 +182,39 @@ fn MileageModal(
     };
 
     view! {
-        <div
-            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm"
-            on:click=move |_| on_close.call(())
-        />
+        <div class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm" on:click=move |_| on_close.call(()) />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
             <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="text-xl font-bold text-gray-900">"Nouveau relevé"</h2>
-                        <p class="text-xs text-gray-400 mt-1">
-                            "Ce relevé sera appliqué à tous les contrats actifs."
-                        </p>
+                        <p class="text-xs text-gray-400 mt-1">"Ce relevé sera appliqué à tous les contrats actifs."</p>
                     </div>
-                    <button
-                        on:click=move |_| on_close.call(())
-                        class="text-gray-400 hover:text-gray-600 text-xl font-light"
-                    >
-                        "✕"
-                    </button>
+                    <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
                 </div>
-
                 <form on:submit=on_submit class="space-y-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 block">
-                            "Kilométrage au compteur"
-                        </label>
-                        <input
-                            type="number" min="0" required
-                            prop:value=value
+                        <label class="text-sm font-medium text-gray-700 block">"Kilométrage au compteur"</label>
+                        <input type="number" min="0" required prop:value=value
                             on:input=move |ev| set_value.set(event_target_value(&ev))
-                            placeholder="ex: 48500"
-                            class=input_class()
-                        />
+                            placeholder="ex: 48500" class=input_class() />
                     </div>
-
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 block">
-                            "Date du relevé"
-                        </label>
-                        <input
-                            type="date" required
-                            prop:value=recorded_at
+                        <label class="text-sm font-medium text-gray-700 block">"Date du relevé"</label>
+                        <input type="date" required prop:value=recorded_at
                             on:input=move |ev| set_recorded_at.set(event_target_value(&ev))
-                            class=input_class()
-                        />
+                            class=input_class() />
                     </div>
-
                     <Show when=move || !error.get().is_empty() fallback=|| ()>
                         <p class="text-sm text-center text-red-600">{move || error.get()}</p>
                     </Show>
-
                     <div class="flex gap-3 pt-2">
-                        <button
-                            type="button"
-                            on:click=move |_| on_close.call(())
-                            class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
-                        >
+                        <button type="button" on:click=move |_| on_close.call(())
+                            class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150">
                             "Annuler"
                         </button>
-                        <button
-                            type="submit"
-                            prop:disabled=move || submit.pending().get()
-                            class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
-                        >
+                        <button type="submit" prop:disabled=move || submit.pending().get()
+                            class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150">
                             {move || if submit.pending().get() { "Envoi..." } else { "Enregistrer" }}
                         </button>
                     </div>
@@ -301,8 +223,6 @@ fn MileageModal(
         </div>
     }
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────
 
 fn today_str() -> String {
     chrono::Local::now().format("%Y-%m-%d").to_string()
