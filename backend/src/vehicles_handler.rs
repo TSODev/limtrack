@@ -34,6 +34,10 @@ pub struct UpdateVehiclePayload {
     pub vin: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DeleteVehiclePayload {
+    pub plate_number: String,
+}
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
 #[derive(serde::Serialize)]
@@ -273,21 +277,27 @@ pub async fn update_vehicle(
 
 // ─── DELETE /vehicles/:id ────────────────────────────────────────
 
+// ─── DELETE /vehicles/:id ────────────────────────────────────────
+
 pub async fn delete_vehicle(
     AuthenticatedUser(user_id): AuthenticatedUser,
     Path(vehicle_id): Path<Uuid>,
     State(state): State<AppState>,
+    Json(payload): Json<DeleteVehiclePayload>,
 ) -> impl IntoResponse {
-    let access = sqlx::query_scalar!(
-        "SELECT role FROM public.vehicle_access
-         WHERE vehicle_id = $1 AND user_id = $2",
+    // 1. Vérifie le rôle
+    let access = sqlx::query!(
+        "SELECT va.role, v.plate_number
+         FROM public.vehicle_access va
+         JOIN public.vehicles v ON v.id = va.vehicle_id
+         WHERE va.vehicle_id = $1 AND va.user_id = $2",
         vehicle_id,
         user_id
     )
     .fetch_optional(&state.db)
     .await;
 
-    let role = match access {
+    let row = match access {
         Ok(Some(r)) => r,
         Ok(None) => {
             return err(
@@ -301,7 +311,7 @@ pub async fn delete_vehicle(
         }
     };
 
-    if role != "owner" {
+    if row.role != "owner" {
         return err(
             StatusCode::FORBIDDEN,
             "seul le propriétaire peut supprimer ce véhicule",
@@ -309,90 +319,22 @@ pub async fn delete_vehicle(
         .into_response();
     }
 
-    let result = sqlx::query!("DELETE FROM public.vehicles WHERE id = $1", vehicle_id)
-        .execute(&state.db)
-        .await;
-
-    match result {
-        Ok(_) => StatusCode::NO_CONTENT.into_response(),
-        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
-    }
-}
-
-// ─── POST /api/vehicles/:id/join ─────────────────────────────────
-// Permet à un utilisateur de rejoindre un véhicule via un code de partage
-
-pub async fn join_vehicle(
-    AuthenticatedUser(user_id): AuthenticatedUser,
-    Path(vehicle_id): Path<Uuid>,
-    State(state): State<AppState>,
-    Json(payload): Json<JoinVehiclePayload>,
-) -> impl IntoResponse {
-    // 1. Vérifie que le rôle est valide (pas owner — réservé au créateur)
-    if !matches!(payload.role.as_str(), "editor" | "viewer") {
+    // 2. Vérifie la plaque de confirmation
+    let plate_normalized = payload.plate_number.trim().to_uppercase();
+    if plate_normalized != row.plate_number {
         return err(
             StatusCode::UNPROCESSABLE_ENTITY,
-            "Rôle invalide — doit être 'editor' ou 'viewer'",
+            "La plaque d'immatriculation ne correspond pas",
         )
         .into_response();
     }
 
-    // 2. Vérifie que le véhicule existe
-    let vehicle_exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM public.vehicles WHERE id = $1)",
-        vehicle_id
-    )
-    .fetch_one(&state.db)
-    .await
-    .unwrap_or(Some(false))
-    .unwrap_or(false);
-
-    if !vehicle_exists {
-        return err(StatusCode::NOT_FOUND, "Véhicule introuvable").into_response();
-    }
-
-    // 3. Vérifie que l'utilisateur n'a pas déjà accès
-    let already_has_access = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM public.vehicle_access
-         WHERE vehicle_id = $1 AND user_id = $2)",
-        vehicle_id,
-        user_id
-    )
-    .fetch_one(&state.db)
-    .await
-    .unwrap_or(Some(false))
-    .unwrap_or(false);
-
-    if already_has_access {
-        return err(StatusCode::CONFLICT, "Vous avez déjà accès à ce véhicule").into_response();
-    }
-
-    // 4. Insertion dans vehicle_access
-    let result = sqlx::query!(
-        r#"
-        INSERT INTO public.vehicle_access (vehicle_id, user_id, role)
-        VALUES ($1, $2, $3)
-        "#,
-        vehicle_id,
-        user_id,
-        payload.role,
-    )
-    .execute(&state.db)
-    .await;
-
-    match result {
-        Ok(_) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({
-                "vehicle_id": vehicle_id,
-                "role": payload.role,
-            })),
-        )
-            .into_response(),
-        Err(e) => err(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("Erreur lors de l'ajout de l'accès : {}", e),
-        )
-        .into_response(),
+    // 3. Supprime — les cascades nettoient tout le reste
+    match sqlx::query!("DELETE FROM public.vehicles WHERE id = $1", vehicle_id)
+        .execute(&state.db)
+        .await
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
     }
 }

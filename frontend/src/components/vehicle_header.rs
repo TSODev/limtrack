@@ -4,8 +4,12 @@ use leptos::*;
 use wasm_bindgen::JsCast;
 
 #[component]
-pub fn VehicleHeader(vehicle: ReadSignal<Option<VehicleWithAccess>>) -> impl IntoView {
+pub fn VehicleHeader(
+    vehicle: ReadSignal<Option<VehicleWithAccess>>,
+    on_deleted: Callback<uuid::Uuid>,
+) -> impl IntoView {
     let (show_share_modal, set_show_share_modal) = create_signal(false);
+    let (show_delete_modal, set_show_delete_modal) = create_signal(false);
 
     let is_owner = create_memo(move |_| {
         vehicle
@@ -17,6 +21,12 @@ pub fn VehicleHeader(vehicle: ReadSignal<Option<VehicleWithAccess>>) -> impl Int
     view! {
         <Show when=move || vehicle.get().is_some() fallback=|| ()>
             {move || vehicle.get().map(|v| {
+                let vehicle_name       = format!("{} {}", v.make, v.model);
+                let vehicle_name_share = vehicle_name.clone();
+                let vehicle_name_del   = vehicle_name.clone();
+                let plate              = v.plate_number.clone();
+                let plate_display      = v.plate_number.clone();
+
                 let role_label = match v.my_role {
                     AccessRole::Owner  => ("Propriétaire", "bg-indigo-100 text-indigo-700"),
                     AccessRole::Editor => ("Éditeur",      "bg-amber-100 text-amber-700"),
@@ -38,7 +48,7 @@ pub fn VehicleHeader(vehicle: ReadSignal<Option<VehicleWithAccess>>) -> impl Int
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h2 class="text-lg font-bold text-gray-900">
-                                        {format!("{} {}", v.make, v.model)}
+                                        {vehicle_name.clone()}
                                     </h2>
                                     <span class=format!(
                                         "text-xs font-medium px-2 py-0.5 rounded-full {}",
@@ -48,23 +58,38 @@ pub fn VehicleHeader(vehicle: ReadSignal<Option<VehicleWithAccess>>) -> impl Int
                                     </span>
                                 </div>
                                 <p class="text-sm font-mono font-semibold text-indigo-600 tracking-widest mt-0.5">
-                                    {v.plate_number}
+                                    {plate_display}
                                 </p>
                             </div>
                         </div>
 
-                        // Bouton partage — owner uniquement
+                        // Boutons — owner uniquement
                         <Show when=move || is_owner.get() fallback=|| ()>
-                            <button
-                                on:click=move |_| set_show_share_modal.set(true)
-                                class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
-                            >
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" />
-                                </svg>
-                                "Partager"
-                            </button>
+                            <div class="flex items-center gap-2">
+                                // Bouton partage
+                                <button
+                                    on:click=move |_| set_show_share_modal.set(true)
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
+                                >
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" />
+                                    </svg>
+                                    "Partager"
+                                </button>
+
+                                // Bouton supprimer
+                                <button
+                                    on:click=move |_| set_show_delete_modal.set(true)
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
+                                >
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                    "Supprimer"
+                                </button>
+                            </div>
                         </Show>
                     </div>
 
@@ -72,13 +97,125 @@ pub fn VehicleHeader(vehicle: ReadSignal<Option<VehicleWithAccess>>) -> impl Int
                     <Show when=move || show_share_modal.get() fallback=|| ()>
                         <ShareModal
                             vehicle_id=v.id
-                            vehicle_name=format!("{} {}", v.make, v.model)
+                            vehicle_name=vehicle_name_share.clone()
                             on_close=Callback::new(move |_| set_show_share_modal.set(false))
+                        />
+                    </Show>
+
+                    // Modal de suppression
+                    <Show when=move || show_delete_modal.get() fallback=|| ()>
+                        <DeleteModal
+                            vehicle_id=v.id
+                            vehicle_name=vehicle_name_del.clone()
+                            plate_number=plate.clone()
+                            on_close=Callback::new(move |_| set_show_delete_modal.set(false))
+                            on_deleted=Callback::new(move |id| {
+                                set_show_delete_modal.set(false);
+                                on_deleted.call(id);
+                            })
                         />
                     </Show>
                 }
             })}
         </Show>
+    }
+}
+
+// ─── Modal de suppression ────────────────────────────────────────
+
+#[component]
+fn DeleteModal(
+    vehicle_id: uuid::Uuid,
+    vehicle_name: String,
+    plate_number: String,
+    on_close: Callback<()>,
+    on_deleted: Callback<uuid::Uuid>,
+) -> impl IntoView {
+    let (input_plate, set_input_plate) = create_signal(String::new());
+    let (error, set_error) = create_signal(String::new());
+
+    let plate_matches =
+        create_memo(move |_| input_plate.get().trim().to_uppercase() == plate_number);
+
+    let submit = create_action(move |_: &()| async move {
+        set_error.set(String::new());
+        let token = get_token().unwrap_or_default();
+        let body = serde_json::json!({
+            "plate_number": input_plate.get().trim().to_uppercase()
+        });
+
+        match delete_json(&format!("/api/vehicles/{}", vehicle_id), &token, &body).await {
+            Ok(_) => on_deleted.call(vehicle_id),
+            Err(e) => set_error.set(e),
+        }
+    });
+
+    view! {
+        <div
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm"
+            on:click=move |_| on_close.call(())
+        />
+        <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6">
+
+                // En-tête
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">"Supprimer le véhicule"</h2>
+                        <p class="text-sm text-gray-500 mt-1">{vehicle_name}</p>
+                    </div>
+                    <button
+                        on:click=move |_| on_close.call(())
+                        class="text-gray-400 hover:text-gray-600 text-xl font-light"
+                    >"✕"</button>
+                </div>
+
+                // Avertissement
+                <div class="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
+                    <p class="text-sm font-semibold text-red-700">"⚠ Action irréversible"</p>
+                    <p class="text-xs text-red-600">
+                        "La suppression entraînera la perte définitive de tous les contrats, relevés kilométriques et accès associés à ce véhicule."
+                    </p>
+                </div>
+
+                // Champ de confirmation
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 block">
+                        "Saisissez la plaque d'immatriculation pour confirmer :"
+                    </label>
+                    <input
+                        type="text"
+                        prop:value=input_plate
+                        on:input=move |ev| set_input_plate.set(event_target_value(&ev))
+                        placeholder="ex: AB-123-CD"
+                        class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm font-mono tracking-widest text-center transition duration-150"
+                    />
+                </div>
+
+                <Show when=move || !error.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-center text-red-600">{move || error.get()}</p>
+                </Show>
+
+                // Actions
+                <div class="flex gap-3">
+                    <button
+                        type="button"
+                        on:click=move |_| on_close.call(())
+                        class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
+                    >
+                        "Annuler"
+                    </button>
+                    <button
+                        type="button"
+                        on:click=move |_| submit.dispatch(())
+                        prop:disabled=move || !plate_matches.get() || submit.pending().get()
+                        class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150"
+                    >
+                        {move || if submit.pending().get() { "Suppression..." } else { "Supprimer définitivement" }}
+                    </button>
+                </div>
+            </div>
+        </div>
     }
 }
 
@@ -140,7 +277,6 @@ fn ShareModal(
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
             <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6">
 
-                // En-tête
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="text-xl font-bold text-gray-900">"Partager le véhicule"</h2>
@@ -152,7 +288,6 @@ fn ShareModal(
                     >"✕"</button>
                 </div>
 
-                // Choix du rôle
                 <div class="space-y-3">
                     <p class="text-sm font-medium text-gray-700">"Rôle accordé :"</p>
                     <div class="grid grid-cols-2 gap-3">
@@ -163,17 +298,12 @@ fn ShareModal(
                             }
                             class=move || format!(
                                 "flex flex-col items-start p-4 rounded-xl border-2 transition duration-150 {}",
-                                if role.get() == "editor" {
-                                    "border-indigo-500 bg-indigo-50"
-                                } else {
-                                    "border-gray-200 hover:border-gray-300"
-                                }
+                                if role.get() == "editor" { "border-indigo-500 bg-indigo-50" }
+                                else { "border-gray-200 hover:border-gray-300" }
                             )
                         >
                             <span class="text-sm font-semibold text-gray-800">"Éditeur"</span>
-                            <span class="text-xs text-gray-500 mt-1">
-                                "Peut saisir des relevés kilométriques"
-                            </span>
+                            <span class="text-xs text-gray-500 mt-1">"Peut saisir des relevés kilométriques"</span>
                         </button>
                         <button
                             on:click=move |_| {
@@ -182,22 +312,16 @@ fn ShareModal(
                             }
                             class=move || format!(
                                 "flex flex-col items-start p-4 rounded-xl border-2 transition duration-150 {}",
-                                if role.get() == "viewer" {
-                                    "border-indigo-500 bg-indigo-50"
-                                } else {
-                                    "border-gray-200 hover:border-gray-300"
-                                }
+                                if role.get() == "viewer" { "border-indigo-500 bg-indigo-50" }
+                                else { "border-gray-200 hover:border-gray-300" }
                             )
                         >
                             <span class="text-sm font-semibold text-gray-800">"Lecteur"</span>
-                            <span class="text-xs text-gray-500 mt-1">
-                                "Consultation uniquement"
-                            </span>
+                            <span class="text-xs text-gray-500 mt-1">"Consultation uniquement"</span>
                         </button>
                     </div>
                 </div>
 
-                // Bouton générer
                 <Show when=move || share_code.get().is_none() fallback=|| ()>
                     <button
                         on:click=move |_| generate.dispatch(role.get())
@@ -208,12 +332,10 @@ fn ShareModal(
                     </button>
                 </Show>
 
-                // Erreur
                 <Show when=move || !error.get().is_empty() fallback=|| ()>
                     <p class="text-sm text-center text-red-600">{move || error.get()}</p>
                 </Show>
 
-                // Code généré
                 <Show when=move || share_code.get().is_some() fallback=|| ()>
                     {move || share_code.get().map(|sc| view! {
                         <div class="space-y-3">
@@ -234,11 +356,8 @@ fn ShareModal(
                                     on:click=copy_to_clipboard
                                     class=move || format!(
                                         "shrink-0 px-4 py-3 rounded-lg text-sm font-medium transition duration-150 {}",
-                                        if copied.get() {
-                                            "bg-green-100 text-green-700"
-                                        } else {
-                                            "bg-indigo-600 text-white hover:bg-indigo-700"
-                                        }
+                                        if copied.get() { "bg-green-100 text-green-700" }
+                                        else { "bg-indigo-600 text-white hover:bg-indigo-700" }
                                     )
                                 >
                                     {move || if copied.get() { "Copié ✓" } else { "Copier" }}
@@ -251,7 +370,6 @@ fn ShareModal(
                     })}
                 </Show>
 
-                // Bouton fermer
                 <button
                     on:click=move |_| on_close.call(())
                     class="w-full py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
@@ -296,6 +414,42 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<S
                 .await
                 .map_err(|e| format!("{:?}", e))?;
         serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
+    } else {
+        let json =
+            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+                .await
+                .ok();
+        let msg = json
+            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
+            .and_then(|v| {
+                v.get("error")
+                    .and_then(|e| e.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
+        Err(msg)
+    }
+}
+
+async fn delete_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("DELETE");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 204 {
+        Ok(())
     } else {
         let json =
             wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)

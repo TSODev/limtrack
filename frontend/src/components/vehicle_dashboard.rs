@@ -17,13 +17,16 @@ pub enum DashboardTab {
 }
 
 #[component]
-pub fn VehicleDashboard(selected_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
+pub fn VehicleDashboard(
+    selected_id: ReadSignal<Option<Uuid>>,
+    set_selected_id: WriteSignal<Option<Uuid>>,
+    set_vehicles: WriteSignal<Vec<common::Vehicle>>,
+) -> impl IntoView {
     let (tab, set_tab) = create_signal(DashboardTab::Overview);
     let (vehicle, set_vehicle) = create_signal(Option::<VehicleWithAccess>::None);
     let (loading, set_loading) = create_signal(false);
     let (error, set_error) = create_signal(String::new());
 
-    // Signaux de permission dérivés du rôle
     let can_edit = create_memo(move |_| {
         vehicle
             .get()
@@ -69,6 +72,15 @@ pub fn VehicleDashboard(selected_id: ReadSignal<Option<Uuid>>) -> impl IntoView 
         });
     });
 
+    // Callback appelé après suppression du véhicule
+    let on_deleted = Callback::new(move |deleted_id: Uuid| {
+        // Retire le véhicule de la liste
+        set_vehicles.update(|list| list.retain(|v| v.id != deleted_id));
+        // Réinitialise la sélection et le dashboard
+        set_selected_id.set(None);
+        set_vehicle.set(None);
+    });
+
     view! {
         <div class="flex flex-col h-full bg-gray-50 rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <Show
@@ -89,7 +101,7 @@ pub fn VehicleDashboard(selected_id: ReadSignal<Option<Uuid>>) -> impl IntoView 
                 }
             >
                 // Bandeau véhicule
-                <VehicleHeader vehicle=vehicle />
+                <VehicleHeader vehicle=vehicle on_deleted=on_deleted />
 
                 // Chargement / erreur
                 <Show when=move || loading.get() fallback=|| ()>
