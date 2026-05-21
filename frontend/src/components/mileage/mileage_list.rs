@@ -74,7 +74,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
 
                     view! {
                         <div class="flex flex-col gap-4">
-                            <div class="grid grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
                                     <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">"Compteur actuel"</p>
                                     <p class="text-2xl font-extrabold text-indigo-600">{format_km(last.value)}</p>
@@ -97,10 +97,10 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                     <table class="w-full text-sm">
                                         <thead class="sticky top-0 bg-gray-50 z-10">
                                             <tr class="border-b border-gray-100">
-                                                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Date"</th>
-                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Compteur"</th>
-                                                <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Écart"</th>
-                                                <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Source"</th>
+                                                <th class="text-left px-3 md:px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Date"</th>
+                                                <th class="text-right px-3 md:px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Compteur"</th>
+                                                <th class="hidden sm:table-cell text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Écart"</th>
+                                                <th class="hidden sm:table-cell text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Source"</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -116,12 +116,12 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                                 };
                                                 view! {
                                                     <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-100">
-                                                        <td class="px-4 py-3 text-gray-700">{entry.recorded_at.to_string()}</td>
-                                                        <td class="px-4 py-3 text-right font-semibold text-gray-900">{format_km(entry.value)}</td>
-                                                        <td class="px-4 py-3 text-right text-gray-500">
+                                                        <td class="px-3 md:px-4 py-3 text-gray-700 text-xs md:text-sm">{entry.recorded_at.to_string()}</td>
+                                                        <td class="px-3 md:px-4 py-3 text-right font-semibold text-gray-900 text-xs md:text-sm">{format_km(entry.value)}</td>
+                                                        <td class="hidden sm:table-cell px-4 py-3 text-right text-gray-500 text-sm">
                                                             {ecart.map(|e| format!("+ {}", format_km(e))).unwrap_or("—".to_string())}
                                                         </td>
-                                                        <td class="px-4 py-3 text-center">
+                                                        <td class="hidden sm:table-cell px-4 py-3 text-center">
                                                             <span class=format!("text-xs font-medium px-2 py-0.5 rounded-full {}", source_label.1)>
                                                                 {source_label.0}
                                                             </span>

@@ -11,7 +11,7 @@ pub struct UserProfile {
 }
 
 // --- MODÈLE VÉHICULE ---
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Vehicle {
     pub id: Uuid,
     pub owner_id: Uuid,

@@ -101,7 +101,7 @@ pub fn ProfilePage() -> impl IntoView {
     view! {
         <div class="min-h-screen bg-gray-100">
             <nav class="bg-white shadow-sm border-b border-gray-200">
-                <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                     <A href="/mainpage"
                         class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150"
                     >
@@ -115,7 +115,7 @@ pub fn ProfilePage() -> impl IntoView {
                 </div>
             </nav>
 
-            <div class="max-w-4xl mx-auto px-4 py-8 space-y-8">
+            <div class="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-8">
                 <Show when=move || loading.get() fallback=|| ()>
                     <div class="flex justify-center py-12">
                         <p class="text-gray-400 animate-pulse">"Chargement..."</p>
@@ -150,9 +150,9 @@ pub fn ProfilePage() -> impl IntoView {
 #[component]
 fn ProfileInfoSection(profile: UserProfile) -> impl IntoView {
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
             <h2 class="text-lg font-bold text-gray-900">"Mes informations"</h2>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="bg-gray-50 rounded-lg p-4">
                     <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">"Nom d'utilisateur"</p>
                     <p class="text-sm font-semibold text-gray-800">{profile.username}</p>
@@ -218,7 +218,7 @@ fn ChangePasswordSection() -> impl IntoView {
     };
 
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
             <h2 class="text-lg font-bold text-gray-900">"Modifier le mot de passe"</h2>
             <form on:submit=on_submit class="space-y-4">
                 <div class="space-y-1">
@@ -227,7 +227,7 @@ fn ChangePasswordSection() -> impl IntoView {
                         on:input=move |ev| set_current.set(event_target_value(&ev))
                         class=input_class() />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-gray-700 block">"Nouveau mot de passe"</label>
                         <input type="password" required prop:value=new_pass
@@ -316,7 +316,7 @@ fn PreferencesSection(
     };
 
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4 md:space-y-6">
             <div>
                 <h2 class="text-lg font-bold text-gray-900">"Préférences de notification"</h2>
                 <p class="text-sm text-gray-500 mt-1">
@@ -398,7 +398,7 @@ fn PreferencesSection(
 fn SharesSection(shares: ProfileShares, on_change: impl Fn() + 'static + Copy) -> impl IntoView {
     view! {
         <div class="space-y-6">
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
                 <h2 class="text-lg font-bold text-gray-900">"Mes véhicules partagés"</h2>
                 {if shares.owned.is_empty() {
                     view! {
@@ -411,7 +411,7 @@ fn SharesSection(shares: ProfileShares, on_change: impl Fn() + 'static + Copy) -
                 }}
             </div>
 
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
                 <h2 class="text-lg font-bold text-gray-900">"Véhicules partagés avec moi"</h2>
                 {if shares.shared_with_me.is_empty() {
                     view! {

@@ -75,11 +75,11 @@ pub fn LoginPage() -> impl IntoView {
         <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
 
             // Carte du formulaire : fond blanc, surélevée avec une ombre, coins arrondis
-            <div class="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg border border-gray-100">
+            <div class="max-w-md w-full space-y-6 md:space-y-8 p-6 md:p-8 bg-white rounded-xl shadow-lg border border-gray-100">
 
                 // En-tête (Titre)
                 <div class="text-center">
-                    <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
                         "Connexion"
                     </h2>
                     <p class="mt-2 text-sm text-gray-600">

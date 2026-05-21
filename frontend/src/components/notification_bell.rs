@@ -234,7 +234,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                 />
 
                 // Panneau
-                <div class="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
+                <div class="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 sm:w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
                     <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-gray-800">"Notifications"</h3>
                         <Show when=move || !alerts.get().is_empty() fallback=|| ()>

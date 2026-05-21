@@ -29,7 +29,7 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
     });
 
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 flex flex-col gap-3 md:gap-4">
 
             <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                 "Kilométrage"
@@ -72,7 +72,7 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                     view! {
                         <div class="space-y-4">
                             <div>
-                                <p class="text-3xl font-extrabold text-gray-900 tracking-tight">
+                                <p class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
                                     {format_km(last.value)}
                                 </p>
                                 <p class="text-xs text-gray-400 mt-1">

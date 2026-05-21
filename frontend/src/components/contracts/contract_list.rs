@@ -151,7 +151,7 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
     };
 
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4 shadow-sm">
+        <div class="bg-white rounded-xl border border-gray-100 p-3 md:p-5 space-y-3 md:space-y-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <span class="text-sm font-bold text-gray-800">"Contrat LOA"</span>
                 <span class=format!("text-xs font-medium px-2.5 py-1 rounded-full {}", badge_color)>{badge_label}</span>
@@ -166,7 +166,7 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                 </div>
                 <p class="text-right text-xs text-gray-400 mt-1">{pct}"% utilisé"</p>
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 gap-2 md:gap-3">
                 <div class="bg-gray-50 rounded-lg p-3 text-center">
                     <p class="text-xs text-gray-400 mb-1">"Restant"</p>
                     <p class="text-sm font-bold text-gray-800">{format_km(contract.km_remaining)}</p>
@@ -216,7 +216,7 @@ fn ContractInsuranceCard(contract: ContractInsurance) -> impl IntoView {
     };
 
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 p-5 space-y-4 shadow-sm">
+        <div class="bg-white rounded-xl border border-gray-100 p-3 md:p-5 space-y-3 md:space-y-4 shadow-sm">
             <div class="flex items-center justify-between">
                 <div>
                     <span class="text-sm font-bold text-gray-800">"Assurance"</span>
@@ -236,7 +236,7 @@ fn ContractInsuranceCard(contract: ContractInsurance) -> impl IntoView {
                 </div>
                 <p class="text-right text-xs text-gray-400 mt-1">{pct}"% utilisé"</p>
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 gap-2 md:gap-3">
                 <div class="bg-gray-50 rounded-lg p-3 text-center">
                     <p class="text-xs text-gray-400 mb-1">"Restant"</p>
                     <p class="text-sm font-bold text-gray-800">{format_km(contract.km_remaining)}</p>
@@ -427,7 +427,7 @@ fn Modal(title: &'static str, on_close: Callback<()>, children: Children) -> imp
     view! {
         <div class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm" on:click=move |_| on_close.call(()) />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-5 md:p-8 space-y-4 md:space-y-6">
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-bold text-gray-900">{title}</h2>
                     <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
