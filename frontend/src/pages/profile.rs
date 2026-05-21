@@ -1,5 +1,5 @@
 // src/pages/profile.rs
-use crate::components::ui::{format_km, get_token, input_class};
+use crate::components::ui::{get_token, input_class};
 use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,13 @@ struct ProfileShares {
     shared_with_me: Vec<SharedVehicle>,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+struct UserPreferences {
+    notif_days_before: i32,
+    notif_km_percent: i32,
+    updated_once: bool,
+}
+
 // ─── Page principale ─────────────────────────────────────────────
 
 #[component]
@@ -53,9 +60,9 @@ pub fn ProfilePage() -> impl IntoView {
     let navigate = use_navigate();
     let (profile, set_profile) = create_signal(Option::<UserProfile>::None);
     let (shares, set_shares) = create_signal(Option::<ProfileShares>::None);
+    let (preferences, set_preferences) = create_signal(Option::<UserPreferences>::None);
     let (loading, set_loading) = create_signal(true);
 
-    // Charge les données au montage
     create_effect(move |_| {
         let token = get_token();
         let Some(token) = token else {
@@ -66,12 +73,16 @@ pub fn ProfilePage() -> impl IntoView {
         spawn_local(async move {
             let p = fetch_json::<UserProfile>("/api/profile", &token).await;
             let s = fetch_json::<ProfileShares>("/api/profile/shares", &token).await;
+            let pref = fetch_json::<UserPreferences>("/api/profile/preferences", &token).await;
 
             if let Ok(p) = p {
                 set_profile.set(Some(p));
             }
             if let Ok(s) = s {
                 set_shares.set(Some(s));
+            }
+            if let Ok(pref) = pref {
+                set_preferences.set(Some(pref));
             }
             set_loading.set(false);
         });
@@ -89,22 +100,22 @@ pub fn ProfilePage() -> impl IntoView {
 
     view! {
         <div class="min-h-screen bg-gray-100">
-            // Navbar
             <nav class="bg-white shadow-sm border-b border-gray-200">
                 <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150">
+                    <A href="/mainpage"
+                        class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150"
+                    >
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                         </svg>
                         "Retour"
                     </A>
                     <span class="text-xl font-bold text-indigo-600">"odo.io"</span>
-                    <div class="w-20" /> // spacer
+                    <div class="w-20" />
                 </div>
             </nav>
 
             <div class="max-w-4xl mx-auto px-4 py-8 space-y-8">
-
                 <Show when=move || loading.get() fallback=|| ()>
                     <div class="flex justify-center py-12">
                         <p class="text-gray-400 animate-pulse">"Chargement..."</p>
@@ -112,20 +123,21 @@ pub fn ProfilePage() -> impl IntoView {
                 </Show>
 
                 <Show when=move || !loading.get() fallback=|| ()>
-                    // Section : Mes informations
                     {move || profile.get().map(|p| view! {
                         <ProfileInfoSection profile=p />
                     })}
 
-                    // Section : Modifier le mot de passe
                     <ChangePasswordSection />
 
-                    // Section : Mes partages
-                    {move || shares.get().map(|s| view! {
-                        <SharesSection
-                            shares=s
-                            on_change=reload_shares
+                    {move || preferences.get().map(|pref| view! {
+                        <PreferencesSection
+                            preferences=pref
+                            on_saved=Callback::new(move |updated| set_preferences.set(Some(updated)))
                         />
+                    })}
+
+                    {move || shares.get().map(|s| view! {
+                        <SharesSection shares=s on_change=reload_shares />
                     })}
                 </Show>
             </div>
@@ -184,7 +196,7 @@ fn ChangePasswordSection() -> impl IntoView {
                 let token = get_token().unwrap_or_default();
                 let body = serde_json::json!({
                     "current_password": current,
-                    "new_password": new_pass,
+                    "new_password":     new_pass,
                 });
 
                 match post_json("/api/profile/password", &token, &body).await {
@@ -230,14 +242,12 @@ fn ChangePasswordSection() -> impl IntoView {
                             class=input_class() />
                     </div>
                 </div>
-
                 <Show when=move || !error.get().is_empty() fallback=|| ()>
                     <p class="text-sm text-red-600">{move || error.get()}</p>
                 </Show>
                 <Show when=move || success.get() fallback=|| ()>
                     <p class="text-sm text-green-600 font-medium">"Mot de passe modifié avec succès !"</p>
                 </Show>
-
                 <button
                     type="submit"
                     prop:disabled=move || submit.pending().get()
@@ -250,13 +260,144 @@ fn ChangePasswordSection() -> impl IntoView {
     }
 }
 
+// ─── Section Préférences ──────────────────────────────────────────
+
+#[component]
+fn PreferencesSection(
+    preferences: UserPreferences,
+    on_saved: Callback<UserPreferences>,
+) -> impl IntoView {
+    let (days, set_days) = create_signal(preferences.notif_days_before.to_string());
+    let (percent, set_percent) = create_signal(preferences.notif_km_percent.to_string());
+    let (error, set_error) = create_signal(String::new());
+    let (success, set_success) = create_signal(false);
+
+    let submit = create_action(move |(days, percent): &(String, String)| {
+        let (days, percent) = (days.clone(), percent.clone());
+        async move {
+            set_error.set(String::new());
+            set_success.set(false);
+
+            let days_val = days.parse::<i32>().unwrap_or(0);
+            let percent_val = percent.parse::<i32>().unwrap_or(0);
+
+            if days_val < 1 || days_val > 365 {
+                set_error.set("Les jours doivent être entre 1 et 365.".to_string());
+                return;
+            }
+            if percent_val < 1 || percent_val > 100 {
+                set_error.set("Le pourcentage doit être entre 1 et 100.".to_string());
+                return;
+            }
+
+            let token = get_token().unwrap_or_default();
+            let body = serde_json::json!({
+                "notif_days_before": days_val,
+                "notif_km_percent":  percent_val,
+            });
+
+            match put_json("/api/profile/preferences", &token, &body).await {
+                Ok(_) => {
+                    set_success.set(true);
+                    on_saved.call(UserPreferences {
+                        notif_days_before: days_val,
+                        notif_km_percent: percent_val,
+                        updated_once: true,
+                    });
+                }
+                Err(e) => set_error.set(e),
+            }
+        }
+    });
+
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        submit.dispatch((days.get(), percent.get()));
+    };
+
+    view! {
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">"Préférences de notification"</h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    "Définissez les seuils à partir desquels vous souhaitez être alerté."
+                </p>
+            </div>
+
+            <form on:submit=on_submit class="space-y-5">
+                // Seuil jours
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 block">
+                        "Alerter quand l'échéance est dans moins de "
+                        <span class="text-indigo-600 font-bold">{move || days.get()}</span>
+                        " jours"
+                    </label>
+                    <div class="flex items-center gap-4">
+                        <input
+                            type="range" min="1" max="180" step="1"
+                            prop:value=days
+                            on:input=move |ev| set_days.set(event_target_value(&ev))
+                            class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                        <input
+                            type="number" min="1" max="180"
+                            prop:value=days
+                            on:input=move |ev| set_days.set(event_target_value(&ev))
+                            class="w-20 px-2 py-1.5 border border-gray-300 rounded-md text-sm text-center focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <p class="text-xs text-gray-400">"Par défaut : 30 jours"</p>
+                </div>
+
+                // Seuil kilométrage
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-700 block">
+                        "Alerter quand "
+                        <span class="text-indigo-600 font-bold">{move || percent.get()}</span>
+                        "% du kilométrage autorisé est atteint"
+                    </label>
+                    <div class="flex items-center gap-4">
+                        <input
+                            type="range" min="1" max="100" step="1"
+                            prop:value=percent
+                            on:input=move |ev| set_percent.set(event_target_value(&ev))
+                            class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                        <input
+                            type="number" min="1" max="100"
+                            prop:value=percent
+                            on:input=move |ev| set_percent.set(event_target_value(&ev))
+                            class="w-20 px-2 py-1.5 border border-gray-300 rounded-md text-sm text-center focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <p class="text-xs text-gray-400">"Par défaut : 80%"</p>
+                </div>
+
+                <Show when=move || !error.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-red-600">{move || error.get()}</p>
+                </Show>
+                <Show when=move || success.get() fallback=|| ()>
+                    <p class="text-sm text-green-600 font-medium">"Préférences enregistrées !"</p>
+                </Show>
+
+                <button
+                    type="submit"
+                    prop:disabled=move || submit.pending().get()
+                    class="px-6 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+                >
+                    {move || if submit.pending().get() { "Enregistrement..." } else { "Enregistrer" }}
+                </button>
+            </form>
+        </div>
+    }
+}
+
 // ─── Section Partages ─────────────────────────────────────────────
 
 #[component]
 fn SharesSection(shares: ProfileShares, on_change: impl Fn() + 'static + Copy) -> impl IntoView {
     view! {
         <div class="space-y-6">
-            // Véhicules que je possède
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
                 <h2 class="text-lg font-bold text-gray-900">"Mes véhicules partagés"</h2>
                 {if shares.owned.is_empty() {
@@ -270,7 +411,6 @@ fn SharesSection(shares: ProfileShares, on_change: impl Fn() + 'static + Copy) -
                 }}
             </div>
 
-            // Véhicules partagés avec moi
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
                 <h2 class="text-lg font-bold text-gray-900">"Véhicules partagés avec moi"</h2>
                 {if shares.shared_with_me.is_empty() {
@@ -279,7 +419,10 @@ fn SharesSection(shares: ProfileShares, on_change: impl Fn() + 'static + Copy) -
                     }.into_view()
                 } else {
                     shares.shared_with_me.into_iter().map(|v| view! {
-                        <SharedVehicleCard vehicle=v on_leave=Callback::new(move |_| on_change())/>
+                        <SharedVehicleCard
+                            vehicle=v
+                            on_leave=Callback::new(move |_| on_change())
+                        />
                     }).collect_view()
                 }}
             </div>
@@ -296,7 +439,6 @@ fn OwnedVehicleCard(
 ) -> impl IntoView {
     view! {
         <div class="border border-gray-100 rounded-xl p-4 space-y-3">
-            // En-tête véhicule
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
                     <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -312,7 +454,6 @@ fn OwnedVehicleCard(
                 </div>
             </div>
 
-            // Liste des accès
             {if vehicle.accesses.is_empty() {
                 view! {
                     <p class="text-xs text-gray-400 italic pl-11">"Aucun utilisateur partagé."</p>
@@ -329,7 +470,10 @@ fn OwnedVehicleCard(
                         <div class="flex items-center justify-between pl-11 py-1">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm text-gray-700">{user.username}</span>
-                                <span class=format!("text-xs px-2 py-0.5 rounded-full font-medium {}", role_label.1)>
+                                <span class=format!(
+                                    "text-xs px-2 py-0.5 rounded-full font-medium {}",
+                                    role_label.1
+                                )>
                                     {role_label.0}
                                 </span>
                             </div>
@@ -358,10 +502,7 @@ fn OwnedVehicleCard(
 // ─── Carte véhicule partagé avec moi ─────────────────────────────
 
 #[component]
-fn SharedVehicleCard(
-    vehicle: SharedVehicle,
-    on_leave: Callback<()>, // <-- Callback au lieu de impl Fn()
-) -> impl IntoView {
+fn SharedVehicleCard(vehicle: SharedVehicle, on_leave: Callback<()>) -> impl IntoView {
     let vehicle_id = vehicle.vehicle_id;
     let role_label = match vehicle.role.as_str() {
         "editor" => ("Éditeur", "bg-amber-100 text-amber-700"),
@@ -369,42 +510,45 @@ fn SharedVehicleCard(
     };
 
     view! {
-            <div class="flex items-center justify-between border border-gray-100 rounded-xl p-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-bold text-gray-800">
-                            {format!("{} {}", vehicle.make, vehicle.model)}
-                        </p>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <p class="text-xs font-mono text-indigo-600">{vehicle.plate_number}</p>
-                            <span class=format!("text-xs px-2 py-0.5 rounded-full font-medium {}", role_label.1)>
-                                {role_label.0}
-                            </span>
-                        </div>
+        <div class="flex items-center justify-between border border-gray-100 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-gray-800">
+                        {format!("{} {}", vehicle.make, vehicle.model)}
+                    </p>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <p class="text-xs font-mono text-indigo-600">{vehicle.plate_number}</p>
+                        <span class=format!(
+                            "text-xs px-2 py-0.5 rounded-full font-medium {}",
+                            role_label.1
+                        )>
+                            {role_label.0}
+                        </span>
                     </div>
                 </div>
-                <button
-    on:click=move |_| {
-        spawn_local(async move {
-            let token = get_token().unwrap_or_default();
-            let url = format!("/api/vehicles/{}/leave", vehicle_id);
-            if delete_request(&url, &token).await.is_ok() {
-                on_leave.call(());  // <-- .call(()) au lieu de on_leave()
-            }
-        });
-    }
-                    class="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition duration-150"
-                >
-                    "Quitter"
-                </button>
             </div>
-        }
+            <button
+                on:click=move |_| {
+                    spawn_local(async move {
+                        let token = get_token().unwrap_or_default();
+                        let url   = format!("/api/vehicles/{}/leave", vehicle_id);
+                        if delete_request(&url, &token).await.is_ok() {
+                            on_leave.call(());
+                        }
+                    });
+                }
+                class="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition duration-150"
+            >
+                "Quitter"
+            </button>
+        </div>
+    }
 }
 
 // ─── Helpers réseau ───────────────────────────────────────────────
@@ -440,6 +584,42 @@ async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
 async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
     let mut opts = web_sys::RequestInit::new();
     opts.method("POST");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 200 {
+        Ok(())
+    } else {
+        let json =
+            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+                .await
+                .ok();
+        let msg = json
+            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
+            .and_then(|v| {
+                v.get("error")
+                    .and_then(|e| e.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
+        Err(msg)
+    }
+}
+
+async fn put_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("PUT");
     let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
     headers
         .set("Authorization", &format!("Bearer {}", token))

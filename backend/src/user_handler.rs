@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::auth::{AuthenticatedUser, Claims};
 use crate::state::AppState;
+use common::{UpdatePreferencesPayload, UserPreferences};
 
 // ─── Payloads ────────────────────────────────────────────────────
 
@@ -282,13 +283,104 @@ pub async fn change_password(
     }
 }
 
+// ─── GET /api/profile/preferences ────────────────────────────────
+
+pub async fn get_preferences(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let prefs = sqlx::query!(
+        "SELECT notif_days_before, notif_km_percent, updated_once
+         FROM public.user_preferences WHERE user_id = $1",
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    match prefs {
+        Ok(Some(p)) => (
+            StatusCode::OK,
+            Json(UserPreferences {
+                notif_days_before: p.notif_days_before,
+                notif_km_percent: p.notif_km_percent,
+                updated_once: p.updated_once,
+            }),
+        )
+            .into_response(),
+        // Pas encore de préférences → retourne les valeurs par défaut
+        Ok(None) => (
+            StatusCode::OK,
+            Json(UserPreferences {
+                notif_days_before: 30,
+                notif_km_percent: 80,
+                updated_once: false,
+            }),
+        )
+            .into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
+}
+
+// ─── PUT /api/profile/preferences ────────────────────────────────
+
+pub async fn update_preferences(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdatePreferencesPayload>,
+) -> impl IntoResponse {
+    // Validation
+    if payload.notif_days_before < 1 || payload.notif_days_before > 365 {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "notif_days_before doit être entre 1 et 365",
+        )
+        .into_response();
+    }
+    if payload.notif_km_percent < 1 || payload.notif_km_percent > 100 {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "notif_km_percent doit être entre 1 et 100",
+        )
+        .into_response();
+    }
+
+    // UPSERT — crée ou met à jour
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO public.user_preferences (user_id, notif_days_before, notif_km_percent, updated_once)
+        VALUES ($1, $2, $3, true)
+        ON CONFLICT (user_id) DO UPDATE SET
+            notif_days_before = EXCLUDED.notif_days_before,
+            notif_km_percent  = EXCLUDED.notif_km_percent,
+            updated_once      = true
+        "#,
+        user_id,
+        payload.notif_days_before,
+        payload.notif_km_percent,
+    )
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(UserPreferences {
+                notif_days_before: payload.notif_days_before,
+                notif_km_percent: payload.notif_km_percent,
+                updated_once: true,
+            }),
+        )
+            .into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur mise à jour").into_response(),
+    }
+}
+
 // ─── GET /api/profile/shares ─────────────────────────────────────
 
 pub async fn get_shares(
     AuthenticatedUser(user_id): AuthenticatedUser,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    // 1. Véhicules que je possède — récupère séparément les accès partagés
     let owned_vehicles = sqlx::query!(
         r#"
         SELECT v.id AS vehicle_id, v.make, v.model, v.plate_number
@@ -311,7 +403,6 @@ pub async fn get_shares(
         }
     };
 
-    // Pour chaque véhicule possédé, récupère les utilisateurs ayant accès
     let mut owned: Vec<OwnedVehicleAccesses> = Vec::new();
     for v in owned_vehicles {
         let accesses_rows = sqlx::query!(
@@ -349,7 +440,6 @@ pub async fn get_shares(
         });
     }
 
-    // 2. Véhicules partagés avec moi
     let shared_rows = sqlx::query!(
         r#"
         SELECT v.id AS vehicle_id, v.make, v.model, v.plate_number, va.role
@@ -398,7 +488,6 @@ pub async fn revoke_access(
     Path((vehicle_id, target_user_id)): Path<(Uuid, Uuid)>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    // Vérifie que le demandeur est owner
     let role = sqlx::query_scalar!(
         "SELECT role FROM public.vehicle_access WHERE vehicle_id = $1 AND user_id = $2",
         vehicle_id,
@@ -424,7 +513,6 @@ pub async fn revoke_access(
         }
     }
 
-    // Ne peut pas révoquer le propriétaire
     if target_user_id == requester_id {
         return err(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -439,7 +527,8 @@ pub async fn revoke_access(
         target_user_id,
     )
     .execute(&state.db)
-    .await {
+    .await
+    {
         Ok(r) if r.rows_affected() == 0 => {
             err(StatusCode::NOT_FOUND, "Accès introuvable").into_response()
         }

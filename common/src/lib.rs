@@ -201,3 +201,16 @@ pub struct CreateShareCodePayload {
 pub struct UseShareCodePayload {
     pub code: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserPreferences {
+    pub notif_days_before: i32,
+    pub notif_km_percent: i32,
+    pub updated_once: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdatePreferencesPayload {
+    pub notif_days_before: i32,
+    pub notif_km_percent: i32,
+}

@@ -13,7 +13,15 @@ use crate::mileage_handler::{create_mileage, list_mileage};
 use crate::share_handler::{create_share_code, join_with_code};
 use crate::state::AppState;
 use crate::user_handler::{
-    change_password, get_profile, get_shares, leave_vehicle, login, register, revoke_access,
+    change_password,
+    get_preferences,
+    get_profile,
+    get_shares,
+    leave_vehicle,
+    login,
+    register,
+    revoke_access,
+    update_preferences, // <-- nouveaux
 };
 use crate::vehicles_handler::{
     create_vehicle, delete_vehicle, get_vehicle, join_vehicle, list_vehicles, update_vehicle,
@@ -84,6 +92,10 @@ async fn main() {
         .route("/api/profile", get(get_profile))
         .route("/api/profile/password", post(change_password))
         .route("/api/profile/shares", get(get_shares))
+        .route(
+            "/api/profile/preferences",
+            get(get_preferences).put(update_preferences),
+        )
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         .layer(

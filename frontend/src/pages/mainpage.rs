@@ -1,3 +1,4 @@
+use crate::components::notification_bell::NotificationBell;
 use crate::components::vehicle_dashboard::VehicleDashboard;
 use crate::components::vehicle_list::{fetch_vehicles, Vehicle_list};
 use common::Vehicle;
@@ -50,12 +51,15 @@ pub fn MainPage() -> impl IntoView {
                         <span class="text-xl font-bold text-indigo-600">"odo.io"</span>
 
                         <div class="flex items-center gap-3">
+                            // Cloche de notifications
+                            <NotificationBell vehicles=vehicles />
+
                             // Lien profil
                             <A
                                 href="/profile"
                                 class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
                             >
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                         d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                 </svg>
