@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT va.role, v.plate_number\n         FROM public.vehicle_access va\n         JOIN public.vehicles v ON v.id = va.vehicle_id\n         WHERE va.vehicle_id = $1 AND va.user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "plate_number",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "020d14e07de5ad0577d3bcf9319c24fa405035bf4ebce6d43dee06466526dd94"
+}

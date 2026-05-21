@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO public.mileage_log\n            (vehicle_id, contract_loa_id, contract_insurance_id, value, recorded_at, source)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        RETURNING id, recorded_at, created_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "recorded_at",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Date",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dad80262f0f869e25d86def0057f31faeccfbaca28cbb4daea876af608d65ef5"
+}

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT v.id AS vehicle_id, v.make, v.model, v.plate_number, va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n            ON va.vehicle_id = v.id\n            AND va.user_id = $1\n            AND va.role != 'owner'\n        ORDER BY v.make, v.model\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "vehicle_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "make",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "model",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "plate_number",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "role",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2213b21dd68aac36255b81ed34dd8928efd356f9bf1d89188fb7c1e15d32d3e4"
+}

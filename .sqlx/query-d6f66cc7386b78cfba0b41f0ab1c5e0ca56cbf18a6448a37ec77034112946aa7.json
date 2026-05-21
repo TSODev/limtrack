@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT u.id AS user_id, u.username, va.role\n            FROM public.vehicle_access va\n            JOIN public.users u ON u.id = va.user_id\n            WHERE va.vehicle_id = $1\n              AND va.user_id != $2\n              AND va.role != 'owner'\n            ORDER BY u.username\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "role",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d6f66cc7386b78cfba0b41f0ab1c5e0ca56cbf18a6448a37ec77034112946aa7"
+}
