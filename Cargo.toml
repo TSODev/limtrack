@@ -1,17 +1,14 @@
 [workspace]
 resolver = "2"
-members = [
-    "backend",   # Ton API Axum
-    "frontend",  # Ton app Leptos
-    "common",    # Types et structs partagés
-    "src-tauri", # Configuration mobile Tauri v2
-]
+members = ["backend", "frontend", "common", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 authors = ["thierry.soulie@tsodev.fr"]
-repository = "https://github.com/ton-repo/ido.io"
+repository = "https://github.com/TSODev/odo.io"                                     # corrigé : odo.io et non ido.io
+description = "Gestion de flotte kilométrique — contrats LOA, assurance et relevés"
+license = "MIT"
 
 [workspace.dependencies]
 # --- Core ---
@@ -26,13 +23,14 @@ sqlx = { version = "0.8", features = [
     "postgres",
     "runtime-tokio-native-tls",
     "uuid",
+    "chrono",
 ] }
 uuid = { version = "1.7", features = ["serde", "v4"] }
 bcrypt = "0.15"
 regex = "1"
 rand = "0.8"
 
-# --- Backend & Database ---
+# --- Backend ---
 axum = { version = "0.7", features = ["macros"] }
 jsonwebtoken = "9.2"
 dotenvy = "0.15"
@@ -43,5 +41,5 @@ leptos = { version = "0.6", features = ["nightly"] }
 leptos_meta = { version = "0.6", features = ["nightly"] }
 leptos_router = { version = "0.6", features = ["nightly"] }
 
-# --- Shared internal crates ---
+# --- Shared ---
 common = { path = "./common" }

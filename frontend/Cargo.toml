@@ -1,7 +1,8 @@
 [package]
-name = "frontend"
+name = "frontend"        # ou common
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
 
 [dependencies]
 # Framework UI
