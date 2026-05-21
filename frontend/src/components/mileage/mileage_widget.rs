@@ -5,16 +5,12 @@ use leptos::*;
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
 
-// ─── Données combinées ───────────────────────────────────────────
-
 #[derive(Clone)]
 struct WidgetData {
     entries: Vec<MileageLog>,
     loa: Vec<ContractLoa>,
     insurance: Vec<ContractInsurance>,
 }
-
-// ─── Composant ───────────────────────────────────────────────────
 
 #[component]
 pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
@@ -79,11 +75,9 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                         }.into_view();
                     }
 
-                    let last = d.entries.first().unwrap().clone();
+                    let last    = d.entries.first().unwrap().clone();
                     let entries = d.entries.clone();
 
-                    // ── Contrat actif (LOA ou Assurance) ─────────────
-                    // Prend le premier contrat actif trouvé
                     let active_contract: Option<(i32, i32, chrono::NaiveDate, chrono::NaiveDate)> =
                         d.loa.iter()
                             .find(|c| c.status == "active")
@@ -91,19 +85,15 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                             .or_else(|| {
                                 d.insurance.iter()
                                     .find(|c| c.status == "active")
-                                    .map(|c| (c.km_start, c.km_annual_limit, c.start_date, c.end_date))
+                                    .map(|c| (c.km_start, c.km_start + c.km_annual_limit, c.start_date, c.end_date))
                             });
 
-                    // ── Construction du sparkline ─────────────────────
-                    // On prend les 8 derniers relevés (du plus ancien au plus récent)
                     let recent: Vec<MileageLog> = entries.iter()
                         .take(8).cloned().collect::<Vec<_>>()
                         .into_iter().rev().collect();
 
-                    // Plage de valeurs km pour le SVG
                     let km_values: Vec<i32> = recent.iter().map(|e| e.value).collect();
 
-                    // Si contrat actif, inclure km_start et km_allowed dans la plage
                     let (km_min, km_max) = {
                         let mut all_vals = km_values.clone();
                         if let Some((km_start, km_allowed, _, _)) = active_contract {
@@ -115,62 +105,57 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                         (mn, (mx - mn).max(1.0))
                     };
 
-                    // Plage de dates pour l'axe X
                     let first_date = recent.first().map(|e| e.recorded_at);
                     let last_date  = recent.last().map(|e| e.recorded_at);
 
-                    // ── Courbe réelle ─────────────────────────────────
                     let svg_w = 300.0_f64;
                     let svg_h = 60.0_f64;
 
-                    let date_range = match (first_date, last_date) {
-                        (Some(fd), Some(ld)) => {
-                            let days = (ld - fd).num_days().max(1) as f64;
-                            days
-                        }
-                        _ => 1.0,
+                    let today = chrono::Local::now().date_naive();
+
+                    // Plage de dates — inclut la plage du contrat pour que la trajectoire idéale soit visible
+                    let date_range = {
+                        let fd = first_date.unwrap_or(today);
+                        let contract_start = active_contract.map(|(_, _, sd, _)| sd);
+                        let range_start = contract_start.map(|cs| cs.min(fd)).unwrap_or(fd);
+                        let days = (today - range_start).num_days().max(1) as f64;
+                        days
+                    };
+
+                    // Recalcule first_date en tenant compte du contrat
+                    let effective_start = {
+                        let fd = first_date.unwrap_or(today);
+                        let contract_start = active_contract.map(|(_, _, sd, _)| sd);
+                        contract_start.map(|cs| cs.min(fd)).unwrap_or(fd)
                     };
 
                     let real_points: Vec<(f64, f64)> = recent.iter().map(|e| {
-                        let x = match first_date {
-                            Some(fd) => (e.recorded_at - fd).num_days() as f64 / date_range * svg_w,
-                            None => 0.0,
-                        };
+                        let x = (e.recorded_at - effective_start).num_days() as f64 / date_range * svg_w;
                         let y = svg_h - ((e.value as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
                         (x, y)
                     }).collect();
 
-                    let real_polyline = real_points.iter()
-                        .map(|(x, y)| format!("{:.1},{:.1}", x, y))
-                        .collect::<Vec<_>>().join(" ");
+                    let real_polyline = if real_points.len() > 1 {
+                        real_points.iter()
+                            .map(|(x, y)| format!("{:.1},{:.1}", x, y))
+                            .collect::<Vec<_>>().join(" ")
+                    } else {
+                        String::new()
+                    };
 
-                    // ── Courbe idéale (si contrat actif) ─────────────
                     let ideal_polyline: Option<String> = active_contract.map(|(km_start, km_allowed, start_date, end_date)| {
-                        let fd    = first_date.unwrap_or(start_date);
-                        let today = chrono::Local::now().date_naive();
+                        let total_days = (end_date - start_date).num_days().max(1) as f64;
+                        let elapsed    = (today - start_date).num_days().max(0) as f64;
+                        let km_today   = km_start as f64 + (km_allowed - km_start) as f64 * (elapsed / total_days);
 
-                        // Km idéal aujourd'hui = interpolation linéaire start→end
-                        let total_days  = (end_date - start_date).num_days().max(1) as f64;
-                        let elapsed     = (today - start_date).num_days().max(0) as f64;
-                        let km_today    = km_start as f64 + (km_allowed - km_start) as f64 * (elapsed / total_days);
-
-                        let x_start = {
-                            let days = (start_date - fd).num_days() as f64;
-                            (days / date_range * svg_w).clamp(0.0, svg_w)
-                        };
-                        // X de fin = aujourd'hui (pas end_date)
-                        let x_end = {
-                            let days = (today - fd).num_days() as f64;
-                            (days / date_range * svg_w).clamp(0.0, svg_w)
-                        };
-
+                        let x_start = ((start_date - effective_start).num_days() as f64 / date_range * svg_w).clamp(0.0, svg_w);
+                        let x_end   = ((today - effective_start).num_days() as f64 / date_range * svg_w).clamp(0.0, svg_w);
                         let y_start = svg_h - ((km_start as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
                         let y_end   = svg_h - ((km_today - km_min) / km_max * (svg_h - 10.0)) - 5.0;
 
                         format!("{:.1},{:.1} {:.1},{:.1}", x_start, y_start, x_end, y_end)
                     });
 
-                    // ── Couleur selon position vs trajectoire idéale ──
                     let is_over_ideal = active_contract.map(|(km_start, km_allowed, start_date, end_date)| {
                         let total_days = (end_date - start_date).num_days().max(1) as f64;
                         let elapsed    = (last.recorded_at - start_date).num_days().max(0) as f64;
@@ -178,7 +163,32 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                         last.value as f64 > ideal_km
                     }).unwrap_or(false);
 
-                    let line_color = if is_over_ideal { "#f59e0b" } else { "#6366f1" }; // amber ou indigo
+                    let line_color = if is_over_ideal { "#f59e0b" } else { "#6366f1" };
+
+                    // ── SVG généré comme string pour compatibilité Android ──
+                    let show_sparkline = real_points.len() > 1 || (real_points.len() == 1 && active_contract.is_some());
+
+                    let ideal_svg = ideal_polyline.as_ref().map(|pts| format!(
+                        "<polyline points='{}' fill='none' stroke='#d1d5db' stroke-width='1.5' stroke-dasharray='4 3' stroke-linejoin='round' stroke-linecap='round'/>",
+                        pts
+                    )).unwrap_or_default();
+
+                    let last_point_svg = real_points.last().map(|(x, y)| format!(
+                        "<circle cx='{:.1}' cy='{:.1}' r='3' fill='{}'/>",
+                        x, y, line_color
+                    )).unwrap_or_default();
+
+                    let svg_html = format!(
+                        "<svg viewBox='0 0 {vw} {vh}' width='100%' height='60' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg' style='display:block'>{ideal}<polyline points='{pts}' fill='none' stroke='{color}' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>{dot}</svg>",
+                        vw    = svg_w as i32,
+                        vh    = svg_h as i32,
+                        ideal = ideal_svg,
+                        pts   = real_polyline,
+                        color = line_color,
+                        dot   = last_point_svg
+                    );
+
+                    let has_contract = active_contract.is_some();
 
                     view! {
                         <div class="space-y-3 md:space-y-4">
@@ -192,52 +202,16 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                 </p>
                             </div>
 
-                            // Sparkline SVG
-                            {if real_points.len() > 1 { view! {
+                            // Sparkline via innerHTML — compatibilité Android
+                            <Show when=move || show_sparkline fallback=|| ()>
                                 <div class="space-y-1">
-                                    <svg viewBox=format!("0 0 {} {}", svg_w as i32, svg_h as i32)
-                                        class="w-full overflow-visible"
-                                        style="height: 60px">
-
-                                        // Courbe idéale (pointillée grise)
-                                        {ideal_polyline.map(|pts| view! {
-                                            <polyline
-                                                points=pts
-                                                fill="none"
-                                                stroke="#d1d5db"
-                                                stroke-width="1.5"
-                                                stroke-dasharray="4 3"
-                                                stroke-linejoin="round"
-                                                stroke-linecap="round"
-                                            />
-                                        })}
-
-                                        // Courbe réelle
-                                        <polyline
-                                            points=real_polyline
-                                            fill="none"
-                                            stroke=line_color
-                                            stroke-width="2"
-                                            stroke-linejoin="round"
-                                            stroke-linecap="round"
-                                        />
-
-                                        // Point final
-                                        {real_points.last().map(|(x, y)| view! {
-                                            <circle
-                                                cx=x.to_string()
-                                                cy=y.to_string()
-                                                r="3"
-                                                fill=line_color
-                                            />
-                                        })}
-                                    </svg>
+                                    <div inner_html=svg_html.clone() />
 
                                     // Légende
-                                    {active_contract.map(|_| view! {
+                                    <Show when=move || has_contract fallback=|| ()>
                                         <div class="flex items-center gap-4 text-xs text-gray-400">
                                             <div class="flex items-center gap-1.5">
-                                                <svg width="16" height="8">
+                                                <svg width="16" height="8" xmlns="http://www.w3.org/2000/svg">
                                                     <line x1="0" y1="4" x2="16" y2="4"
                                                         stroke=line_color stroke-width="2"
                                                         stroke-linecap="round"/>
@@ -245,7 +219,7 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                                 "Réel"
                                             </div>
                                             <div class="flex items-center gap-1.5">
-                                                <svg width="16" height="8">
+                                                <svg width="16" height="8" xmlns="http://www.w3.org/2000/svg">
                                                     <line x1="0" y1="4" x2="16" y2="4"
                                                         stroke="#d1d5db" stroke-width="1.5"
                                                         stroke-dasharray="4 3"/>
@@ -253,19 +227,16 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                                 "Trajectoire idéale"
                                             </div>
                                         </div>
-                                    })}
+                                    </Show>
                                 </div>
-                            }.into_view() } else { view! { <div /> }.into_view() }}
+                            </Show>
 
                             // Indicateur position vs trajectoire
-                            {active_contract.map(|_| view! {
+                            <Show when=move || has_contract fallback=|| ()>
                                 <div class=move || format!(
                                     "flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg {}",
-                                    if is_over_ideal {
-                                        "bg-amber-50 text-amber-700"
-                                    } else {
-                                        "bg-green-50 text-green-700"
-                                    }
+                                    if is_over_ideal { "bg-amber-50 text-amber-700" }
+                                    else { "bg-green-50 text-green-700" }
                                 )>
                                     {if is_over_ideal {
                                         "⚠ Au-dessus de la trajectoire idéale"
@@ -273,7 +244,7 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                         "✓ En dessous de la trajectoire idéale"
                                     }}
                                 </div>
-                            })}
+                            </Show>
                         </div>
                     }.into_view()
                 }}
@@ -281,8 +252,6 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
         </div>
     }
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────
 
 async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
     url: &str,

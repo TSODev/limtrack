@@ -1,2 +1,3 @@
 /api/* https://api.tsodev.fr/api/:splat 200
 /login https://api.tsodev.fr/login 200
+/* /index.html 200
