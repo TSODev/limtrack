@@ -1,28 +1,57 @@
 // src/components/mileage/mileage_widget.rs
-// Version RÉSUMÉ — affiché dans l'onglet Tableau de bord
-
 use crate::components::ui::{format_km, get_token};
-use common::MileageLog;
+use common::{ContractInsurance, ContractLoa, MileageLog};
 use leptos::*;
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
 
+// ─── Données combinées ───────────────────────────────────────────
+
+#[derive(Clone)]
+struct WidgetData {
+    entries: Vec<MileageLog>,
+    loa: Vec<ContractLoa>,
+    insurance: Vec<ContractInsurance>,
+}
+
+// ─── Composant ───────────────────────────────────────────────────
+
 #[component]
 pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
-    let (entries, set_entries) = create_signal(Vec::<MileageLog>::new());
+    let (data, set_data) = create_signal(Option::<WidgetData>::None);
     let (loading, set_loading) = create_signal(false);
 
     create_effect(move |_| {
         if let Some(id) = vehicle_id.get() {
-            set_entries.set(vec![]);
+            set_data.set(None);
             set_loading.set(true);
             spawn_local(async move {
                 let Some(token) = get_token() else { return };
-                let data =
+
+                let entries =
                     fetch_json::<Vec<MileageLog>>(&format!("/api/vehicles/{}/mileage", id), &token)
                         .await
                         .unwrap_or_default();
-                set_entries.set(data);
+
+                let loa = fetch_json::<Vec<ContractLoa>>(
+                    &format!("/api/vehicles/{}/contracts/loa", id),
+                    &token,
+                )
+                .await
+                .unwrap_or_default();
+
+                let insurance = fetch_json::<Vec<ContractInsurance>>(
+                    &format!("/api/vehicles/{}/contracts/insurance", id),
+                    &token,
+                )
+                .await
+                .unwrap_or_default();
+
+                set_data.set(Some(WidgetData {
+                    entries,
+                    loa,
+                    insurance,
+                }));
                 set_loading.set(false);
             });
         }
@@ -30,7 +59,6 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
 
     view! {
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 flex flex-col gap-3 md:gap-4">
-
             <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                 "Kilométrage"
             </h3>
@@ -41,8 +69,9 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
 
             <Show when=move || !loading.get() fallback=|| ()>
                 {move || {
-                    let data = entries.get();
-                    if data.is_empty() {
+                    let Some(d) = data.get() else { return view! { <div /> }.into_view(); };
+
+                    if d.entries.is_empty() {
                         return view! {
                             <p class="text-xs text-gray-400 italic">
                                 "Aucun relevé — rendez-vous dans l'onglet Kilométrage."
@@ -50,27 +79,110 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                         }.into_view();
                     }
 
-                    let last = data.first().unwrap().clone();
+                    let last = d.entries.first().unwrap().clone();
+                    let entries = d.entries.clone();
 
-                    // 5 derniers pour le mini sparkline (du plus ancien au plus récent)
-                    let recent: Vec<i32> = data.iter().take(5).map(|e| e.value).collect();
-                    let min_val = *recent.iter().min().unwrap_or(&0) as f64;
-                    let max_val = *recent.iter().max().unwrap_or(&1) as f64;
-                    let range = (max_val - min_val).max(1.0);
+                    // ── Contrat actif (LOA ou Assurance) ─────────────
+                    // Prend le premier contrat actif trouvé
+                    let active_contract: Option<(i32, i32, chrono::NaiveDate, chrono::NaiveDate)> =
+                        d.loa.iter()
+                            .find(|c| c.status == "active")
+                            .map(|c| (c.km_start, c.km_allowed, c.start_date, c.end_date))
+                            .or_else(|| {
+                                d.insurance.iter()
+                                    .find(|c| c.status == "active")
+                                    .map(|c| (c.km_start, c.km_annual_limit, c.start_date, c.end_date))
+                            });
 
-                    let points: Vec<(f64, f64)> = recent.iter().rev().enumerate().map(|(i, &v)| {
-                        let x = i as f64 / (recent.len() - 1).max(1) as f64 * 200.0;
-                        let y = 40.0 - ((v as f64 - min_val) / range * 35.0);
+                    // ── Construction du sparkline ─────────────────────
+                    // On prend les 8 derniers relevés (du plus ancien au plus récent)
+                    let recent: Vec<MileageLog> = entries.iter()
+                        .take(8).cloned().collect::<Vec<_>>()
+                        .into_iter().rev().collect();
+
+                    // Plage de valeurs km pour le SVG
+                    let km_values: Vec<i32> = recent.iter().map(|e| e.value).collect();
+
+                    // Si contrat actif, inclure km_start et km_allowed dans la plage
+                    let (km_min, km_max) = {
+                        let mut all_vals = km_values.clone();
+                        if let Some((km_start, km_allowed, _, _)) = active_contract {
+                            all_vals.push(km_start);
+                            all_vals.push(km_allowed);
+                        }
+                        let mn = *all_vals.iter().min().unwrap_or(&0) as f64;
+                        let mx = *all_vals.iter().max().unwrap_or(&1) as f64;
+                        (mn, (mx - mn).max(1.0))
+                    };
+
+                    // Plage de dates pour l'axe X
+                    let first_date = recent.first().map(|e| e.recorded_at);
+                    let last_date  = recent.last().map(|e| e.recorded_at);
+
+                    // ── Courbe réelle ─────────────────────────────────
+                    let svg_w = 300.0_f64;
+                    let svg_h = 60.0_f64;
+
+                    let date_range = match (first_date, last_date) {
+                        (Some(fd), Some(ld)) => {
+                            let days = (ld - fd).num_days().max(1) as f64;
+                            days
+                        }
+                        _ => 1.0,
+                    };
+
+                    let real_points: Vec<(f64, f64)> = recent.iter().map(|e| {
+                        let x = match first_date {
+                            Some(fd) => (e.recorded_at - fd).num_days() as f64 / date_range * svg_w,
+                            None => 0.0,
+                        };
+                        let y = svg_h - ((e.value as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
                         (x, y)
                     }).collect();
 
-                    let polyline = points.iter()
+                    let real_polyline = real_points.iter()
                         .map(|(x, y)| format!("{:.1},{:.1}", x, y))
-                        .collect::<Vec<_>>()
-                        .join(" ");
+                        .collect::<Vec<_>>().join(" ");
+
+                    // ── Courbe idéale (si contrat actif) ─────────────
+                    let ideal_polyline: Option<String> = active_contract.map(|(km_start, km_allowed, start_date, end_date)| {
+                        let fd    = first_date.unwrap_or(start_date);
+                        let today = chrono::Local::now().date_naive();
+
+                        // Km idéal aujourd'hui = interpolation linéaire start→end
+                        let total_days  = (end_date - start_date).num_days().max(1) as f64;
+                        let elapsed     = (today - start_date).num_days().max(0) as f64;
+                        let km_today    = km_start as f64 + (km_allowed - km_start) as f64 * (elapsed / total_days);
+
+                        let x_start = {
+                            let days = (start_date - fd).num_days() as f64;
+                            (days / date_range * svg_w).clamp(0.0, svg_w)
+                        };
+                        // X de fin = aujourd'hui (pas end_date)
+                        let x_end = {
+                            let days = (today - fd).num_days() as f64;
+                            (days / date_range * svg_w).clamp(0.0, svg_w)
+                        };
+
+                        let y_start = svg_h - ((km_start as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
+                        let y_end   = svg_h - ((km_today - km_min) / km_max * (svg_h - 10.0)) - 5.0;
+
+                        format!("{:.1},{:.1} {:.1},{:.1}", x_start, y_start, x_end, y_end)
+                    });
+
+                    // ── Couleur selon position vs trajectoire idéale ──
+                    let is_over_ideal = active_contract.map(|(km_start, km_allowed, start_date, end_date)| {
+                        let total_days = (end_date - start_date).num_days().max(1) as f64;
+                        let elapsed    = (last.recorded_at - start_date).num_days().max(0) as f64;
+                        let ideal_km   = km_start as f64 + (km_allowed - km_start) as f64 * (elapsed / total_days);
+                        last.value as f64 > ideal_km
+                    }).unwrap_or(false);
+
+                    let line_color = if is_over_ideal { "#f59e0b" } else { "#6366f1" }; // amber ou indigo
 
                     view! {
-                        <div class="space-y-4">
+                        <div class="space-y-3 md:space-y-4">
+                            // Valeur principale
                             <div>
                                 <p class="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
                                     {format_km(last.value)}
@@ -80,26 +192,88 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                                 </p>
                             </div>
 
-                            {if points.len() > 1 { view! {
-                                <svg viewBox="0 0 200 45" class="w-full h-10 overflow-visible">
-                                    <polyline
-                                        points=polyline
-                                        fill="none"
-                                        stroke="#6366f1"
-                                        stroke-width="2"
-                                        stroke-linejoin="round"
-                                        stroke-linecap="round"
-                                    />
-                                    {points.last().map(|(x, y)| view! {
-                                        <circle
-                                            cx=x.to_string()
-                                            cy=y.to_string()
-                                            r="3"
-                                            fill="#6366f1"
+                            // Sparkline SVG
+                            {if real_points.len() > 1 { view! {
+                                <div class="space-y-1">
+                                    <svg viewBox=format!("0 0 {} {}", svg_w as i32, svg_h as i32)
+                                        class="w-full overflow-visible"
+                                        style="height: 60px">
+
+                                        // Courbe idéale (pointillée grise)
+                                        {ideal_polyline.map(|pts| view! {
+                                            <polyline
+                                                points=pts
+                                                fill="none"
+                                                stroke="#d1d5db"
+                                                stroke-width="1.5"
+                                                stroke-dasharray="4 3"
+                                                stroke-linejoin="round"
+                                                stroke-linecap="round"
+                                            />
+                                        })}
+
+                                        // Courbe réelle
+                                        <polyline
+                                            points=real_polyline
+                                            fill="none"
+                                            stroke=line_color
+                                            stroke-width="2"
+                                            stroke-linejoin="round"
+                                            stroke-linecap="round"
                                         />
+
+                                        // Point final
+                                        {real_points.last().map(|(x, y)| view! {
+                                            <circle
+                                                cx=x.to_string()
+                                                cy=y.to_string()
+                                                r="3"
+                                                fill=line_color
+                                            />
+                                        })}
+                                    </svg>
+
+                                    // Légende
+                                    {active_contract.map(|_| view! {
+                                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                                            <div class="flex items-center gap-1.5">
+                                                <svg width="16" height="8">
+                                                    <line x1="0" y1="4" x2="16" y2="4"
+                                                        stroke=line_color stroke-width="2"
+                                                        stroke-linecap="round"/>
+                                                </svg>
+                                                "Réel"
+                                            </div>
+                                            <div class="flex items-center gap-1.5">
+                                                <svg width="16" height="8">
+                                                    <line x1="0" y1="4" x2="16" y2="4"
+                                                        stroke="#d1d5db" stroke-width="1.5"
+                                                        stroke-dasharray="4 3"/>
+                                                </svg>
+                                                "Trajectoire idéale"
+                                            </div>
+                                        </div>
                                     })}
-                                </svg>
+                                </div>
                             }.into_view() } else { view! { <div /> }.into_view() }}
+
+                            // Indicateur position vs trajectoire
+                            {active_contract.map(|_| view! {
+                                <div class=move || format!(
+                                    "flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg {}",
+                                    if is_over_ideal {
+                                        "bg-amber-50 text-amber-700"
+                                    } else {
+                                        "bg-green-50 text-green-700"
+                                    }
+                                )>
+                                    {if is_over_ideal {
+                                        "⚠ Au-dessus de la trajectoire idéale"
+                                    } else {
+                                        "✓ En dessous de la trajectoire idéale"
+                                    }}
+                                </div>
+                            })}
                         </div>
                     }.into_view()
                 }}
