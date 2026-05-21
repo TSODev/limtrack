@@ -3,6 +3,7 @@ use leptos::*;
 use leptos_router::*;
 
 pub mod components;
+mod config;
 
 mod pages; // On importe notre nouveau module
 use pages::home::HomePage;

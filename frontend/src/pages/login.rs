@@ -22,7 +22,7 @@ pub fn LoginPage() -> impl IntoView {
 
         async move {
             // Remplace par l'URL réelle de ton backend
-            let url = "http://localhost:3000/login";
+            let url = "https://api.tsodev.fr/login";
 
             // Préparation du body en JSON
             let body = serde_json::json!({
