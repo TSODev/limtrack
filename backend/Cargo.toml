@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
+[[bin]]
+name = "backend"
+path = "src/main.rs"
+
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
