@@ -27,20 +27,7 @@ pub fn HomePage() -> impl IntoView {
                         </svg>
                         <span class="text-white font-bold text-xl tracking-tight">"odo.io"</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <a
-                            href="/login"
-                            class="text-sm font-medium text-white/80 hover:text-white transition duration-150 px-4 py-2"
-                        >
-                            "Se connecter"
-                        </a>
-                        <a
-                            href="/register"
-                            class="text-sm font-semibold text-gray-950 bg-white hover:bg-indigo-50 px-4 py-2 rounded-full transition duration-150"
-                        >
-                            "S'inscrire"
-                        </a>
-                    </div>
+
                 </nav>
 
                 // Hero — centré verticalement
