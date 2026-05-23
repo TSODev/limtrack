@@ -69,7 +69,7 @@ pub fn ContractsWidget(
     };
 
     view! {
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 flex flex-col gap-3 md:gap-4">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                     "Contrats actifs"
@@ -485,9 +485,9 @@ fn InsuranceModal(
 #[component]
 fn Modal(title: &'static str, on_close: Callback<()>, children: Children) -> impl IntoView {
     view! {
-        <div class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm" on:click=move |_| on_close.call(()) />
+        <button type="button" class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default" on:click=move |_| on_close.call(()) />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-5 md:p-8 space-y-4 md:space-y-6">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6">
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-bold text-gray-900">{title}</h2>
                     <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>

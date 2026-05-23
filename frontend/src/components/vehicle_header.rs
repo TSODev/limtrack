@@ -34,11 +34,11 @@ pub fn VehicleHeader(
                 };
 
                 view! {
-                    <div class="flex items-center justify-between px-3 py-3 md:px-6 md:py-4 bg-white border-b border-gray-100">
-                        <div class="flex items-center gap-2 md:gap-4">
+                    <div class="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100">
+                        <div class="flex items-center gap-4">
                             // Icône véhicule
-                            <div class="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                                <svg class="w-5 h-5 md:w-7 md:h-7 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <div class="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
+                                <svg class="w-7 h-7 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                         d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
                                 </svg>
@@ -47,7 +47,7 @@ pub fn VehicleHeader(
                             // Infos
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <h2 class="text-base md:text-lg font-bold text-gray-900 truncate max-w-[140px] md:max-w-none">
+                                    <h2 class="text-lg font-bold text-gray-900">
                                         {vehicle_name.clone()}
                                     </h2>
                                     <span class=format!(
@@ -65,31 +65,29 @@ pub fn VehicleHeader(
 
                         // Boutons — owner uniquement
                         <Show when=move || is_owner.get() fallback=|| ()>
-                            <div class="flex items-center gap-1 md:gap-2">
-                                // Bouton partage — icône seule sur mobile, icône+texte sur desktop
+                            <div class="flex items-center gap-2">
+                                // Bouton partage
                                 <button
                                     on:click=move |_| set_show_share_modal.set(true)
-                                    class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
-                                    title="Partager"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
                                 >
-                                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" />
                                     </svg>
-                                    <span class="hidden md:inline">"Partager"</span>
+                                    "Partager"
                                 </button>
 
-                                // Bouton supprimer — icône seule sur mobile, icône+texte sur desktop
+                                // Bouton supprimer
                                 <button
                                     on:click=move |_| set_show_delete_modal.set(true)
-                                    class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
-                                    title="Supprimer"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
                                 >
-                                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                                     </svg>
-                                    <span class="hidden md:inline">"Supprimer"</span>
+                                    "Supprimer"
                                 </button>
                             </div>
                         </Show>
@@ -153,8 +151,9 @@ fn DeleteModal(
     });
 
     view! {
-        <div
-            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm"
+        <button
+            type="button"
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default"
             on:click=move |_| on_close.call(())
         />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -272,8 +271,9 @@ fn ShareModal(
     };
 
     view! {
-        <div
-            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm"
+        <button
+            type="button"
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default"
             on:click=move |_| on_close.call(())
         />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">

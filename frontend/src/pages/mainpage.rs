@@ -144,8 +144,10 @@ pub fn MainPage() -> impl IntoView {
                     </main>
 
                     // ── Bottom bar ────────────────────────────────────
-                    <div
-                        class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg cursor-pointer"
+                    // button au lieu de div — iOS Safari ne gère pas on:click sur div
+                    <button
+                        type="button"
+                        class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg cursor-pointer w-full text-left"
                         on:click=move |_| set_sheet_open.set(true)
                     >
                         <div class="flex items-center justify-between px-4 py-3">
@@ -181,13 +183,14 @@ pub fn MainPage() -> impl IntoView {
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
                             </svg>
                         </div>
-                    </div>
+                    </button>
 
                     // ── Bottom Sheet ──────────────────────────────────
                     <Show when=move || sheet_open.get() fallback=|| ()>
                         // Overlay
-                        <div
-                            class="fixed inset-0 z-40 bg-black bg-opacity-40"
+                        <button
+                            type="button"
+                            class="fixed inset-0 z-40 bg-black bg-opacity-40 w-full cursor-default"
                             on:click=move |_| set_sheet_open.set(false)
                         />
 
