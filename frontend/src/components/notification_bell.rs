@@ -227,9 +227,10 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
 
             // Dropdown
             <Show when=move || open.get() fallback=|| ()>
-                // Overlay transparent pour fermer
-                <div
-                    class="fixed inset-0 z-30"
+                // Overlay transparent pour fermer — button pour iOS Safari
+                <button
+                    type="button"
+                    class="fixed inset-0 z-30 w-full cursor-default"
                     on:click=move |_| set_open.set(false)
                 />
 
