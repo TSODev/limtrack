@@ -1,0 +1,24 @@
+{
+    "name": "odo.io",
+    "short_name": "odo.io",
+    "description": "Gestion de flotte kilométrique — contrats LOA, assurance et relevés",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#4f46e5",
+    "theme_color": "#4f46e5",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
