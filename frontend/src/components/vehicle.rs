@@ -9,10 +9,11 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
     let id = vehicle.id;
 
     view! {
-        <div
+        <button
+            type="button"
             on:click=move |_| set_selected.set(Some(id))
-            class="bg-white rounded-xl border border-gray-100
-                   px-4 py-3 flex items-center gap-3
+            class="w-full bg-white rounded-xl border border-gray-100
+                   px-4 py-3 flex items-center gap-3 text-left
                    cursor-pointer hover:border-indigo-300 hover:shadow-sm
                    transition-all duration-150"
         >
@@ -42,7 +43,7 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
 
             // Chevron
             <svg class="shrink-0 w-4 h-4 text-gray-300" /* chevron droit */ />
-        </div>
+        </button>
     }
 }
 
