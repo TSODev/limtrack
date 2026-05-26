@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO public.user_preferences (user_id, notif_days_before, notif_km_percent, updated_once)\n        VALUES ($1, $2, $3, true)\n        ON CONFLICT (user_id) DO UPDATE SET\n            notif_days_before = EXCLUDED.notif_days_before,\n            notif_km_percent  = EXCLUDED.notif_km_percent,\n            updated_once      = true\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ad6b79128f72af290702fa19895127270ead1837faf54cd1ac40040fb01b251"
+}

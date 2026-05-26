@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE public.vehicle_share_codes\n         SET used = true, used_by = $1, used_at = now()\n         WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2bf8fefac30eaeea3569faec50a19cbf21e373564aae9971c21e1fae184b7a6f"
+}

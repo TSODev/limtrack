@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT value FROM public.mileage_log\n         WHERE vehicle_id = $1\n         ORDER BY recorded_at DESC, created_at DESC\n         LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "value",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0e01a28dedbdc691ec78b1935721ca224fd2312bc6bba181ca2f8d5eab3da829"
+}

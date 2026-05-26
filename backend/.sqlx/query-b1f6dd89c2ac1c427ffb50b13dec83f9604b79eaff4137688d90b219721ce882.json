@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            l.id,\n            l.vehicle_id,\n            l.km_allowed,\n            l.km_start,\n            l.start_date,\n            l.end_date,\n            l.status,\n            COALESCE(\n                (SELECT value FROM public.mileage_log m\n                 WHERE m.vehicle_id = l.vehicle_id\n                 ORDER BY recorded_at DESC, created_at DESC\n                 LIMIT 1),\n                l.km_start\n            ) AS \"km_current!\"\n        FROM public.contracts_loa l\n        WHERE l.vehicle_id = $1\n        ORDER BY l.start_date DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "vehicle_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "km_allowed",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "km_start",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "start_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 5,
+        "name": "end_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "km_current!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "b1f6dd89c2ac1c427ffb50b13dec83f9604b79eaff4137688d90b219721ce882"
+}
