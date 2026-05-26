@@ -28,13 +28,13 @@ pub fn ContractsWidget(
             spawn_local(async move {
                 let Some(token) = get_token() else { return };
                 let loa = fetch_json::<Vec<ContractLoa>>(
-                    &format!("/api/vehicles/{}/contracts/loa", id),
+                    &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
                 .unwrap_or_default();
                 let insurance = fetch_json::<Vec<ContractInsurance>>(
-                    &format!("/api/vehicles/{}/contracts/insurance", id),
+                    &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
@@ -51,13 +51,13 @@ pub fn ContractsWidget(
             spawn_local(async move {
                 let Some(token) = get_token() else { return };
                 let loa = fetch_json::<Vec<ContractLoa>>(
-                    &format!("/api/vehicles/{}/contracts/loa", id),
+                    &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
                 .unwrap_or_default();
                 let insurance = fetch_json::<Vec<ContractInsurance>>(
-                    &format!("/api/vehicles/{}/contracts/insurance", id),
+                    &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
@@ -322,7 +322,7 @@ fn LoaModal(
                     "start_date": sd, "end_date": ed,
                 });
                 match post_json(
-                    &format!("/api/vehicles/{}/contracts/loa", vid),
+                    &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, vid),
                     &token,
                     &body,
                 )
@@ -414,7 +414,7 @@ fn InsuranceModal(
                     "insurer": if ins.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(ins) },
                 });
                 match post_json(
-                    &format!("/api/vehicles/{}/contracts/insurance", vid),
+                    &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, vid),
                     &token,
                     &body,
                 )
@@ -553,7 +553,7 @@ async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
     headers.set("Cache-Control", "no-cache").ok();
     opts.headers(&headers);
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await
@@ -579,7 +579,7 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     opts.headers(&headers);
     opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await

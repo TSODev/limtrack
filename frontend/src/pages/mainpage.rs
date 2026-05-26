@@ -60,7 +60,7 @@ pub fn MainPage() -> impl IntoView {
                 </div>
             }
         >
-            <div class="min-h-screen bg-gray-100 flex flex-col">
+            <div class="min-h-screen bg-gray-100 flex flex-col" style="padding-top: env(safe-area-inset-top)">
 
                 // ─── Navbar ──────────────────────────────────────────
                 <nav class="bg-white shadow-sm border-b border-gray-200 shrink-0 z-20">
@@ -135,7 +135,7 @@ pub fn MainPage() -> impl IntoView {
                 <div class="flex md:hidden flex-1 flex-col overflow-hidden min-h-0 relative">
 
                     // Dashboard — prend tout l'écran, pb pour laisser place à la bottom bar
-                    <main class="flex-1 flex flex-col min-h-0 p-3 pb-20">
+                    <main class="flex-1 flex flex-col min-h-0 p-3 pb-24">
                         <VehicleDashboard
                             selected_id=selected_vehicle_id
                             set_selected_id=set_selected_vehicle_id
@@ -147,7 +147,7 @@ pub fn MainPage() -> impl IntoView {
                     // button au lieu de div — iOS Safari ne gère pas on:click sur div
                     <button
                         type="button"
-                        class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg cursor-pointer w-full text-left"
+                        class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg cursor-pointer w-full text-left" style="padding-bottom: env(safe-area-inset-bottom)"
                         on:click=move |_| set_sheet_open.set(true)
                     >
                         <div class="flex items-center justify-between px-4 py-3">

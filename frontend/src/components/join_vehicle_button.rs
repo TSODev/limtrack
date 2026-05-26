@@ -55,7 +55,13 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "code": trimmed });
 
-            match post_json("/api/vehicles/join", &token, &body).await {
+            match post_json(
+                &format!("{}/api/vehicles/join", crate::config::API_BASE),
+                &token,
+                &body,
+            )
+            .await
+            {
                 Ok(_) => {
                     set_success
                         .set("Accès accordé ! Le véhicule apparaît dans votre liste.".to_string());
@@ -164,8 +170,11 @@ async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
         .ok();
     headers.set("Cache-Control", "no-cache").ok();
     opts.headers(&headers);
-    let req = web_sys::Request::new_with_str_and_init("/api/vehicles", &opts)
-        .map_err(|e| format!("{:?}", e))?;
+    let req = web_sys::Request::new_with_str_and_init(
+        &format!("{}/api/vehicles", crate::config::API_BASE),
+        &opts,
+    )
+    .map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await

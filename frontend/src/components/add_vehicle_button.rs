@@ -28,7 +28,7 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
                 return;
             };
 
-            let url = "/api/vehicles";
+            let url = format!("{}/api/vehicles", crate::config::API_BASE);
             let mut opts = web_sys::RequestInit::new();
             opts.method("POST");
 
@@ -46,7 +46,7 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
             });
             opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
 
-            let request = web_sys::Request::new_with_str_and_init(url, &opts).expect("requête");
+            let request = web_sys::Request::new_with_str_and_init(&url, &opts).expect("requête");
 
             match wasm_bindgen_futures::JsFuture::from(
                 leptos::window().fetch_with_request(&request),

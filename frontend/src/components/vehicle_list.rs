@@ -54,7 +54,7 @@ pub fn Vehicle_list(
 }
 
 pub async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
-    let url = "/api/vehicles";
+    let url = format!("{}/api/vehicles", crate::config::API_BASE);
 
     let mut opts = web_sys::RequestInit::new();
     opts.method("GET");
@@ -72,7 +72,7 @@ pub async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
     opts.headers(&headers);
 
     let request =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
 
     let window = leptos::window();
     let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["backend", "frontend", "common", "src-tauri"]
+members = ["backend", "frontend", "common", "frontend/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"

@@ -43,7 +43,12 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
     create_effect(move |_| {
         spawn_local(async move {
             let Some(token) = get_token() else { return };
-            if let Ok(p) = fetch_json::<UserPreferences>("/api/profile/preferences", &token).await {
+            if let Ok(p) = fetch_json::<UserPreferences>(
+                &format!("{}/api/profile/preferences", crate::config::API_BASE),
+                &token,
+            )
+            .await
+            {
                 set_prefs.set(p);
             }
         });
@@ -68,7 +73,11 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
 
                 // Fetch contrats LOA
                 if let Ok(loas) = fetch_json::<Vec<ContractLoa>>(
-                    &format!("/api/vehicles/{}/contracts/loa", id),
+                    &format!(
+                        "{}/api/vehicles/{}/contracts/loa",
+                        crate::config::API_BASE,
+                        id
+                    ),
                     &token,
                 )
                 .await
@@ -131,7 +140,11 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
 
                 // Fetch contrats Assurance
                 if let Ok(insurances) = fetch_json::<Vec<ContractInsurance>>(
-                    &format!("/api/vehicles/{}/contracts/insurance", id),
+                    &format!(
+                        "{}/api/vehicles/{}/contracts/insurance",
+                        crate::config::API_BASE,
+                        id
+                    ),
                     &token,
                 )
                 .await

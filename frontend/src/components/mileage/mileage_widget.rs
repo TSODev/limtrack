@@ -25,19 +25,19 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                 let Some(token) = get_token() else { return };
 
                 let entries =
-                    fetch_json::<Vec<MileageLog>>(&format!("/api/vehicles/{}/mileage", id), &token)
+                    fetch_json::<Vec<MileageLog>>(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, id), &token)
                         .await
                         .unwrap_or_default();
 
                 let loa = fetch_json::<Vec<ContractLoa>>(
-                    &format!("/api/vehicles/{}/contracts/loa", id),
+                    &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
                 .unwrap_or_default();
 
                 let insurance = fetch_json::<Vec<ContractInsurance>>(
-                    &format!("/api/vehicles/{}/contracts/insurance", id),
+                    &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
@@ -266,7 +266,7 @@ async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
     headers.set("Cache-Control", "no-cache").ok();
     opts.headers(&headers);
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await

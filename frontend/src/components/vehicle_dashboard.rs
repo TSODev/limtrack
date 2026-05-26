@@ -195,7 +195,7 @@ fn TabButton(
 }
 
 async fn fetch_vehicle(token: &str, id: Uuid) -> Result<VehicleWithAccess, String> {
-    let url = format!("/api/vehicles/{}", id);
+    let url = format!("{}/api/vehicles/{}", crate::config::API_BASE, id);
 
     let mut opts = web_sys::RequestInit::new();
     opts.method("GET");

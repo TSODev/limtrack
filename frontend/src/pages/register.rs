@@ -35,7 +35,7 @@ pub fn RegisterPage() -> impl IntoView {
                     return;
                 }
 
-                let url = "/api/user/register";
+                let url = format!("{}/api/user/register", crate::config::API_BASE);
 
                 let mut opts = web_sys::RequestInit::new();
                 opts.method("POST");
@@ -53,7 +53,7 @@ pub fn RegisterPage() -> impl IntoView {
                 });
                 opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
 
-                let request = web_sys::Request::new_with_str_and_init(url, &opts)
+                let request = web_sys::Request::new_with_str_and_init(&url, &opts)
                     .expect("Impossible de créer la requête");
 
                 let window = leptos::window();

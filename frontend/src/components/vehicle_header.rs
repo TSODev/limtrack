@@ -69,25 +69,25 @@ pub fn VehicleHeader(
                                 // Bouton partage
                                 <button
                                     on:click=move |_| set_show_share_modal.set(true)
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
+                                    class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
                                 >
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" />
                                     </svg>
-                                    "Partager"
+                                    <span class="hidden md:inline">"Partager"</span>
                                 </button>
 
                                 // Bouton supprimer
                                 <button
                                     on:click=move |_| set_show_delete_modal.set(true)
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
+                                    class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
                                 >
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round"
                                             d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                                     </svg>
-                                    "Supprimer"
+                                    <span class="hidden md:inline">"Supprimer"</span>
                                 </button>
                             </div>
                         </Show>
@@ -144,7 +144,13 @@ fn DeleteModal(
             "plate_number": input_plate.get().trim().to_uppercase()
         });
 
-        match delete_json(&format!("/api/vehicles/{}", vehicle_id), &token, &body).await {
+        match delete_json(
+            &format!("{}/api/vehicles/{}", crate::config::API_BASE, vehicle_id),
+            &token,
+            &body,
+        )
+        .await
+        {
             Ok(_) => on_deleted.call(vehicle_id),
             Err(e) => set_error.set(e),
         }
@@ -245,7 +251,11 @@ fn ShareModal(
             let body = serde_json::json!({ "role": role });
 
             match post_json(
-                &format!("/api/vehicles/{}/share", vehicle_id),
+                &format!(
+                    "{}/api/vehicles/{}/share",
+                    crate::config::API_BASE,
+                    vehicle_id
+                ),
                 &token,
                 &body,
             )
@@ -403,7 +413,7 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<S
     opts.headers(&headers);
     opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await
@@ -444,7 +454,7 @@ async fn delete_json(url: &str, token: &str, body: &serde_json::Value) -> Result
     opts.headers(&headers);
     opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await

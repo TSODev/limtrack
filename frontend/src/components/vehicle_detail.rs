@@ -97,7 +97,7 @@ pub fn VehicleDetail(selected_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
 }
 
 async fn fetch_vehicle_detail(token: &str, id: Uuid) -> Result<VehicleWithAccess, String> {
-    let url = format!("/api/vehicles/{}", id);
+    let url = format!("{}/api/vehicles/{}", crate::config::API_BASE, id);
 
     let mut opts = web_sys::RequestInit::new();
     opts.method("GET");

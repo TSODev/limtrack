@@ -71,9 +71,21 @@ pub fn ProfilePage() -> impl IntoView {
         };
 
         spawn_local(async move {
-            let p = fetch_json::<UserProfile>("/api/profile", &token).await;
-            let s = fetch_json::<ProfileShares>("/api/profile/shares", &token).await;
-            let pref = fetch_json::<UserPreferences>("/api/profile/preferences", &token).await;
+            let p = fetch_json::<UserProfile>(
+                &format!("{}/api/profile", crate::config::API_BASE),
+                &token,
+            )
+            .await;
+            let s = fetch_json::<ProfileShares>(
+                &format!("{}/api/profile/shares", crate::config::API_BASE),
+                &token,
+            )
+            .await;
+            let pref = fetch_json::<UserPreferences>(
+                &format!("{}/api/profile/preferences", crate::config::API_BASE),
+                &token,
+            )
+            .await;
 
             if let Ok(p) = p {
                 set_profile.set(Some(p));
@@ -91,7 +103,12 @@ pub fn ProfilePage() -> impl IntoView {
     let reload_shares = move || {
         if let Some(token) = get_token() {
             spawn_local(async move {
-                if let Ok(s) = fetch_json::<ProfileShares>("/api/profile/shares", &token).await {
+                if let Ok(s) = fetch_json::<ProfileShares>(
+                    &format!("{}/api/profile/shares", crate::config::API_BASE),
+                    &token,
+                )
+                .await
+                {
                     set_shares.set(Some(s));
                 }
             });
@@ -199,7 +216,13 @@ fn ChangePasswordSection() -> impl IntoView {
                     "new_password":     new_pass,
                 });
 
-                match post_json("/api/profile/password", &token, &body).await {
+                match post_json(
+                    &format!("{}/api/profile/password", crate::config::API_BASE),
+                    &token,
+                    &body,
+                )
+                .await
+                {
                     Ok(_) => {
                         set_success.set(true);
                         set_current.set(String::new());
@@ -296,7 +319,13 @@ fn PreferencesSection(
                 "notif_km_percent":  percent_val,
             });
 
-            match put_json("/api/profile/preferences", &token, &body).await {
+            match put_json(
+                &format!("{}/api/profile/preferences", crate::config::API_BASE),
+                &token,
+                &body,
+            )
+            .await
+            {
                 Ok(_) => {
                     set_success.set(true);
                     on_saved.call(UserPreferences {
@@ -481,7 +510,7 @@ fn OwnedVehicleCard(
                                 on:click=move |_| {
                                     spawn_local(async move {
                                         let token = get_token().unwrap_or_default();
-                                        let url = format!("/api/vehicles/{}/access/{}", vehicle_id, user_id);
+                                        let url = format!("{}/api/vehicles/{}/access/{}", crate::config::API_BASE, vehicle_id, user_id);
                                         if delete_request(&url, &token).await.is_ok() {
                                             on_revoke();
                                         }
@@ -537,7 +566,7 @@ fn SharedVehicleCard(vehicle: SharedVehicle, on_leave: Callback<()>) -> impl Int
                 on:click=move |_| {
                     spawn_local(async move {
                         let token = get_token().unwrap_or_default();
-                        let url   = format!("/api/vehicles/{}/leave", vehicle_id);
+                        let url   = format!("{}/api/vehicles/{}/leave", crate::config::API_BASE, vehicle_id);
                         if delete_request(&url, &token).await.is_ok() {
                             on_leave.call(());
                         }

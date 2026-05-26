@@ -16,7 +16,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
         spawn_local(async move {
             let Some(token) = get_token() else { return };
             let data =
-                fetch_json::<Vec<MileageLog>>(&format!("/api/vehicles/{}/mileage", id), &token)
+                fetch_json::<Vec<MileageLog>>(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, id), &token)
                     .await
                     .unwrap_or_default();
             set_entries.set(data);
@@ -164,7 +164,7 @@ fn MileageModal(
         async move {
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "value": val.parse::<i32>().unwrap_or(0), "recorded_at": date, "source": "manual" });
-            match post_json(&format!("/api/vehicles/{}/mileage", vid), &token, &body).await {
+            match post_json(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid), &token, &body).await {
                 Ok(_) => {
                     on_created.call(());
                     on_close.call(());
@@ -241,7 +241,7 @@ async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
     headers.set("Cache-Control", "no-cache").ok();
     opts.headers(&headers);
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await
@@ -267,7 +267,7 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     opts.headers(&headers);
     opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
     let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await

@@ -1,17 +1,34 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Odo.io</title>
-    <link rel="stylesheet" href="/output-622d7ddf85d79529.css" integrity="sha384-q3qck9xO6gBsImZ9YTtv/tyy3oguOLEtmiJMsj+e9X+vBQzqD4I+9ZDGfAfkrm3o"/>
-<link rel="modulepreload" href="/frontend-40b47c0d278bc0a6.js" crossorigin="anonymous" integrity="sha384-2StkyC6SHYA96pkIwRpmXANeOaUarOglaEc3IlyPTiJHMYymCLBvyFTvG8R2VFrq"><link rel="preload" href="/frontend-40b47c0d278bc0a6_bg.wasm" crossorigin="anonymous" integrity="sha384-xnz5E3BkfzDPs4/A7JbnXyiL8tqryn2XHG7XhnHh0RkR+yfFB25vHxEJ8rKzOLAT" as="fetch" type="application/wasm"></head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>odo.io</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#4f46e5" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="odo.io" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+    <!-- Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- SEO -->
+    <meta name="description" content="Gérez vos contrats LOA et assurance, suivez vos kilométrages et recevez des alertes avant de dépasser vos limites." />
+
+    <link rel="stylesheet" href="/output-c4701577b673b3e7.css" integrity="sha384-qgZIhYkluF6po1OeKd+HMitrDIPRFhgvKQpcp8zT2P3Kb+Tro796Y0oqIpddnbE8"/>
+<link rel="modulepreload" href="/frontend-31b88e0ec2ff85ed.js" crossorigin="anonymous" integrity="sha384-qh8x5/c77R4H69CmRvqP4yxtPp92q1oSxTKLJdA50yQuDKZWzo48Z7XSSlnXswGI"><link rel="preload" href="/frontend-31b88e0ec2ff85ed_bg.wasm" crossorigin="anonymous" integrity="sha384-sLX60Wbki6q8/x570laciu8LjJvYzO3ooAi7hRO/QpURiQbstkdews6dE/X4Mmod" as="fetch" type="application/wasm"></head>
 
 <body>
 <script type="module">
-import init, * as bindings from '/frontend-40b47c0d278bc0a6.js';
-const wasm = await init({ module_or_path: '/frontend-40b47c0d278bc0a6_bg.wasm' });
+import init, * as bindings from '/frontend-31b88e0ec2ff85ed.js';
+const wasm = await init({ module_or_path: '/frontend-31b88e0ec2ff85ed_bg.wasm' });
 
 
 window.wasmBindings = bindings;
