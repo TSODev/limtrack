@@ -47,15 +47,3 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
     }
 }
 
-fn format_km(km: u32) -> String {
-    // Formate 47320 → "47 320 km"
-    let s = km.to_string();
-    let chars: Vec<char> = s.chars().collect();
-    let formatted = chars
-        .rchunks(3)
-        .rev()
-        .map(|c| c.iter().collect::<String>())
-        .collect::<Vec<_>>()
-        .join("\u{202F}"); // espace fine insécable
-    format!("{} km", formatted)
-}

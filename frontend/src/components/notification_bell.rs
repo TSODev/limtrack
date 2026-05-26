@@ -2,7 +2,6 @@
 use common::{ContractInsurance, ContractLoa};
 use leptos::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use wasm_bindgen::JsCast;
 
 // ─── Types ───────────────────────────────────────────────────────

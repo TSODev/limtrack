@@ -106,7 +106,6 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
                     };
 
                     let first_date = recent.first().map(|e| e.recorded_at);
-                    let last_date  = recent.last().map(|e| e.recorded_at);
 
                     let svg_w = 300.0_f64;
                     let svg_h = 60.0_f64;

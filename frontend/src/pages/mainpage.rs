@@ -1,7 +1,6 @@
 use crate::components::notification_bell::NotificationBell;
 use crate::components::vehicle_dashboard::VehicleDashboard;
 use crate::components::vehicle_list::{fetch_vehicles, Vehicle_list};
-use common::Vehicle;
 use leptos::*;
 use leptos_router::*;
 
