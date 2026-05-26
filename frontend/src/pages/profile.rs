@@ -156,6 +156,8 @@ pub fn ProfilePage() -> impl IntoView {
                     {move || shares.get().map(|s| view! {
                         <SharesSection shares=s on_change=reload_shares />
                     })}
+
+                    <DeleteAccountSection />
                 </Show>
             </div>
         </div>
@@ -580,6 +582,171 @@ fn SharedVehicleCard(vehicle: SharedVehicle, on_leave: Callback<()>) -> impl Int
     }
 }
 
+// ─── Section Suppression compte ──────────────────────────────────
+
+#[component]
+fn DeleteAccountSection() -> impl IntoView {
+    let navigate = use_navigate();
+    let (password, set_password) = create_signal(String::new());
+    let (confirm_text, set_confirm_text) = create_signal(String::new());
+    let (error, set_error) = create_signal(String::new());
+    let (show_modal, set_show_modal) = create_signal(false);
+
+    let confirm_ok = create_memo(move |_| confirm_text.get().trim() == "SUPPRIMER");
+
+    let submit = create_action(move |password: &String| {
+        let password = password.clone();
+        let navigate = navigate.clone();
+        async move {
+            set_error.set(String::new());
+
+            let token = get_token().unwrap_or_default();
+            let body = serde_json::json!({
+                "current_password": password,
+                "new_password": password, // champ requis par le struct, ignoré côté serveur
+            });
+
+            match delete_json(
+                &format!("{}/api/profile", crate::config::API_BASE),
+                &token,
+                &body,
+            )
+            .await
+            {
+                Ok(_) => {
+                    // Supprimer le token et rediriger
+                    if let Ok(Some(storage)) = leptos::window().local_storage() {
+                        let _ = storage.remove_item("jwt_token");
+                    }
+                    navigate("/", NavigateOptions::default());
+                }
+                Err(e) => set_error.set(e),
+            }
+        }
+    });
+
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        submit.dispatch(password.get());
+    };
+
+    view! {
+        <div class="bg-white rounded-xl border border-red-200 shadow-sm p-4 md:p-6 space-y-4">
+            <div>
+                <h2 class="text-lg font-bold text-red-600">"Zone dangereuse"</h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    "La suppression de votre compte est irréversible. Tous vos véhicules, contrats et relevés seront définitivement supprimés."
+                </p>
+            </div>
+
+            <button
+                on:click=move |_| set_show_modal.set(true)
+                class="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition duration-150"
+            >
+                "Supprimer mon compte"
+            </button>
+
+            <Show when=move || show_modal.get() fallback=|| ()>
+                // Overlay
+                <button
+                    type="button"
+                    class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default"
+                    on:click=move |_| {
+                        set_show_modal.set(false);
+                        set_error.set(String::new());
+                        set_password.set(String::new());
+                        set_confirm_text.set(String::new());
+                    }
+                />
+
+                // Modal
+                <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div class="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-md p-8 space-y-6">
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-900">"Supprimer le compte"</h2>
+                                <p class="text-sm text-gray-500 mt-1">"Cette action est irréversible"</p>
+                            </div>
+                            <button
+                                on:click=move |_| {
+                                    set_show_modal.set(false);
+                                    set_error.set(String::new());
+                                    set_password.set(String::new());
+                                    set_confirm_text.set(String::new());
+                                }
+                                class="text-gray-400 hover:text-gray-600 text-xl font-light"
+                            >"✕"</button>
+                        </div>
+
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
+                            <p class="text-sm font-semibold text-red-700">"⚠ Action irréversible"</p>
+                            <p class="text-xs text-red-600">
+                                "Tous vos véhicules, contrats LOA, contrats d'assurance, relevés kilométriques et accès partagés seront définitivement supprimés."
+                            </p>
+                        </div>
+
+                        <form on:submit=on_submit class="space-y-4">
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700 block">
+                                    "Mot de passe actuel"
+                                </label>
+                                <input
+                                    type="password"
+                                    required
+                                    prop:value=password
+                                    on:input=move |ev| set_password.set(event_target_value(&ev))
+                                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm transition duration-150"
+                                />
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="text-sm font-medium text-gray-700 block">
+                                    "Tapez " <span class="font-mono font-bold text-red-600">"SUPPRIMER"</span> " pour confirmer"
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    prop:value=confirm_text
+                                    on:input=move |ev| set_confirm_text.set(event_target_value(&ev))
+                                    placeholder="SUPPRIMER"
+                                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm font-mono transition duration-150"
+                                />
+                            </div>
+
+                            <Show when=move || !error.get().is_empty() fallback=|| ()>
+                                <p class="text-sm text-center text-red-600">{move || error.get()}</p>
+                            </Show>
+
+                            <div class="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        set_show_modal.set(false);
+                                        set_error.set(String::new());
+                                        set_password.set(String::new());
+                                        set_confirm_text.set(String::new());
+                                    }
+                                    class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
+                                >
+                                    "Annuler"
+                                </button>
+                                <button
+                                    type="submit"
+                                    prop:disabled=move || !confirm_ok.get() || submit.pending().get()
+                                    class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150"
+                                >
+                                    {move || if submit.pending().get() { "Suppression..." } else { "Supprimer définitivement" }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </Show>
+        </div>
+    }
+}
+
 // ─── Helpers réseau ───────────────────────────────────────────────
 
 async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
@@ -701,5 +868,41 @@ async fn delete_request(url: &str, token: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("Erreur HTTP : {}", resp.status()))
+    }
+}
+
+async fn delete_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("DELETE");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 204 {
+        Ok(())
+    } else {
+        let json =
+            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+                .await
+                .ok();
+        let msg = json
+            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
+            .and_then(|v| {
+                v.get("error")
+                    .and_then(|e| e.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
+        Err(msg)
     }
 }

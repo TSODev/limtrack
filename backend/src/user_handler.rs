@@ -579,3 +579,59 @@ pub async fn leave_vehicle(
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response(),
     }
 }
+
+// ─── DELETE /api/profile ─────────────────────────────────────────
+
+pub async fn delete_account(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    State(state): State<AppState>,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> impl IntoResponse {
+    let user = sqlx::query!(
+        "SELECT password_hash FROM public.users WHERE id = $1",
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let user = match user {
+        Ok(Some(u)) => u,
+        Ok(None) => return err(StatusCode::NOT_FOUND, "Utilisateur introuvable").into_response(),
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
+        }
+    };
+
+    let is_valid = verify(&payload.current_password, &user.password_hash).unwrap_or(false);
+    if !is_valid {
+        return err(StatusCode::UNAUTHORIZED, "Mot de passe incorrect").into_response();
+    }
+
+    // Supprimer les véhicules owned (cascade : contrats, km, accès, codes)
+    let vehicle_ids = sqlx::query_scalar!(
+        r#"
+        SELECT v.id FROM public.vehicles v
+        JOIN public.vehicle_access va ON va.vehicle_id = v.id
+        WHERE va.user_id = $1 AND va.role = 'owner'
+        "#,
+        user_id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    for vid in vehicle_ids {
+        let _ = sqlx::query!("DELETE FROM public.vehicles WHERE id = $1", vid)
+            .execute(&state.db)
+            .await;
+    }
+
+    // Supprimer le compte (cascade : préférences, accès partagés)
+    match sqlx::query!("DELETE FROM public.users WHERE id = $1", user_id)
+        .execute(&state.db)
+        .await
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response(),
+    }
+}

@@ -21,7 +21,8 @@ use crate::user_handler::{
     login,
     register,
     revoke_access,
-    update_preferences, // <-- nouveaux
+    update_preferences,
+    delete_account,
 };
 use crate::vehicles_handler::{
     create_vehicle, delete_vehicle, get_vehicle, list_vehicles, update_vehicle,
@@ -88,7 +89,7 @@ async fn main() {
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))
         .route("/api/vehicles/:id", get(get_vehicle).delete(delete_vehicle))
-        .route("/api/profile", get(get_profile))
+        .route("/api/profile", get(get_profile).delete(delete_account))
         .route("/api/profile/password", post(change_password))
         .route("/api/profile/shares", get(get_shares))
         .route(
