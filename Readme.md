@@ -6,18 +6,20 @@
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
+![Tauri](https://img.shields.io/badge/Tauri-2.x-yellow)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
 ## Présentation
 
-**odo.io** est une application web full-stack écrite entièrement en Rust. Elle permet à des particuliers ou des petites flottes de :
+**odo.io** est une application full-stack écrite entièrement en Rust. Elle permet à des particuliers ou des petites flottes de :
 
 - Gérer leurs véhicules et partager leur accès avec d'autres utilisateurs
 - Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique
 - Enregistrer leurs relevés kilométriques et visualiser leur trajectoire vs l'idéale
 - Recevoir des **alertes** personnalisées avant de dépasser les limites contractuelles
+- Utiliser l'application sur **iOS** via Tauri Mobile
 
 ---
 
@@ -31,6 +33,7 @@
 | Styles          | [Tailwind CSS](https://tailwindcss.com/)                            |
 | Auth            | JWT (jsonwebtoken) + bcrypt                                         |
 | Build frontend  | [Trunk](https://trunkrs.dev/)                                       |
+| Mobile          | [Tauri](https://tauri.app/) v2 (iOS)                                |
 | Types partagés  | Crate `common` (workspace Cargo)                                    |
 
 ---
@@ -40,17 +43,18 @@
 ```
 odo.io/
 ├── backend/          # API REST Axum
+│   └── src/
+│       ├── main.rs
+│       ├── auth.rs
+│       ├── state.rs
+│       ├── user_handler.rs
+│       ├── vehicles_handler.rs
+│       ├── contracts_handler.rs
+│       ├── mileage_handler.rs
+│       └── share_handler.rs
+├── frontend/         # App Leptos/WASM + Tauri Mobile
 │   ├── src/
-│   │   ├── main.rs
-│   │   ├── auth.rs
-│   │   ├── state.rs
-│   │   ├── user_handler.rs
-│   │   ├── vehicles_handler.rs
-│   │   ├── contracts_handler.rs
-│   │   ├── mileage_handler.rs
-│   │   └── share_handler.rs
-├── frontend/         # App Leptos/WASM
-│   ├── src/
+│   │   ├── config.rs           # URL API centralisée (API_BASE)
 │   │   ├── pages/
 │   │   │   ├── mainpage.rs
 │   │   │   ├── login.rs
@@ -68,6 +72,11 @@ odo.io/
 │   │       └── mileage/
 │   │           ├── mileage_list.rs
 │   │           └── mileage_widget.rs
+│   └── src-tauri/    # Configuration Tauri Mobile
+│       ├── src/
+│       ├── gen/apple/          # Projet Xcode généré
+│       ├── icons/              # Icônes app toutes tailles
+│       └── tauri.conf.json
 ├── common/           # Types partagés backend/frontend
 │   └── src/lib.rs
 ├── Cargo.toml        # Workspace
@@ -114,16 +123,34 @@ odo.io/
 ### Interface
 - ✅ Responsive mobile-first
 - ✅ Bottom sheet pour la sélection de véhicule sur mobile
+- ✅ Boutons icônes seuls sur mobile (partage, suppression)
+- ✅ Safe areas iOS (notch, Dynamic Island, home indicator)
 - ✅ Page d'accueil avec image de fond
+
+### Mobile (Tauri iOS)
+- ✅ App iOS via Tauri v2
+- ✅ Icône app personnalisée toutes tailles
+- ✅ Testé sur Simulator iOS (iPhone 13 Pro)
+- ✅ Sideloading compatible (Apple ID gratuit)
 
 ---
 
 ## Prérequis
 
+### Web
 - [Rust](https://rustup.rs/) (nightly — requis par Leptos)
 - [Trunk](https://trunkrs.dev/) (`cargo install trunk`)
 - [Node.js](https://nodejs.org/) (pour Tailwind CSS via npx)
 - PostgreSQL ou compte [NeonDB](https://neon.tech/)
+
+### iOS (Tauri Mobile)
+- macOS avec [Xcode](https://developer.apple.com/xcode/) 15+
+- [Tauri CLI v2](https://tauri.app/) (`cargo install tauri-cli --version "^2"`)
+- CocoaPods (`sudo gem install cocoapods`)
+- Targets Rust iOS :
+```bash
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+```
 
 ---
 
@@ -157,7 +184,7 @@ cargo run
 # API disponible sur http://127.0.0.1:3000
 ```
 
-### 5. Lancer le frontend
+### 5. Lancer le frontend web
 
 ```bash
 cd frontend
@@ -167,15 +194,66 @@ trunk serve
 
 ---
 
-## Configuration Trunk
+## Configuration
 
-Le fichier `Trunk.toml` proxifie les appels `/api` vers le backend :
+### URL API (`config.rs`)
+
+L'URL de l'API est centralisée dans `frontend/src/config.rs` :
+
+```rust
+pub const API_BASE: &str = "https://api.tsodev.fr";
+```
+
+Modifier cette valeur pour pointer vers votre propre backend.
+
+### Trunk (`Trunk.toml`)
+
+Le fichier `Trunk.toml` proxifie les appels `/api` vers le backend en développement local :
 
 ```toml
 [[proxy]]
 rewrite = "/api"
 backend = "http://127.0.0.1:3000/api"
 ```
+
+---
+
+## Lancer sur iOS (Simulator)
+
+### 1. Builder le frontend
+
+```bash
+cd frontend
+trunk build --release
+```
+
+### 2. Servir les fichiers statiques
+
+```bash
+python3 -c "
+import http.server, socketserver, os
+
+class H(http.server.SimpleHTTPRequestHandler):
+    def guess_type(self, p):
+        return 'application/wasm' if p.endswith('.wasm') else super().guess_type(p)
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        super().end_headers()
+
+os.chdir('dist')
+with socketserver.TCPServer(('', 1430), H) as s:
+    s.serve_forever()
+"
+```
+
+### 3. Lancer Tauri iOS
+
+```bash
+cargo tauri ios dev --no-dev-server-wait
+```
+
+Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ---
 
@@ -198,11 +276,24 @@ backend = "http://127.0.0.1:3000/api"
 
 ---
 
+## Déploiement production
+
+| Service  | URL                   | Plateforme |
+| -------- | --------------------- | ---------- |
+| Frontend | https://odo.tsodev.fr | Netlify    |
+| Backend  | https://api.tsodev.fr | Railway    |
+| BDD      | NeonDB (PostgreSQL)   | Neon       |
+
+---
+
 ## Roadmap
 
-- [ ] App mobile native (Tauri Mobile iOS/Android)
+- ✅ App web responsive mobile-first
+- ✅ App iOS via Tauri Mobile
+- [ ] App Android via Tauri Mobile
+- [ ] Sideloading iOS (Apple ID gratuit) → App Store (Apple Developer)
 - [ ] Export PDF / CSV des historiques
-- [ ] Notifications push
+- [ ] Notifications push natives
 - [ ] Tableau de bord multi-véhicules
 
 ---
@@ -210,3 +301,9 @@ backend = "http://127.0.0.1:3000/api"
 ## Licence
 
 MIT © 2026 [TSODev](mailto:thierry.soulie@tsodev.fr)
+
+---
+
+## Remerciements
+
+Ce projet a été développé avec l'assistance de [Claude](https://claude.ai), l'IA d'Anthropic.
