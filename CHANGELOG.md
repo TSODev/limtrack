@@ -13,6 +13,23 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [0.3.1] — 2026-05-28
+
+### Ajouté
+- **Notice période d'essai à l'inscription** : encadré informatif "Période d'essai gratuite — 3 mois" affiché dans le formulaire d'inscription avant le bouton de soumission. Le message de succès rappelle également la durée d'essai.
+- **Affichage d'erreur dans le panneau "Véhicules de la flotte"** : si le chargement échoue, un message d'erreur rouge est affiché à la place du contenu vide.
+
+### Modifié
+- **Middleware licence — mode lecture seule** : à l'expiration, les requêtes `GET` sont désormais autorisées (consultation possible). Seules les écritures (`POST`, `PUT`, `DELETE`, `PATCH`) retournent `402 Payment Required`.
+- **Page fleet — layout** : alignement sur la page Profil (`max-w-4xl mx-auto` + `space-y-4 md:space-y-8`). Les panneaux ne prennent plus toute la largeur disponible sur grand écran.
+- **Formulaire d'inscription — messages d'erreur** : le frontend lit désormais le corps JSON de la réponse pour afficher le vrai message d'erreur du backend (mot de passe trop faible, email déjà utilisé, etc.) au lieu d'un message générique.
+
+### Corrigé
+- **Rafraîchissement automatique du panneau "Véhicules de la flotte"** après affectation ou retrait d'un véhicule : `FleetVehiclesSection` est maintenant notifié via un signal `fleet_refresh` incrémenté par `VehiclesSection` après chaque opération.
+- **HTTP 500 sur `GET /api/companies/:id/vehicles`** : SQLx marquait `org_name` (issu d'un `LEFT JOIN`) comme `NOT NULL` dans le cache offline. Un véhicule sans organisation causait un `ColumnDecode { UnexpectedNullError }` à runtime. Corrigé via la syntaxe `"org_name?"` dans les deux requêtes concernées (`list_fleet_vehicles` et `list_org_vehicles`). Cache `.sqlx/` régénéré.
+
+---
+
 ## [0.3.0] — 2026-05-28
 
 ### Ajouté

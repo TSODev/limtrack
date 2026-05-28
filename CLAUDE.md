@@ -129,9 +129,10 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 - Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
 - Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`
-- Réponse si expiré : `402 Payment Required`
+- **Mode lecture seule** : licence expirée → `GET` passe (lecture autorisée), `POST/PUT/DELETE/PATCH` → `402 Payment Required`
 - Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
 - Durées disponibles : 30, 90, 180, 365 jours
+- **Page d'inscription** : encadré info "Période d'essai gratuite — 3 mois" affiché avant le bouton de soumission ; message de succès rappelle la durée d'essai
 
 ```bash
 # Générer des jetons (depuis backend/)
@@ -225,12 +226,36 @@ git commit -m "fix: sqlx cache"
 git push
 ```
 
+## Pièges SQLx connus
+
+### LEFT JOIN → colonne nullable
+SQLx peut marquer une colonne issue d'un `LEFT JOIN` comme `NOT NULL` dans le cache offline, causant un `ColumnDecode { UnexpectedNullError }` à runtime. Forcer la nullabilité avec la syntaxe `"col_name?"` :
+```sql
+o.name AS "org_name?"   -- force Option<String> même si le cache dit NOT NULL
+```
+
+### Réactivité Leptos — refresh inter-composants
+Pour rafraîchir un composant enfant depuis un autre composant sans relation parent-enfant directe, utiliser un signal compteur dans le parent commun :
+```rust
+// Dans le composant parent
+let (refresh, set_refresh) = create_signal(0u32);
+// Passer refresh en prop au composant à rafraîchir
+// Passer un Callback au composant qui déclenche le refresh
+Callback::new(move |_| set_refresh.update(|n| *n += 1))
+
+// Dans le composant à rafraîchir
+create_effect(move |_| {
+    let _ = refresh.get(); // tracker le signal
+    // ... fetch
+});
+```
+
 ## Warnings connus
 - `RequestInit::method/headers/body` dépréciés → bénins, correction complexe, à faire lors d'une maj web-sys
 - `web_sys 0.3` — `set_headers()` attend `&JsValue` pas `&Headers`
 
 ## Version actuelle
-`0.2.0`
+`0.3.0`
 
 ## Roadmap
 - [ ] Tauri Android
