@@ -3,6 +3,8 @@
 mod auth;
 mod company_handler;
 mod contracts_handler;
+mod license_handler;
+mod license_middleware;
 mod mileage_handler;
 mod share_handler;
 mod state;
@@ -25,6 +27,7 @@ use crate::user_handler::{
     update_preferences,
     delete_account,
 };
+use crate::license_handler::{get_license, redeem_token};
 use crate::company_handler::{
     add_member, assign_fleet_role, assign_vehicle_to_fleet, create_company, create_organization,
     delete_company, delete_organization, get_company, list_companies, list_fleet_roles,
@@ -36,6 +39,7 @@ use crate::vehicles_handler::{
 };
 
 use axum::{
+    middleware,
     routing::{delete, get, post},
     Router,
 };
@@ -103,6 +107,8 @@ async fn main() {
             "/api/profile/preferences",
             get(get_preferences).put(update_preferences),
         )
+        .route("/api/profile/license", get(get_license))
+        .route("/api/profile/redeem", post(redeem_token))
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         // Fleet : véhicule → entreprise
@@ -149,6 +155,10 @@ async fn main() {
             "/api/companies/:id/organizations/:oid/vehicles",
             get(list_org_vehicles),
         )
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            license_middleware::check_license,
+        ))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
                 tracing::info_span!(

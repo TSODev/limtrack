@@ -314,3 +314,22 @@ pub struct AssignVehicleFleetPayload {
     pub company_id: Uuid,
     pub org_id: Option<Uuid>,
 }
+
+// ═══════════════════════════════════════════════════════════════
+// LICENCES
+// ═══════════════════════════════════════════════════════════════
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct LicenseStatus {
+    /// "trial" | "active" | "expired"
+    pub status: String,
+    /// Date de fin de période d'essai (toujours présente)
+    pub trial_ends_at: DateTime<Utc>,
+    /// Date d'expiration du dernier jeton activé (None si aucun jeton)
+    pub access_expires_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RedeemTokenPayload {
+    pub token: String,
+}

@@ -157,6 +157,7 @@ pub fn ProfilePage() -> impl IntoView {
                         <SharesSection shares=s on_change=reload_shares />
                     })}
 
+                    <LicenseSection />
                     <DeleteAccountSection />
                     <FleetSection />
                 </Show>
@@ -581,6 +582,159 @@ fn SharedVehicleCard(vehicle: SharedVehicle, on_leave: Callback<()>) -> impl Int
             </button>
         </div>
     }
+}
+
+// ─── Section Licence ─────────────────────────────────────────────
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct LicenseStatus {
+    status: String,
+    trial_ends_at: String,
+    access_expires_at: Option<String>,
+}
+
+#[component]
+fn LicenseSection() -> impl IntoView {
+    let (license, set_license) = create_signal(Option::<LicenseStatus>::None);
+    let (token_input, set_token_input) = create_signal(String::new());
+    let (error, set_error) = create_signal(String::new());
+    let (success, set_success) = create_signal(String::new());
+
+    let reload_license = move || {
+        if let Some(jwt) = get_token() {
+            spawn_local(async move {
+                if let Ok(l) = fetch_json::<LicenseStatus>(
+                    &format!("{}/api/profile/license", crate::config::API_BASE),
+                    &jwt,
+                )
+                .await
+                {
+                    set_license.set(Some(l));
+                }
+            });
+        }
+    };
+
+    create_effect(move |_| reload_license());
+
+    let redeem = create_action(move |token: &String| {
+        let token = token.clone();
+        async move {
+            set_error.set(String::new());
+            set_success.set(String::new());
+
+            if token.trim().is_empty() {
+                set_error.set("Veuillez saisir un jeton.".to_string());
+                return;
+            }
+
+            let jwt = get_token().unwrap_or_default();
+            let body = serde_json::json!({ "token": token });
+
+            match post_json(
+                &format!("{}/api/profile/redeem", crate::config::API_BASE),
+                &jwt,
+                &body,
+            )
+            .await
+            {
+                Ok(_) => {
+                    set_token_input.set(String::new());
+                    set_success.set("Jeton activé avec succès !".to_string());
+                    reload_license();
+                }
+                Err(e) => set_error.set(e),
+            }
+        }
+    });
+
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        redeem.dispatch(token_input.get());
+    };
+
+    view! {
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">"Licence"</h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    "Période d'essai gratuite de 3 mois, puis activation par jeton."
+                </p>
+            </div>
+
+            // Statut licence
+            {move || license.get().map(|l| {
+                let (badge_cls, badge_lbl, date_label) = match l.status.as_str() {
+                    "active" => (
+                        "bg-green-100 text-green-700",
+                        "Active",
+                        format!("Expire le {}", fmt_date(&l.access_expires_at.unwrap_or_default())),
+                    ),
+                    "trial" => (
+                        "bg-amber-100 text-amber-700",
+                        "Période d'essai",
+                        format!("Essai jusqu'au {}", fmt_date(&l.trial_ends_at)),
+                    ),
+                    _ => (
+                        "bg-red-100 text-red-700",
+                        "Expirée",
+                        "Activez un jeton pour continuer à utiliser odo.io.".to_string(),
+                    ),
+                };
+                view! {
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <span class=format!("text-xs font-semibold px-2.5 py-1 rounded-full {}", badge_cls)>
+                            {badge_lbl}
+                        </span>
+                        <span class="text-sm text-gray-600">{date_label}</span>
+                    </div>
+                }
+            })}
+
+            // Formulaire jeton
+            <form on:submit=on_submit class="space-y-3">
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-700 block">"Activer un jeton"</label>
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            prop:value=token_input
+                            on:input=move |ev| set_token_input.set(event_target_value(&ev))
+                            placeholder="XXXX-XXXX-XXXX-XXXX"
+                            class="flex-1 font-mono uppercase appearance-none px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
+                        />
+                        <button
+                            type="submit"
+                            prop:disabled=move || redeem.pending().get()
+                            class="px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 shrink-0"
+                        >
+                            {move || if redeem.pending().get() { "Activation..." } else { "Activer" }}
+                        </button>
+                    </div>
+                </div>
+                <Show when=move || !error.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-red-600">{move || error.get()}</p>
+                </Show>
+                <Show when=move || !success.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-green-600 font-medium">{move || success.get()}</p>
+                </Show>
+            </form>
+        </div>
+    }
+}
+
+fn fmt_date(iso: &str) -> String {
+    // ISO 8601 → "JJ/MM/AAAA"
+    iso.get(..10)
+        .map(|d| {
+            let parts: Vec<&str> = d.split('-').collect();
+            if parts.len() == 3 {
+                format!("{}/{}/{}", parts[2], parts[1], parts[0])
+            } else {
+                d.to_string()
+            }
+        })
+        .unwrap_or_else(|| iso.to_string())
 }
 
 // ─── Section Suppression compte ──────────────────────────────────

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO public.license_tokens (token_hash, duration_days) VALUES ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "46a90c78c6931945f0d1a985804813a3f2e7a58d5e5461cfa1eaab5c44338e40"
+}
