@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM public.organizations WHERE id = $1 AND company_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec7f2b9b87c8bc5d4d79f13974d9a934495a6086627279628349d8b62527ebe2"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO public.fleet_roles (user_id, company_id, org_id, role, granted_by)\n         VALUES ($1, $2, NULL, 'fleet_admin', $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5e1ac194a28b00ba545002db8a4931fccf8816c7059f43f2a736ecfc76a5f459"
+}

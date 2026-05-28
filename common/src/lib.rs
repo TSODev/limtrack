@@ -214,3 +214,103 @@ pub struct UpdatePreferencesPayload {
     pub notif_days_before: i32,
     pub notif_km_percent: i32,
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ENTREPRISE / FLOTTE
+// ═══════════════════════════════════════════════════════════════
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct Company {
+    pub id: Uuid,
+    pub name: String,
+    pub siret: Option<String>,
+    pub created_by: Uuid,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct Organization {
+    pub id: Uuid,
+    pub company_id: Uuid,
+    pub parent_org_id: Option<Uuid>,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Entreprise avec compteurs et rôle de l'utilisateur courant
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CompanyWithStats {
+    pub id: Uuid,
+    pub name: String,
+    pub siret: Option<String>,
+    pub created_by: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub member_count: i64,
+    pub vehicle_count: i64,
+    /// Rôle global de l'utilisateur courant : "fleet_admin" | "fleet_viewer" | null
+    pub my_role: Option<String>,
+}
+
+/// Membre d'entreprise avec son rôle global éventuel
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CompanyMember {
+    pub user_id: Uuid,
+    pub company_id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub joined_at: DateTime<Utc>,
+    /// Rôle global : "fleet_admin" | "fleet_viewer" | null
+    pub fleet_role: Option<String>,
+}
+
+/// Véhicule vu depuis la flotte (inclut org)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct FleetVehicle {
+    pub id: Uuid,
+    pub owner_id: Uuid,
+    pub make: String,
+    pub model: String,
+    pub plate_number: String,
+    pub year: Option<i16>,
+    pub vin: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub company_id: Option<Uuid>,
+    pub org_id: Option<Uuid>,
+    pub org_name: Option<String>,
+}
+
+// ─── Payloads fleet ───────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct CreateCompanyPayload {
+    pub name: String,
+    pub siret: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateOrganizationPayload {
+    pub name: String,
+    pub parent_org_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddMemberPayload {
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AssignFleetRolePayload {
+    pub user_id: Uuid,
+    pub org_id: Option<Uuid>,
+    /// "fleet_admin" ou "fleet_viewer"
+    pub role: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AssignVehicleFleetPayload {
+    pub company_id: Uuid,
+    pub org_id: Option<Uuid>,
+}

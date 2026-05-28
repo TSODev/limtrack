@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM public.fleet_roles\n             WHERE user_id = $1 AND company_id = $2 AND org_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "62fe484251e3a132bced0389ad36235ee8d75c5e26a1af288aaaa79665362379"
+}

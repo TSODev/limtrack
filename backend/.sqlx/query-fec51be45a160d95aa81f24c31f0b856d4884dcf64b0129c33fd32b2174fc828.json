@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE public.vehicles SET company_id = NULL, org_id = NULL WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fec51be45a160d95aa81f24c31f0b856d4884dcf64b0129c33fd32b2174fc828"
+}

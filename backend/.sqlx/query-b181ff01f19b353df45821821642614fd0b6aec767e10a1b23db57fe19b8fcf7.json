@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            fr.id,\n            fr.user_id,\n            fr.company_id,\n            fr.org_id,\n            fr.role,\n            fr.granted_by,\n            fr.granted_at,\n            u.username,\n            u.email,\n            o.name AS org_name\n        FROM public.fleet_roles fr\n        JOIN public.users u ON u.id = fr.user_id\n        LEFT JOIN public.organizations o ON o.id = fr.org_id\n        WHERE fr.company_id = $1\n        ORDER BY fr.granted_at ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "company_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "org_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "role",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "granted_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "granted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "org_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b181ff01f19b353df45821821642614fd0b6aec767e10a1b23db57fe19b8fcf7"
+}

@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            c.id, c.name, c.siret, c.created_by, c.created_at,\n            (SELECT COUNT(*) FROM public.company_members cm WHERE cm.company_id = c.id)\n                AS member_count,\n            (SELECT COUNT(*) FROM public.vehicles v WHERE v.company_id = c.id)\n                AS vehicle_count,\n            (SELECT role FROM public.fleet_roles fr\n             WHERE fr.user_id = $2 AND fr.company_id = c.id AND fr.org_id IS NULL\n             LIMIT 1) AS my_role\n        FROM public.companies c\n        WHERE c.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "siret",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "member_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "vehicle_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "my_role",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "42c033170696c940a95a7871a31c2764d937da5caa222aeb747b40d531f86636"
+}

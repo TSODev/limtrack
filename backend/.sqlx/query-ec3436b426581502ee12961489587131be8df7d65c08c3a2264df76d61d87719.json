@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.id        AS user_id,\n            cm.company_id,\n            u.username,\n            u.email,\n            cm.joined_at,\n            (SELECT role FROM public.fleet_roles fr\n             WHERE fr.user_id = u.id AND fr.company_id = cm.company_id\n               AND fr.org_id IS NULL\n             LIMIT 1) AS fleet_role\n        FROM public.company_members cm\n        JOIN public.users u ON u.id = cm.user_id\n        WHERE cm.company_id = $1\n        ORDER BY cm.joined_at ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "company_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "joined_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "fleet_role",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "ec3436b426581502ee12961489587131be8df7d65c08c3a2264df76d61d87719"
+}

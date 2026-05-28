@@ -1,6 +1,7 @@
 // src/main.rs
 
 mod auth;
+mod company_handler;
 mod contracts_handler;
 mod mileage_handler;
 mod share_handler;
@@ -23,6 +24,12 @@ use crate::user_handler::{
     revoke_access,
     update_preferences,
     delete_account,
+};
+use crate::company_handler::{
+    add_member, assign_fleet_role, assign_vehicle_to_fleet, create_company, create_organization,
+    delete_company, delete_organization, get_company, list_companies, list_fleet_roles,
+    list_fleet_vehicles, list_members, list_org_vehicles, list_organizations, remove_member,
+    remove_vehicle_from_fleet, revoke_fleet_role,
 };
 use crate::vehicles_handler::{
     create_vehicle, delete_vehicle, get_vehicle, list_vehicles, update_vehicle,
@@ -98,6 +105,50 @@ async fn main() {
         )
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
+        // Fleet : véhicule → entreprise
+        .route(
+            "/api/vehicles/:id/fleet",
+            post(assign_vehicle_to_fleet).delete(remove_vehicle_from_fleet),
+        )
+        // Entreprises
+        .route("/api/companies", get(list_companies).post(create_company))
+        .route(
+            "/api/companies/:id",
+            get(get_company).delete(delete_company),
+        )
+        // Organisations
+        .route(
+            "/api/companies/:id/organizations",
+            get(list_organizations).post(create_organization),
+        )
+        .route(
+            "/api/companies/:id/organizations/:oid",
+            delete(delete_organization),
+        )
+        // Membres
+        .route(
+            "/api/companies/:id/members",
+            get(list_members).post(add_member),
+        )
+        .route(
+            "/api/companies/:id/members/:uid",
+            delete(remove_member),
+        )
+        // Rôles fleet
+        .route(
+            "/api/companies/:id/fleet-roles",
+            get(list_fleet_roles).post(assign_fleet_role),
+        )
+        .route(
+            "/api/companies/:id/fleet-roles/:role_id",
+            delete(revoke_fleet_role),
+        )
+        // Vue flotte
+        .route("/api/companies/:id/vehicles", get(list_fleet_vehicles))
+        .route(
+            "/api/companies/:id/organizations/:oid/vehicles",
+            get(list_org_vehicles),
+        )
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
                 tracing::info_span!(
