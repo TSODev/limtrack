@@ -13,6 +13,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ### Corrigé
 - **Suppression de compte** : erreur FK lors de la suppression d'un utilisateur membre ou administrateur d'une entreprise. Les tables `fleet_roles`, `company_members` et `companies` (via `created_by`) n'étaient pas nettoyées avant le `DELETE FROM users`. L'entreprise créée par l'utilisateur est désormais supprimée en premier (cascade sur orgs/membres/rôles), puis les rôles et memberships résiduels dans d'autres entreprises.
+- **Suppression de compte — transfert de propriété d'entreprise** : si l'utilisateur est créateur d'une entreprise et qu'un autre administrateur global existe, `created_by` lui est transféré plutôt que de supprimer l'entreprise. Sans autre admin, l'entreprise est supprimée. Évite la perte de données pour les co-administrateurs.
 
 ---
 
