@@ -15,7 +15,3 @@ command_arguments = [
   "-c",
   "npx @tailwindcss/cli -i style/input.css -o style/output.css",
 ]
-[[hooks]]
-stage = "post_build"
-command = "cp"
-command_arguments = ["public/_redirects", "dist/_redirects"]
