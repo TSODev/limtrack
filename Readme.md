@@ -2,7 +2,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-0.1.0-indigo)
+![Version](https://img.shields.io/badge/version-0.2.0-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
@@ -13,12 +13,13 @@
 
 ## Présentation
 
-**odo.io** est une application full-stack écrite entièrement en Rust. Elle permet à des particuliers ou des petites flottes de :
+**odo.io** est une application full-stack écrite entièrement en Rust. Elle permet à des particuliers et à des entreprises de :
 
 - Gérer leurs véhicules et partager leur accès avec d'autres utilisateurs
 - Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique
 - Enregistrer leurs relevés kilométriques et visualiser leur trajectoire vs l'idéale
 - Recevoir des **alertes** personnalisées avant de dépasser les limites contractuelles
+- Gérer une **flotte d'entreprise** : organisations, membres, rôles et véhicules assignés
 - Utiliser l'application sur **iOS** via Tauri Mobile
 
 ---
@@ -47,11 +48,13 @@ odo.io/
 │       ├── main.rs
 │       ├── auth.rs
 │       ├── state.rs
+│       ├── handlers.rs         # login, status, helpers généraux
 │       ├── user_handler.rs
 │       ├── vehicles_handler.rs
 │       ├── contracts_handler.rs
 │       ├── mileage_handler.rs
-│       └── share_handler.rs
+│       ├── share_handler.rs
+│       └── company_handler.rs  # gestion flotte : entreprises, orgs, membres, rôles
 ├── frontend/         # App Leptos/WASM + Tauri Mobile
 │   ├── src/
 │   │   ├── config.rs           # URL API centralisée (API_BASE)
@@ -59,16 +62,21 @@ odo.io/
 │   │   │   ├── mainpage.rs
 │   │   │   ├── login.rs
 │   │   │   ├── register.rs
+│   │   │   ├── signup.rs
+│   │   │   ├── fleet.rs        # page gestion de flotte (admin entreprise)
 │   │   │   ├── profile.rs
 │   │   │   └── home.rs
 │   │   └── components/
+│   │       ├── ui.rs           # helpers partagés (input_class, get_token, format_km)
+│   │       ├── vehicle.rs      # VehicleCard
 │   │       ├── vehicle_dashboard.rs
+│   │       ├── vehicle_detail.rs
 │   │       ├── vehicle_header.rs
 │   │       ├── vehicle_list.rs
 │   │       ├── notification_bell.rs
 │   │       ├── contracts/
 │   │       │   ├── contract_list.rs
-│   │       │   └── contracts_widget.rs
+│   │       │   └── contract_widget.rs
 │   │       └── mileage/
 │   │           ├── mileage_list.rs
 │   │           └── mileage_widget.rs
@@ -115,10 +123,20 @@ odo.io/
 - ✅ Alertes sur seuil kilométrique et proximité d'échéance
 - ✅ Seuils personnalisables par utilisateur (jours et %)
 
+### Gestion de flotte (entreprise)
+- ✅ Création et gestion d'entreprises (nom, SIRET)
+- ✅ Organisations hiérarchiques au sein d'une entreprise
+- ✅ Gestion des membres (ajout, suppression)
+- ✅ Rôles fleet : `admin`, `manager`, `viewer` — globaux ou par organisation
+- ✅ Assignation de véhicules à la flotte / à une organisation
+- ✅ Vue flotte complète : véhicules par entreprise et par organisation
+- ✅ Suppression de compte utilisateur
+
 ### Profil
 - ✅ Modification du mot de passe
 - ✅ Préférences de notification (sliders)
 - ✅ Gestion des partages (véhicules possédés et partagés)
+- ✅ Suppression de compte (zone dangereuse)
 
 ### Interface
 - ✅ Responsive mobile-first
@@ -174,7 +192,7 @@ JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
 
 ### 3. Base de données
 
-Appliquer les migrations SQL (tables `users`, `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`).
+Appliquer les migrations SQL (tables `users`, `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`).
 
 ### 4. Lancer le backend
 
@@ -259,20 +277,41 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ## API — Routes principales
 
-| Méthode      | Route                                   | Description                |
-| ------------ | --------------------------------------- | -------------------------- |
-| `POST`       | `/login`                                | Authentification           |
-| `POST`       | `/api/user/register`                    | Inscription                |
-| `GET`        | `/api/profile`                          | Profil utilisateur         |
-| `GET/PUT`    | `/api/profile/preferences`              | Préférences notifications  |
-| `GET`        | `/api/profile/shares`                   | Gestion des partages       |
-| `GET/POST`   | `/api/vehicles`                         | Liste / création véhicules |
-| `GET/DELETE` | `/api/vehicles/:id`                     | Détail / suppression       |
-| `POST`       | `/api/vehicles/:id/share`               | Génère un code de partage  |
-| `POST`       | `/api/vehicles/join`                    | Rejoindre via code         |
-| `GET/POST`   | `/api/vehicles/:id/contracts/loa`       | Contrats LOA               |
-| `GET/POST`   | `/api/vehicles/:id/contracts/insurance` | Contrats Assurance         |
-| `GET/POST`   | `/api/vehicles/:id/mileage`             | Relevés kilométriques      |
+### Véhicules & profil
+
+| Méthode           | Route                                   | Description                    |
+| ----------------- | --------------------------------------- | ------------------------------ |
+| `POST`            | `/login`                                | Authentification               |
+| `POST`            | `/api/user/register`                    | Inscription                    |
+| `GET/DELETE`      | `/api/profile`                          | Profil / suppression de compte |
+| `POST`            | `/api/profile/password`                 | Changement de mot de passe     |
+| `GET/PUT`         | `/api/profile/preferences`              | Préférences notifications      |
+| `GET`             | `/api/profile/shares`                   | Gestion des partages           |
+| `GET/POST`        | `/api/vehicles`                         | Liste / création véhicules     |
+| `GET/DELETE/PATCH`| `/api/vehicles/:id`                     | Détail / suppression / édition |
+| `POST`            | `/api/vehicles/:id/share`               | Génère un code de partage      |
+| `POST`            | `/api/vehicles/join`                    | Rejoindre via code             |
+| `DELETE`          | `/api/vehicles/:id/access/:user_id`     | Révoquer un accès              |
+| `DELETE`          | `/api/vehicles/:id/leave`               | Quitter un véhicule partagé    |
+| `GET/POST`        | `/api/vehicles/:id/contracts/loa`       | Contrats LOA                   |
+| `GET/POST`        | `/api/vehicles/:id/contracts/insurance` | Contrats Assurance             |
+| `GET/POST`        | `/api/vehicles/:id/mileage`             | Relevés kilométriques          |
+
+### Gestion de flotte
+
+| Méthode           | Route                                              | Description                        |
+| ----------------- | -------------------------------------------------- | ---------------------------------- |
+| `GET/POST`        | `/api/companies`                                   | Liste / création d'entreprises     |
+| `GET/DELETE`      | `/api/companies/:id`                               | Détail / suppression entreprise    |
+| `GET/POST`        | `/api/companies/:id/organizations`                 | Organisations d'une entreprise     |
+| `DELETE`          | `/api/companies/:id/organizations/:oid`            | Supprimer une organisation         |
+| `GET/POST`        | `/api/companies/:id/members`                       | Membres d'une entreprise           |
+| `DELETE`          | `/api/companies/:id/members/:uid`                  | Retirer un membre                  |
+| `GET/POST`        | `/api/companies/:id/fleet-roles`                   | Rôles fleet (global ou par org)    |
+| `DELETE`          | `/api/companies/:id/fleet-roles/:role_id`          | Révoquer un rôle fleet             |
+| `GET`             | `/api/companies/:id/vehicles`                      | Véhicules de la flotte             |
+| `GET`             | `/api/companies/:id/organizations/:oid/vehicles`   | Véhicules par organisation         |
+| `POST/DELETE`     | `/api/vehicles/:id/fleet`                          | Assigner / retirer d'une flotte    |
 
 ---
 
@@ -290,6 +329,8 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 - ✅ App web responsive mobile-first
 - ✅ App iOS via Tauri Mobile
+- ✅ Gestion de flotte d'entreprise (entreprises, organisations, membres, rôles)
+- ✅ Suppression de compte utilisateur
 - [ ] App Android via Tauri Mobile
 - [ ] Sideloading iOS (Apple ID gratuit) → App Store (Apple Developer)
 - [ ] Export PDF / CSV des historiques
