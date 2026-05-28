@@ -132,6 +132,11 @@ odo.io/
 - ✅ Vue flotte complète : véhicules par entreprise et par organisation
 - ✅ Suppression de compte utilisateur
 
+### Sécurité
+- ✅ Vérification de la solidité des mots de passe via [`zxcvbn`](https://github.com/shssoichiro/zxcvbn-rs) (score ≥ 3/4) à l'inscription et au changement de mot de passe
+- ✅ Feedback explicite retourné si le mot de passe est trop faible
+- ✅ Détection des mots de passe dérivés du username ou de l'email
+
 ### Profil
 - ✅ Modification du mot de passe
 - ✅ Préférences de notification (sliders)
