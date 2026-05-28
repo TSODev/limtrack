@@ -132,6 +132,14 @@ odo.io/
 - ✅ Vue flotte complète : véhicules par entreprise et par organisation
 - ✅ Suppression de compte utilisateur
 
+### Licences
+- ✅ Période d'essai gratuite de **3 mois** à l'inscription
+- ✅ Activation par **jetons** (`XXXX-XXXX-XXXX-XXXX`) de 30, 90, 180 ou 365 jours
+- ✅ Jetons cumulables (extension à partir de la date d'expiration courante)
+- ✅ Accès bloqué (`402 Payment Required`) si essai et licence expirés
+- ✅ Affichage du statut licence dans le Profil (`trial` / `active` / `expired`)
+- ✅ CLI `gen-tokens` pour générer des jetons en lot
+
 ### Sécurité
 - ✅ Vérification de la solidité des mots de passe via [`zxcvbn`](https://github.com/shssoichiro/zxcvbn-rs) (score ≥ 3/4) à l'inscription et au changement de mot de passe
 - ✅ Feedback explicite retourné si le mot de passe est trop faible
@@ -197,7 +205,13 @@ JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
 
 ### 3. Base de données
 
-Appliquer les migrations SQL (tables `users`, `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`).
+Appliquer les migrations SQL disponibles dans `migrations/` :
+
+```bash
+psql $DATABASE_URL -f migrations/001_license_tokens.sql
+```
+
+Tables créées : `users` (+ `trial_ends_at`, `access_expires_at`), `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`, `license_tokens`.
 
 ### 4. Lancer le backend
 
@@ -214,6 +228,20 @@ cd frontend
 trunk serve
 # App disponible sur http://127.0.0.1:8080
 ```
+
+### 6. Générer des jetons de licence
+
+```bash
+cd backend
+
+# 5 jetons de 30 jours
+cargo run --bin gen-tokens -- --count 5 --days 30
+
+# 1 jeton d'un an
+cargo run --bin gen-tokens -- --count 1 --days 365
+```
+
+Les jetons sont insérés en base et affichés **une seule fois** en clair. Transmettez-les à vos utilisateurs par email ou tout autre canal sécurisé. Ils peuvent être saisis dans la section **Profil → Licence** ou activés automatiquement via `POST /api/profile/redeem`.
 
 ---
 
@@ -336,6 +364,7 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - ✅ App iOS via Tauri Mobile
 - ✅ Gestion de flotte d'entreprise (entreprises, organisations, membres, rôles)
 - ✅ Suppression de compte utilisateur
+- ✅ Système de licences par jetons (trial 3 mois + activation par jeton)
 - [ ] App Android via Tauri Mobile
 - [ ] Sideloading iOS (Apple ID gratuit) → App Store (Apple Developer)
 - [ ] Export PDF / CSV des historiques
