@@ -628,16 +628,56 @@ pub async fn delete_account(
         return err(StatusCode::UNAUTHORIZED, "Mot de passe incorrect").into_response();
     }
 
-    // Supprimer les entreprises créées par l'utilisateur
-    // (cascade : organizations, company_members, fleet_roles de ces entreprises)
-    let _ = sqlx::query!(
-        "DELETE FROM public.companies WHERE created_by = $1",
+    // Pour chaque entreprise créée par l'utilisateur :
+    // - s'il existe un autre admin → lui transférer created_by
+    // - sinon → supprimer l'entreprise (cascade : orgs, membres, rôles)
+    let owned_companies = sqlx::query_scalar!(
+        "SELECT id FROM public.companies WHERE created_by = $1",
         user_id
     )
-    .execute(&state.db)
-    .await;
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
 
-    // Supprimer les rôles fleet dans les entreprises dont il n'est pas créateur
+    for company_id in owned_companies {
+        let other_admin = sqlx::query_scalar!(
+            r#"
+            SELECT user_id FROM public.fleet_roles
+            WHERE company_id = $1
+              AND user_id != $2
+              AND role = 'admin'
+              AND org_id IS NULL
+            LIMIT 1
+            "#,
+            company_id,
+            user_id
+        )
+        .fetch_optional(&state.db)
+        .await
+        .unwrap_or(None);
+
+        match other_admin {
+            Some(new_owner) => {
+                let _ = sqlx::query!(
+                    "UPDATE public.companies SET created_by = $1 WHERE id = $2",
+                    new_owner,
+                    company_id
+                )
+                .execute(&state.db)
+                .await;
+            }
+            None => {
+                let _ = sqlx::query!(
+                    "DELETE FROM public.companies WHERE id = $1",
+                    company_id
+                )
+                .execute(&state.db)
+                .await;
+            }
+        }
+    }
+
+    // Supprimer les rôles fleet dans toutes les entreprises
     let _ = sqlx::query!(
         "DELETE FROM public.fleet_roles WHERE user_id = $1",
         user_id
@@ -645,7 +685,7 @@ pub async fn delete_account(
     .execute(&state.db)
     .await;
 
-    // Supprimer les memberships dans les entreprises dont il n'est pas créateur
+    // Supprimer les memberships dans toutes les entreprises
     let _ = sqlx::query!(
         "DELETE FROM public.company_members WHERE user_id = $1",
         user_id
