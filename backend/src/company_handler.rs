@@ -923,7 +923,10 @@ pub async fn list_fleet_vehicles(
 
     match rows {
         Ok(vehicles) => (StatusCode::OK, Json(vehicles)).into_response(),
-        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+        Err(e) => {
+            tracing::error!("list_fleet_vehicles error: {e:?}");
+            err(StatusCode::INTERNAL_SERVER_ERROR, format!("erreur base de données: {e}")).into_response()
+        }
     }
 }
 
