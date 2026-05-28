@@ -11,6 +11,7 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Frontend** : Leptos 0.6 (WASM), Tailwind CSS v4, Trunk
 - **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (NeonDB)
 - **Auth** : JWT (jsonwebtoken) + bcrypt
+- **Sécurité mots de passe** : `zxcvbn` (score ≥ 3/4) à l'inscription et au changement de mot de passe
 - **Mobile** : Tauri v2 (iOS configuré, Android à faire)
 - **Types partagés** : crate `common` (workspace Cargo)
 - **Déploiement** : Netlify (frontend) + Railway (backend)
@@ -117,6 +118,25 @@ DELETE     /api/companies/:id/fleet-roles/:role_id
 GET        /api/companies/:id/vehicles
 GET        /api/companies/:id/organizations/:oid/vehicles
 ```
+
+## Sécurité — vérification des mots de passe
+Crate `zxcvbn` utilisée dans `user_handler.rs`. Score minimum **3/4** requis.
+```rust
+use zxcvbn::zxcvbn;
+
+fn check_password_strength(password: &str, user_inputs: &[&str]) -> Result<(), String> {
+    let estimate = zxcvbn(password, user_inputs);
+    if u8::from(estimate.score()) < 3 {
+        let msg = estimate.feedback().as_ref()
+            .and_then(|f| f.warning())
+            .map(|w| w.to_string())
+            .unwrap_or_else(|| "Mot de passe trop faible.".to_string());
+        return Err(msg);
+    }
+    Ok(())
+}
+```
+Appelé dans `register` avec `&[username, email]` et dans `change_password` avec les données récupérées en BDD.
 
 ## Points importants Leptos
 ```rust
