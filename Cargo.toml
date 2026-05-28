@@ -8,7 +8,7 @@ edition = "2021"
 authors = ["thierry.soulie@tsodev.fr"]
 repository = "https://github.com/TSODev/odo.io"                                     # corrigé : odo.io et non ido.io
 description = "Gestion de flotte kilométrique — contrats LOA, assurance et relevés"
-license = "MIT"
+license = "Elastic-2.0"
 
 [workspace.dependencies]
 # --- Core ---

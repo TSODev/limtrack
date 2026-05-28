@@ -7,7 +7,7 @@
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-yellow)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-ELv2-blue)
 
 ---
 
@@ -346,7 +346,7 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ## Licence
 
-MIT © 2026 [TSODev](mailto:thierry.soulie@tsodev.fr)
+Elastic License 2.0 (ELv2) © 2026 [TSODev](mailto:thierry.soulie@tsodev.fr)
 
 ---
 
