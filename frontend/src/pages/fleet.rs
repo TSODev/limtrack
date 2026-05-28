@@ -127,7 +127,7 @@ pub fn FleetPage() -> impl IntoView {
     view! {
         <div class="min-h-screen bg-gray-100">
             <nav class="bg-white shadow-sm border-b border-gray-200">
-                <div class="max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
+                <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                     <A href="/mainpage"
                         class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150"
                     >
@@ -141,7 +141,7 @@ pub fn FleetPage() -> impl IntoView {
                 </div>
             </nav>
 
-            <div class="max-w-6xl mx-auto px-4 py-4 md:py-8">
+            <div class="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-8">
                 <Show when=move || loading.get() fallback=|| ()>
                     <div class="flex justify-center py-20">
                         <p class="text-gray-400 animate-pulse">"Chargement..."</p>
