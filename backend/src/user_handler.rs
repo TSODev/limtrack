@@ -628,6 +628,31 @@ pub async fn delete_account(
         return err(StatusCode::UNAUTHORIZED, "Mot de passe incorrect").into_response();
     }
 
+    // Supprimer les entreprises créées par l'utilisateur
+    // (cascade : organizations, company_members, fleet_roles de ces entreprises)
+    let _ = sqlx::query!(
+        "DELETE FROM public.companies WHERE created_by = $1",
+        user_id
+    )
+    .execute(&state.db)
+    .await;
+
+    // Supprimer les rôles fleet dans les entreprises dont il n'est pas créateur
+    let _ = sqlx::query!(
+        "DELETE FROM public.fleet_roles WHERE user_id = $1",
+        user_id
+    )
+    .execute(&state.db)
+    .await;
+
+    // Supprimer les memberships dans les entreprises dont il n'est pas créateur
+    let _ = sqlx::query!(
+        "DELETE FROM public.company_members WHERE user_id = $1",
+        user_id
+    )
+    .execute(&state.db)
+    .await;
+
     // Supprimer les véhicules owned (cascade : contrats, km, accès, codes)
     let vehicle_ids = sqlx::query_scalar!(
         r#"
