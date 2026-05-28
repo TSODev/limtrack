@@ -65,7 +65,7 @@ pub async fn check_license(
     let has_access = row.trial_ends_at > now
         || row.access_expires_at.map_or(false, |e| e > now);
 
-    if !has_access {
+    if !has_access && request.method() != axum::http::Method::GET {
         return (
             StatusCode::PAYMENT_REQUIRED,
             Json(ApiError {

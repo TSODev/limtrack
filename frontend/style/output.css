@@ -1220,6 +1220,11 @@
   .italic {
     font-style: italic;
   }
+  .placeholder-gray-300 {
+    &::placeholder {
+      color: var(--color-gray-300);
+    }
+  }
   .placeholder-gray-400 {
     &::placeholder {
       color: var(--color-gray-400);

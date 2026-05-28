@@ -67,8 +67,9 @@ pub fn RegisterPage() -> impl IntoView {
 
                         if resp.ok() || resp.status() == 201 {
                             set_is_success.set(true);
-                            set_status_message
-                                .set("Compte créé avec succès ! Redirection...".to_string());
+                            set_status_message.set(
+                                "Compte créé ! Vous bénéficiez de 3 mois d'essai gratuit. Redirection...".to_string(),
+                            );
                             // Redirection vers le login après 2 secondes
                             let navigate_delayed = navigate_submit.clone();
                             gloo_timers::future::TimeoutFuture::new(2_000).await;
@@ -182,6 +183,22 @@ pub fn RegisterPage() -> impl IntoView {
                             class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
                             placeholder="••••••••"
                         />
+                    </div>
+
+                    // Notice période d'essai
+                    <div class="rounded-md bg-indigo-50 border border-indigo-200 p-4">
+                        <div class="flex items-start gap-3">
+                            <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                            </svg>
+                            <div class="text-sm text-indigo-800">
+                                <p class="font-semibold">"Période d'essai gratuite — 3 mois"</p>
+                                <p class="mt-1 text-indigo-700">
+                                    "Votre compte bénéficie d'un accès complet pendant 3 mois. "
+                                    "Au-delà, une licence complémentaire sera nécessaire pour enregistrer de nouvelles données."
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     // Bouton de soumission
