@@ -6,6 +6,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### À venir
+- **Notification d'expiration de licence** : alerter l'utilisateur quand sa licence approche de l'expiration (seuil J-7) et lorsqu'elle a expiré — via la cloche in-app et/ou email.
+
+---
+
 ## [0.3.0] — 2026-05-28
 
 ### Ajouté

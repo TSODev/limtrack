@@ -369,6 +369,7 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - [ ] Sideloading iOS (Apple ID gratuit) → App Store (Apple Developer)
 - [ ] Export PDF / CSV des historiques
 - [ ] Notifications push natives
+- [ ] Notification d'expiration de licence (in-app + email) avant et après expiration
 - [ ] Tableau de bord multi-véhicules
 
 ---
