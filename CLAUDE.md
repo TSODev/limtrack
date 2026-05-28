@@ -12,6 +12,7 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (NeonDB)
 - **Auth** : JWT (jsonwebtoken) + bcrypt
 - **Sécurité mots de passe** : `zxcvbn` (score ≥ 3/4) à l'inscription et au changement de mot de passe
+- **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`
 - **Mobile** : Tauri v2 (iOS configuré, Android à faire)
 - **Types partagés** : crate `common` (workspace Cargo)
 - **Déploiement** : Netlify (frontend) + Railway (backend)
@@ -30,7 +31,10 @@ odo.io/
 │   ├── contracts_handler.rs
 │   ├── mileage_handler.rs
 │   ├── share_handler.rs
-│   └── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
+│   ├── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
+│   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
+│   ├── license_middleware.rs  ← middleware 402 si licence expirée
+│   └── bin/gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
 ├── frontend/src/
 │   ├── config.rs              ← API_BASE = "https://api.tsodev.fr"
 │   ├── pages/
@@ -62,7 +66,8 @@ odo.io/
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "0.2.0"
+├── Cargo.toml                 ← version = "0.2.1"
+├── migrations/                ← SQL à appliquer manuellement sur NeonDB
 └── Trunk.toml
 ```
 
@@ -73,7 +78,7 @@ odo.io/
 
 ## Base de données
 ```sql
-users                  -- Auth JWT + bcrypt
+users                  -- Auth JWT + bcrypt + trial_ends_at + access_expires_at
 vehicles               -- owner_id, make, model, plate_number, company_id
 vehicle_access         -- rôles : owner, editor, viewer (ON DELETE CASCADE)
 contracts_loa          -- ON DELETE CASCADE
@@ -85,6 +90,7 @@ companies              -- name, siret, created_by
 organizations          -- company_id, parent_org_id, name (hiérarchie)
 company_members        -- user_id, company_id
 fleet_roles            -- user_id, company_id, org_id, role, granted_by
+license_tokens         -- token_hash (SHA-256), duration_days, used_at, used_by
 ```
 
 ## Routes API
@@ -117,6 +123,20 @@ GET/POST   /api/companies/:id/fleet-roles
 DELETE     /api/companies/:id/fleet-roles/:role_id
 GET        /api/companies/:id/vehicles
 GET        /api/companies/:id/organizations/:oid/vehicles
+```
+
+## Licences — système de jetons
+- Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
+- Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
+- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`
+- Réponse si expiré : `402 Payment Required`
+- Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
+- Durées disponibles : 30, 90, 180, 365 jours
+
+```bash
+# Générer des jetons (depuis backend/)
+cargo run --bin gen-tokens -- --count 5 --days 30
+cargo run --bin gen-tokens -- --count 1 --days 365
 ```
 
 ## Sécurité — vérification des mots de passe

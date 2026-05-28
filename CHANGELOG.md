@@ -6,6 +6,18 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Ajouté
+- **Système de licences par jetons** : période d'essai gratuite de 3 mois à l'inscription, puis activation par jetons (`XXXX-XXXX-XXXX-XXXX`) d'une durée de 30, 90, 180 ou 365 jours. Les jetons sont cumulables (extension à partir de la date d'expiration courante).
+- **Route `GET /api/profile/license`** : retourne le statut (`trial` / `active` / `expired`), la date de fin d'essai et la date d'expiration de licence.
+- **Route `POST /api/profile/redeem`** : valide et active un jeton. Le token est vérifié par son hash SHA-256 ; un jeton déjà utilisé est rejeté avec `409 Conflict`.
+- **Middleware de vérification d'accès** : toutes les routes `/api/*` retournent `402 Payment Required` si le compte est expiré (essai et licence épuisés). Exempté : `/login`, `/register`, `/api/profile/license`, `/api/profile/redeem`.
+- **CLI `gen-tokens`** : génère des jetons en base et les affiche en clair une seule fois (`cargo run --bin gen-tokens -- --count N --days 30|90|180|365`).
+- **Section Licence dans le Profil** : affichage du statut avec badge coloré, date d'expiration et formulaire de saisie de jeton.
+
+---
+
 ## [0.2.1] — 2026-05-28
 
 ### Ajouté
