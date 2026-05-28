@@ -910,7 +910,7 @@ pub async fn list_fleet_vehicles(
             v.created_at,
             v.company_id,
             v.org_id,
-            o.name AS org_name
+            o.name AS "org_name?"
         FROM public.vehicles v
         LEFT JOIN public.organizations o ON o.id = v.org_id
         WHERE v.company_id = $1
@@ -971,7 +971,7 @@ pub async fn list_org_vehicles(
             v.created_at,
             v.company_id,
             v.org_id,
-            o.name AS org_name
+            o.name AS "org_name?"
         FROM public.vehicles v
         LEFT JOIN public.organizations o ON o.id = v.org_id
         WHERE v.org_id = $1

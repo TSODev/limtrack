@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.company_id,\n            v.org_id,\n            o.name AS org_name\n        FROM public.vehicles v\n        LEFT JOIN public.organizations o ON o.id = v.org_id\n        WHERE v.org_id = $1\n        ORDER BY v.make, v.model\n        ",
+  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.company_id,\n            v.org_id,\n            o.name AS \"org_name?\"\n        FROM public.vehicles v\n        LEFT JOIN public.organizations o ON o.id = v.org_id\n        WHERE v.org_id = $1\n        ORDER BY v.make, v.model\n        ",
   "describe": {
     "columns": [
       {
@@ -55,7 +55,7 @@
       },
       {
         "ordinal": 10,
-        "name": "org_name",
+        "name": "org_name?",
         "type_info": "Text"
       }
     ],
@@ -78,5 +78,5 @@
       false
     ]
   },
-  "hash": "5ad2891d015e3baef61e5b753d8da4a679ab29782d75a70d21af9def9bf68a87"
+  "hash": "f6dd3453c31a1458b77f2ef33c6af6dac1801f8a4f97c23bc266267d73bd6852"
 }
