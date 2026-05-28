@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::auth::{AuthenticatedUser, Claims};
 use crate::state::AppState;
 use common::{UpdatePreferencesPayload, UserPreferences};
+use zxcvbn::zxcvbn;
 
 // ─── Payloads ────────────────────────────────────────────────────
 
@@ -91,6 +92,20 @@ struct ApiError {
 
 fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ApiError>) {
     (status, Json(ApiError { error: msg.into() }))
+}
+
+fn check_password_strength(password: &str, user_inputs: &[&str]) -> Result<(), String> {
+    let estimate = zxcvbn(password, user_inputs);
+    if u8::from(estimate.score()) < 3 {
+        let msg = estimate
+            .feedback()
+            .as_ref()
+            .and_then(|f| f.warning())
+            .map(|w| w.to_string())
+            .unwrap_or_else(|| "Mot de passe trop faible.".to_string());
+        return Err(msg);
+    }
+    Ok(())
 }
 
 // ─── POST /login ─────────────────────────────────────────────────
@@ -172,6 +187,13 @@ pub async fn register(
         .into_response();
     }
 
+    if let Err(msg) = check_password_strength(
+        &payload.password,
+        &[payload.username.trim(), payload.email.trim()],
+    ) {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, msg).into_response();
+    }
+
     let hashed = match hash(&payload.password, DEFAULT_COST) {
         Ok(h) => h,
         Err(_) => {
@@ -235,16 +257,8 @@ pub async fn change_password(
     State(state): State<AppState>,
     Json(payload): Json<ChangePasswordRequest>,
 ) -> impl IntoResponse {
-    if payload.new_password.len() < 8 {
-        return err(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Le nouveau mot de passe doit contenir au moins 8 caractères",
-        )
-        .into_response();
-    }
-
     let user = sqlx::query!(
-        "SELECT password_hash FROM public.users WHERE id = $1",
+        "SELECT username, email, password_hash FROM public.users WHERE id = $1",
         user_id
     )
     .fetch_optional(&state.db)
@@ -261,6 +275,13 @@ pub async fn change_password(
     let is_valid = verify(&payload.current_password, &user.password_hash).unwrap_or(false);
     if !is_valid {
         return err(StatusCode::UNAUTHORIZED, "Mot de passe actuel incorrect").into_response();
+    }
+
+    if let Err(msg) = check_password_strength(
+        &payload.new_password,
+        &[&user.username, &user.email],
+    ) {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, msg).into_response();
     }
 
     let hashed = match hash(&payload.new_password, DEFAULT_COST) {
