@@ -6,7 +6,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [0.3.0] — 2026-05-28
 
 ### Ajouté
 - **Système de licences par jetons** : période d'essai gratuite de 3 mois à l'inscription, puis activation par jetons (`XXXX-XXXX-XXXX-XXXX`) d'une durée de 30, 90, 180 ou 365 jours. Les jetons sont cumulables (extension à partir de la date d'expiration courante).

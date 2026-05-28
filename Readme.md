@@ -2,7 +2,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-0.2.1-indigo)
+![Version](https://img.shields.io/badge/version-0.3.0-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)

@@ -3,7 +3,7 @@ resolver = "2"
 members = ["backend", "frontend", "common", "frontend/src-tauri"]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["thierry.soulie@tsodev.fr"]
 repository = "https://github.com/TSODev/odo.io"                                     # corrigé : odo.io et non ido.io

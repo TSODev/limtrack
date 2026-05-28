@@ -66,7 +66,7 @@ odo.io/
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "0.2.1"
+├── Cargo.toml                 ← version = "0.3.0"
 ├── migrations/                ← SQL à appliquer manuellement sur NeonDB
 └── Trunk.toml
 ```
