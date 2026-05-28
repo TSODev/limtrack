@@ -1,0 +1,200 @@
+Voici un résumé complet pour Claude Code :
+
+---
+
+# odo.io — Résumé projet pour Claude Code
+
+## Présentation
+Application web full-stack **entièrement en Rust** de gestion de flotte kilométrique. Suivi contrats LOA/assurance, relevés kilométriques, alertes personnalisées.
+
+## Stack technique
+- **Frontend** : Leptos 0.6 (WASM), Tailwind CSS v4, Trunk
+- **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (NeonDB)
+- **Auth** : JWT (jsonwebtoken) + bcrypt
+- **Mobile** : Tauri v2 (iOS configuré, Android à faire)
+- **Types partagés** : crate `common` (workspace Cargo)
+- **Déploiement** : Netlify (frontend) + Railway (backend)
+
+## Architecture workspace
+```
+odo.io/
+├── backend/src/
+│   ├── main.rs
+│   ├── auth.rs
+│   ├── state.rs
+│   ├── handlers.rs            ← login, status, helpers généraux
+│   ├── lib.rs
+│   ├── user_handler.rs
+│   ├── vehicles_handler.rs
+│   ├── contracts_handler.rs
+│   ├── mileage_handler.rs
+│   ├── share_handler.rs
+│   └── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
+├── frontend/src/
+│   ├── config.rs              ← API_BASE = "https://api.tsodev.fr"
+│   ├── pages/
+│   │   ├── home.rs
+│   │   ├── login.rs
+│   │   ├── register.rs
+│   │   ├── signup.rs
+│   │   ├── mainpage.rs
+│   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
+│   │   └── profile.rs
+│   └── components/
+│       ├── ui.rs              ← helpers partagés : input_class(), get_token(), format_km()
+│       ├── vehicle.rs         ← VehicleCard component
+│       ├── vehicle_dashboard.rs
+│       ├── vehicle_detail.rs  ← détail véhicule avec VehicleWithAccess
+│       ├── vehicle_header.rs
+│       ├── vehicle_list.rs
+│       ├── notification_bell.rs
+│       ├── add_vehicle_button.rs
+│       ├── join_vehicle_button.rs
+│       ├── contracts/
+│       │   ├── contract_list.rs
+│       │   └── contract_widget.rs
+│       └── mileage/
+│           ├── mileage_list.rs
+│           └── mileage_widget.rs
+├── frontend/src-tauri/        ← Tauri iOS
+│   ├── tauri.conf.json
+│   ├── gen/apple/             ← Projet Xcode généré
+│   └── icons/                 ← Icônes toutes tailles
+├── common/src/lib.rs
+├── Cargo.toml                 ← version = "0.2.0"
+└── Trunk.toml
+```
+
+## URLs production
+- Frontend : `https://odo.tsodev.fr` (Netlify)
+- Backend : `https://api.tsodev.fr` (Railway)
+- BDD : NeonDB PostgreSQL
+
+## Base de données
+```sql
+users                  -- Auth JWT + bcrypt
+vehicles               -- owner_id, make, model, plate_number, company_id
+vehicle_access         -- rôles : owner, editor, viewer (ON DELETE CASCADE)
+contracts_loa          -- ON DELETE CASCADE
+contracts_insurance    -- ON DELETE CASCADE
+mileage_log            -- ON DELETE CASCADE
+vehicle_share_codes    -- codes XXX-XXX-XXX (ON DELETE CASCADE)
+user_preferences       -- notif_days_before, notif_km_percent
+companies              -- name, siret, created_by
+organizations          -- company_id, parent_org_id, name (hiérarchie)
+company_members        -- user_id, company_id
+fleet_roles            -- user_id, company_id, org_id, role, granted_by
+```
+
+## Routes API
+```
+POST   /login
+POST   /api/user/register
+GET    /api/profile
+DELETE /api/profile              ← suppression compte (nouveau)
+POST   /api/profile/password
+GET    /api/profile/shares
+GET/PUT /api/profile/preferences
+GET/POST /api/vehicles
+GET/DELETE/PATCH /api/vehicles/:id
+POST   /api/vehicles/:id/share
+POST   /api/vehicles/join
+DELETE /api/vehicles/:id/access/:user_id
+DELETE /api/vehicles/:id/leave
+GET/POST /api/vehicles/:id/contracts/loa
+GET/POST /api/vehicles/:id/contracts/insurance
+GET/POST /api/vehicles/:id/mileage
+POST/DELETE /api/vehicles/:id/fleet     ← assigner/retirer un véhicule d'une flotte
+
+GET/POST   /api/companies
+GET/DELETE /api/companies/:id
+GET/POST   /api/companies/:id/organizations
+DELETE     /api/companies/:id/organizations/:oid
+GET/POST   /api/companies/:id/members
+DELETE     /api/companies/:id/members/:uid
+GET/POST   /api/companies/:id/fleet-roles
+DELETE     /api/companies/:id/fleet-roles/:role_id
+GET        /api/companies/:id/vehicles
+GET        /api/companies/:id/organizations/:oid/vehicles
+```
+
+## Points importants Leptos
+```rust
+// Callbacks — toujours Callback<T>
+on_saved: Callback<UserPreferences>
+on_saved.call(value)
+
+// Strings movées deux fois → cloner
+let name = v.name.clone();
+let name_del = name.clone();
+
+// Memo<bool> pour pending()
+let is_pending = create_memo(move |_| action.pending().get());
+
+// PartialEq requis pour create_memo sur structs custom
+#[derive(Clone, PartialEq)]
+pub struct Vehicle { ... }
+```
+
+## API_BASE — pattern fetch
+Toutes les URLs API utilisent `crate::config::API_BASE` :
+```rust
+// String simple
+let url = format!("{}/api/vehicles", crate::config::API_BASE);
+
+// Dans appels de fonctions
+fetch_json::<T>(&format!("{}/api/profile", crate::config::API_BASE), &token)
+```
+
+## Responsive mobile-first
+- **mainpage.rs** : `hidden md:flex` (desktop) + `flex md:hidden` (mobile)
+- Bottom sheet mobile pour sélection véhicule
+- Safe areas iOS : `style="padding-top: env(safe-area-inset-top)"`
+- Boutons icônes seuls mobile : `hidden md:inline` sur les textes
+- Notification bell : `fixed sm:absolute`
+
+## Tauri iOS — lancer le Simulator
+```bash
+# Terminal 1 — serveur statique
+cd frontend && trunk build --release
+python3 -c "
+import http.server, socketserver, os
+class H(http.server.SimpleHTTPRequestHandler):
+    def guess_type(self, p):
+        return 'application/wasm' if p.endswith('.wasm') else super().guess_type(p)
+    def end_headers(self):
+        self.send_header('Cross-Origin-Opener-Policy','same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy','require-corp')
+        super().end_headers()
+os.chdir('dist')
+with socketserver.TCPServer(('',1430),H) as s: s.serve_forever()
+"
+
+# Terminal 2 — Tauri
+cargo tauri ios dev "77F8FC35-195B-4C78-9690-28CF71ECDE54" --no-dev-server-wait
+# Puis ▶ Run dans Xcode sur iPhone 13 Pro
+```
+
+## Railway — point important
+Railway compile avec `SQLX_OFFLINE=true`. Après toute modification de requête SQL dans le backend, il faut regénérer le cache :
+```bash
+cd backend
+cargo sqlx prepare
+git add .sqlx/
+git commit -m "fix: sqlx cache"
+git push
+```
+
+## Warnings connus
+- `RequestInit::method/headers/body` dépréciés → bénins, correction complexe, à faire lors d'une maj web-sys
+- `web_sys 0.3` — `set_headers()` attend `&JsValue` pas `&Headers`
+
+## Version actuelle
+`0.2.0`
+
+## Roadmap
+- [ ] Tauri Android
+- [ ] Export PDF/CSV
+- [ ] Notifications push natives
+- [ ] Sideloading iPhone réel → App Store
+
