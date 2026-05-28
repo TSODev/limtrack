@@ -1,6 +1,7 @@
 use crate::components::notification_bell::NotificationBell;
 use crate::components::vehicle_dashboard::VehicleDashboard;
 use crate::components::vehicle_list::{fetch_vehicles, Vehicle_list};
+use crate::pages::fleet::fetch_companies_count;
 use leptos::*;
 use leptos_router::*;
 
@@ -11,6 +12,7 @@ pub fn MainPage() -> impl IntoView {
     let (is_authenticated, set_is_authenticated) = create_signal(false);
     let (selected_vehicle_id, set_selected_vehicle_id) = create_signal(Option::<uuid::Uuid>::None);
     let (sheet_open, set_sheet_open) = create_signal(false);
+    let (has_fleet, set_has_fleet) = create_signal(false);
 
     let navigate_effect = navigate.clone();
     create_effect(move |_| {
@@ -22,11 +24,17 @@ pub fn MainPage() -> impl IntoView {
 
         if let Some(token) = token {
             set_is_authenticated.set(true);
+            let token_fleet = token.clone();
             spawn_local(async move {
                 match fetch_vehicles(&token).await {
                     Ok(data) => set_vehicles.set(data),
                     Err(e) => leptos::logging::error!("Erreur fetch véhicules : {:?}", e),
                 }
+            });
+            // Vérification silencieuse — pas d'impact si 0 entreprises
+            spawn_local(async move {
+                let count = fetch_companies_count(&token_fleet).await;
+                set_has_fleet.set(count > 0);
             });
         } else {
             navigate_effect("/", NavigateOptions::default());
@@ -69,6 +77,30 @@ pub fn MainPage() -> impl IntoView {
                         <div class="flex items-center gap-2 md:gap-3">
                             // Cloche
                             <NotificationBell vehicles=vehicles />
+
+                            // Flotte — visible uniquement si l'utilisateur a des entreprises
+                            <Show when=move || has_fleet.get() fallback=|| ()>
+                                <A
+                                    href="/fleet"
+                                    class="hidden md:flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                                >
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                    </svg>
+                                    "Flotte"
+                                </A>
+                                // Icône seule sur mobile
+                                <A
+                                    href="/fleet"
+                                    class="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-50 transition duration-150"
+                                >
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                    </svg>
+                                </A>
+                            </Show>
 
                             // Profil texte — visible md+
                             <A

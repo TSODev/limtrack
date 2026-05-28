@@ -158,6 +158,7 @@ pub fn ProfilePage() -> impl IntoView {
                     })}
 
                     <DeleteAccountSection />
+                    <FleetSection />
                 </Show>
             </div>
         </div>
@@ -744,6 +745,92 @@ fn DeleteAccountSection() -> impl IntoView {
                 </div>
             </Show>
         </div>
+    }
+}
+
+// ─── Section Flotte (point d'entrée discret) ──────────────────────
+
+#[derive(Clone, Serialize, Deserialize)]
+struct CompanyBrief {
+    id: Uuid,
+    name: String,
+    my_role: Option<String>,
+}
+
+#[component]
+fn FleetSection() -> impl IntoView {
+    let (companies, set_companies) = create_signal(Vec::<CompanyBrief>::new());
+    let (loaded, set_loaded) = create_signal(false);
+
+    create_effect(move |_| {
+        if let Some(token) = get_token() {
+            spawn_local(async move {
+                if let Ok(list) = fetch_json::<Vec<CompanyBrief>>(
+                    &format!("{}/api/companies", crate::config::API_BASE),
+                    &token,
+                )
+                .await
+                {
+                    set_companies.set(list);
+                }
+                set_loaded.set(true);
+            });
+        }
+    });
+
+    view! {
+        <Show when=move || loaded.get() fallback=|| ()>
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-gray-900">"Gestion de flotte"</h2>
+                    <A href="/fleet"
+                        class="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition duration-150"
+                    >
+                        {move || if companies.get().is_empty() { "Créer une entreprise" } else { "Accéder à la flotte" }}
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                        </svg>
+                    </A>
+                </div>
+
+                <Show when=move || companies.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-gray-400 italic">
+                        "Aucune entreprise. Créez-en une pour gérer une flotte de véhicules."
+                    </p>
+                </Show>
+
+                <Show when=move || !companies.get().is_empty() fallback=|| ()>
+                    <div class="space-y-2">
+                        <For
+                            each=move || companies.get()
+                            key=|c| c.id
+                            children=move |c| {
+                                let role_badge = c.my_role.as_deref().map(|r| {
+                                    let (lbl, cls) = if r == "fleet_admin" {
+                                        ("Admin", "bg-indigo-100 text-indigo-700")
+                                    } else {
+                                        ("Lecteur", "bg-gray-100 text-gray-600")
+                                    };
+                                    view! {
+                                        <span class=format!("text-xs px-2 py-0.5 rounded-full font-medium {}", cls)>{lbl}</span>
+                                    }.into_view()
+                                });
+                                view! {
+                                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                        </svg>
+                                        <span class="text-sm font-medium text-gray-800 flex-1">{c.name}</span>
+                                        {role_badge}
+                                    </div>
+                                }
+                            }
+                        />
+                    </div>
+                </Show>
+            </div>
+        </Show>
     }
 }
 

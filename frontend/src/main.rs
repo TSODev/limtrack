@@ -6,6 +6,7 @@ pub mod components;
 mod config;
 
 mod pages; // On importe notre nouveau module
+use pages::fleet::FleetPage;
 use pages::home::HomePage;
 use pages::login::LoginPage;
 use pages::mainpage::MainPage;
@@ -23,6 +24,7 @@ fn App() -> impl IntoView {
                     <Route path="mainpage" view=MainPage/>
                     <Route path="/register" view=RegisterPage />
                     <Route path="/profile" view=ProfilePage />
+                    <Route path="/fleet" view=FleetPage />
                 </Routes>
             </main>
         </Router>
