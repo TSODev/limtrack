@@ -11,6 +11,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ### Ajouté
 - **Vérification de la solidité des mots de passe** via `zxcvbn` (score minimum 3/4) à l'inscription (`POST /api/user/register`) et au changement de mot de passe (`POST /api/profile/password`). Le feedback est retourné en clair si le mot de passe est refusé. Le username et l'email sont passés comme contexte pour détecter les mots de passe dérivés de l'identité.
 
+### Modifié
+- **Licence** : migration de MIT vers **Elastic License 2.0 (ELv2)**. Le code reste visible mais il est désormais interdit de fournir le logiciel en tant que service hébergé (SaaS) sans accord du titulaire.
+
 ### Corrigé
 - **Suppression de compte** : erreur FK lors de la suppression d'un utilisateur membre ou administrateur d'une entreprise. Les tables `fleet_roles`, `company_members` et `companies` (via `created_by`) n'étaient pas nettoyées avant le `DELETE FROM users`. L'entreprise créée par l'utilisateur est désormais supprimée en premier (cascade sur orgs/membres/rôles), puis les rôles et memberships résiduels dans d'autres entreprises.
 - **Suppression de compte — transfert de propriété d'entreprise** : si l'utilisateur est créateur d'une entreprise et qu'un autre administrateur global existe, `created_by` lui est transféré plutôt que de supprimer l'entreprise. Sans autre admin, l'entreprise est supprimée. Évite la perte de données pour les co-administrateurs.
