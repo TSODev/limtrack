@@ -70,7 +70,7 @@ pub fn MainPage() -> impl IntoView {
             <div class="min-h-screen bg-gray-100 flex flex-col" style="padding-top: env(safe-area-inset-top)">
 
                 // ─── Navbar ──────────────────────────────────────────
-                <nav class="bg-white shadow-sm border-b border-gray-200 shrink-0 z-20">
+                <nav class="bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm shrink-0 z-20">
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between">
                         <span class="text-lg md:text-xl font-bold text-indigo-600">"odo.io"</span>
 
@@ -197,43 +197,44 @@ pub fn MainPage() -> impl IntoView {
                         />
                     </main>
 
-                    // ── Bottom bar ────────────────────────────────────
-                    // button au lieu de div — iOS Safari ne gère pas on:click sur div
+                    // ── Pill flottante ────────────────────────────────
                     <button
                         type="button"
-                        class="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-lg cursor-pointer w-full text-left" style="padding-bottom: env(safe-area-inset-bottom)"
+                        class="fixed left-3 right-3 z-30 cursor-pointer w-auto"
+                        style="bottom: calc(env(safe-area-inset-bottom) + 0.75rem)"
                         on:click=move |_| set_sheet_open.set(true)
                     >
-                        <div class="flex items-center justify-between px-4 py-3">
+                        <div class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 flex items-center justify-between px-4 py-3">
                             {move || match selected_vehicle.get() {
                                 Some(v) => view! {
                                     <div class="flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-                                            <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                                            <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                                 <path stroke-linecap="round" stroke-linejoin="round"
                                                     d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
                                             </svg>
                                         </div>
                                         <div>
-                                            <p class="text-sm font-semibold text-gray-800">
+                                            <p class="text-sm font-semibold text-gray-900">
                                                 {format!("{} {}", v.make, v.model)}
                                             </p>
-                                            <p class="text-xs font-mono text-indigo-600">{v.plate_number}</p>
+                                            <p class="text-xs font-mono text-indigo-500">{v.plate_number}</p>
                                         </div>
                                     </div>
                                 }.into_view(),
                                 None => view! {
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-                                        </svg>
-                                        <p class="text-sm text-gray-400">"Sélectionner un véhicule"</p>
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                                            <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                                            </svg>
+                                        </div>
+                                        <p class="text-sm text-gray-400 font-medium">"Sélectionner un véhicule"</p>
                                     </div>
                                 }.into_view(),
                             }}
-                            // Chevron haut
-                            <svg class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <svg class="w-5 h-5 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
                             </svg>
                         </div>
@@ -252,7 +253,7 @@ pub fn MainPage() -> impl IntoView {
                         <div class="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col">
                             // Handle
                             <div class="flex justify-center pt-3 pb-2 shrink-0">
-                                <div class="w-10 h-1 bg-gray-300 rounded-full" />
+                                <div class="w-12 h-1.5 bg-gray-200 rounded-full" />
                             </div>
 
                             // En-tête sheet
