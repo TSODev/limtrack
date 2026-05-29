@@ -277,8 +277,12 @@ const APP_VERSION: &str = env!("APP_VERSION");
 - [ ] Notifications push natives
 - [ ] Notification d'expiration de licence (J-7, in-app + email)
 
+### Licences avancées
+- [ ] **Quota de véhicules par licence** : `max_vehicles` dans `users` (défaut 3 ou 5), extensible par jeton (`vehicle_slots`). Vérification au `POST /api/vehicles`. Quota affiché dans le profil.
+- [ ] **Licence entreprise** : table `company_licenses` (company_id, max_vehicles, expires_at), jeton couvrant toute la flotte avec quota véhicules, application automatique aux nouveaux véhicules assignés.
+
 ### SaaS complet
-- [ ] **Paiement self-service** : intégration Stripe, achat de licence en ligne (30/90/180/365 j), génération automatique du jeton via webhook
+- [ ] **Paiement self-service** : intégration Stripe, achat de licence en ligne (durée + slots véhicules), génération automatique du jeton via webhook
 - [ ] **Inscription libre** : onboarding sans intervention admin — inscription → paiement → activation autonome
-- [ ] **Dashboard administrateur** : vue globale utilisateurs, licences actives/expirées, activité
+- [ ] **Dashboard administrateur** : vue globale utilisateurs, licences actives/expirées, quotas, activité
 

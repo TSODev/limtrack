@@ -14,7 +14,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ### À venir
 - **Notification d'expiration de licence** : alerter l'utilisateur quand sa licence approche de l'expiration (seuil J-7) et lorsqu'elle a expiré — via la cloche in-app et/ou email.
-- **Paiement self-service** : intégration Stripe (ou équivalent) pour l'achat de licences en ligne (30/90/180/365 jours) avec génération automatique du jeton à la confirmation de paiement (webhook).
+- **Quota de véhicules par licence** : limiter le nombre de véhicules par utilisateur (`max_vehicles` dans `users`, défaut 3 ou 5). Des jetons pourront étendre la durée ET/OU ajouter des slots. Quota affiché dans la section Licence du profil.
+- **Licence entreprise** : jeton couvrant N véhicules d'une flotte entière (`company_licenses`), avec quota configurable et application automatique aux nouveaux véhicules assignés.
+- **Paiement self-service** : intégration Stripe (ou équivalent) pour l'achat de licences en ligne (durée + slots véhicules) avec génération automatique du jeton à la confirmation de paiement (webhook).
 - **Inscription libre** : activation de compte sans intervention manuelle de l'administrateur — l'utilisateur s'inscrit, paye et active sa licence de façon autonome.
 - **Dashboard administrateur** : vue globale des utilisateurs, licences actives, dates d'expiration et activité, pour piloter le service sans accès direct à la base de données.
 
