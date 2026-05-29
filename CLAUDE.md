@@ -37,6 +37,7 @@ odo.io/
 │   └── bin/gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
 ├── frontend/src/
 │   ├── config.rs              ← API_BASE = "https://api.tsodev.fr"
+│   ├── build.rs               ← lit git describe --tags → APP_VERSION (fallback CARGO_PKG_VERSION)
 │   ├── pages/
 │   │   ├── home.rs
 │   │   ├── login.rs
@@ -44,7 +45,8 @@ odo.io/
 │   │   ├── signup.rs
 │   │   ├── mainpage.rs
 │   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
-│   │   └── profile.rs
+│   │   ├── profile.rs
+│   │   └── about.rs           ← page À propos : version, description, contact mailto:
 │   └── components/
 │       ├── ui.rs              ← helpers partagés : input_class(), get_token(), format_km()
 │       ├── vehicle.rs         ← VehicleCard component
@@ -254,12 +256,29 @@ create_effect(move |_| {
 - `RequestInit::method/headers/body` dépréciés → bénins, correction complexe, à faire lors d'une maj web-sys
 - `web_sys 0.3` — `set_headers()` attend `&JsValue` pas `&Headers`
 
+## Version automatique depuis les git tags
+`frontend/build.rs` exécute `git describe --tags --abbrev=0` à la compilation et expose la constante `APP_VERSION` dans le WASM via `env!("APP_VERSION")`. Fallback sur `CARGO_PKG_VERSION` si aucun tag n'existe. Se re-déclenche si `.git/HEAD` ou `.git/refs/tags` changent.
+
+```rust
+// Utilisation dans about.rs
+const APP_VERSION: &str = env!("APP_VERSION");
+```
+
 ## Version actuelle
-`0.3.0`
+`0.3.1`
 
 ## Roadmap
+### Application mobile
 - [ ] Tauri Android
+- [ ] Sideloading iPhone réel → App Store
+
+### Fonctionnalités
 - [ ] Export PDF/CSV
 - [ ] Notifications push natives
-- [ ] Sideloading iPhone réel → App Store
+- [ ] Notification d'expiration de licence (J-7, in-app + email)
+
+### SaaS complet
+- [ ] **Paiement self-service** : intégration Stripe, achat de licence en ligne (30/90/180/365 j), génération automatique du jeton via webhook
+- [ ] **Inscription libre** : onboarding sans intervention admin — inscription → paiement → activation autonome
+- [ ] **Dashboard administrateur** : vue globale utilisateurs, licences actives/expirées, activité
 

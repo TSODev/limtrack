@@ -8,8 +8,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Ajouté
+- **Page "À propos"** : accessible depuis la navbar (icône info), affiche le nom de l'application, une description, la version (lue depuis le dernier git tag via `build.rs`) et un formulaire de contact `mailto:`.
+- **Version automatique depuis les git tags** : `frontend/build.rs` exécute `git describe --tags --abbrev=0` à la compilation et expose `APP_VERSION` comme constante WASM. Fallback sur `CARGO_PKG_VERSION` si aucun tag n'existe.
+
 ### À venir
 - **Notification d'expiration de licence** : alerter l'utilisateur quand sa licence approche de l'expiration (seuil J-7) et lorsqu'elle a expiré — via la cloche in-app et/ou email.
+- **Paiement self-service** : intégration Stripe (ou équivalent) pour l'achat de licences en ligne (30/90/180/365 jours) avec génération automatique du jeton à la confirmation de paiement (webhook).
+- **Inscription libre** : activation de compte sans intervention manuelle de l'administrateur — l'utilisateur s'inscrit, paye et active sa licence de façon autonome.
+- **Dashboard administrateur** : vue globale des utilisateurs, licences actives, dates d'expiration et activité, pour piloter le service sans accès direct à la base de données.
 
 ---
 

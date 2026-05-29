@@ -1,3 +1,4 @@
+pub mod about;
 pub mod fleet;
 pub mod home;
 pub mod login;

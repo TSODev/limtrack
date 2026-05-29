@@ -102,6 +102,29 @@ pub fn MainPage() -> impl IntoView {
                                 </A>
                             </Show>
 
+                            // À propos texte — visible md+
+                            <A
+                                href="/about"
+                                class="hidden md:flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                            >
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                                </svg>
+                                "À propos"
+                            </A>
+
+                            // À propos icône — mobile uniquement
+                            <A
+                                href="/about"
+                                class="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-50 transition duration-150"
+                            >
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                                </svg>
+                            </A>
+
                             // Profil texte — visible md+
                             <A
                                 href="/profile"
