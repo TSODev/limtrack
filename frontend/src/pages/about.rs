@@ -87,16 +87,6 @@ pub fn AboutPage() -> impl IntoView {
                         "vos relevés kilométriques et de recevoir des alertes personnalisées "
                         "avant d'atteindre les seuils contractuels."
                     </p>
-                    <div class="pt-2 grid grid-cols-2 gap-3 text-sm">
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">"Technologie"</p>
-                            <p class="font-medium text-gray-700">"Rust · Leptos · Axum"</p>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">"Licence"</p>
-                            <p class="font-medium text-gray-700">"Elastic 2.0"</p>
-                        </div>
-                    </div>
                 </div>
 
                 // ─── Contact ──────────────────────────────────────────
