@@ -75,11 +75,23 @@ pub fn RegisterPage() -> impl IntoView {
                             gloo_timers::future::TimeoutFuture::new(2_000).await;
                             navigate_delayed("/", NavigateOptions::default());
                         } else {
+                            let status = resp.status();
+                            let msg = async {
+                                let text = wasm_bindgen_futures::JsFuture::from(
+                                    resp.text().unwrap()
+                                ).await.ok()
+                                    .and_then(|v| v.as_string());
+                                if let Some(body) = text {
+                                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                                        if let Some(err) = json["error"].as_str() {
+                                            return err.to_string();
+                                        }
+                                    }
+                                }
+                                format!("Erreur {status}")
+                            }.await;
                             set_is_success.set(false);
-                            set_status_message.set(format!(
-                                "Erreur : {} — identifiant ou email déjà utilisé.",
-                                resp.status()
-                            ));
+                            set_status_message.set(msg);
                         }
                     }
                     Err(_) => {

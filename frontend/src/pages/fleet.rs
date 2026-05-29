@@ -271,6 +271,7 @@ fn FleetView(
     set_selected_id: WriteSignal<Option<Uuid>>,
     on_change: impl Fn() + 'static + Copy,
 ) -> impl IntoView {
+    let (fleet_refresh, set_fleet_refresh) = create_signal(0u32);
     let selected = create_memo(move |_| {
         let id = selected_id.get()?;
         companies.get().into_iter().find(|c| c.id == id)
@@ -321,11 +322,11 @@ fn FleetView(
                         </div>
 
                         // Véhicules flotte
-                        <FleetVehiclesSection company_id=company_id />
+                        <FleetVehiclesSection company_id=company_id refresh=fleet_refresh />
 
                         // Panel admin
                         <Show when=move || is_admin fallback=|| ()>
-                            <AdminPanel company_id=company_id />
+                            <AdminPanel company_id=company_id on_vehicles_changed=Callback::new(move |_| set_fleet_refresh.update(|n| *n += 1)) />
                         </Show>
                     </div>
                 }
@@ -419,11 +420,13 @@ fn NewCompanyInline(on_created: impl Fn() + 'static + Copy) -> impl IntoView {
 // ─── Section véhicules flotte ─────────────────────────────────────
 
 #[component]
-fn FleetVehiclesSection(company_id: Uuid) -> impl IntoView {
+fn FleetVehiclesSection(company_id: Uuid, refresh: ReadSignal<u32>) -> impl IntoView {
     let (vehicles, set_vehicles) = create_signal(Vec::<FleetVehicle>::new());
     let (loading, set_loading) = create_signal(true);
+    let (fetch_error, set_fetch_error) = create_signal(String::new());
 
     create_effect(move |_| {
+        let _ = refresh.get();
         let Some(token) = get_token() else { return };
         spawn_local(async move {
             match fetch_json::<Vec<FleetVehicle>>(
@@ -432,8 +435,8 @@ fn FleetVehiclesSection(company_id: Uuid) -> impl IntoView {
             )
             .await
             {
-                Ok(list) => set_vehicles.set(list),
-                Err(e) => leptos::logging::error!("fetch fleet vehicles: {e}"),
+                Ok(list) => { set_fetch_error.set(String::new()); set_vehicles.set(list); }
+                Err(e) => { leptos::logging::error!("fetch fleet vehicles: {e}"); set_fetch_error.set(e); }
             }
             set_loading.set(false);
         });
@@ -453,13 +456,16 @@ fn FleetVehiclesSection(company_id: Uuid) -> impl IntoView {
             <Show when=move || loading.get() fallback=|| ()>
                 <p class="text-sm text-gray-400 animate-pulse text-center p-6">"Chargement..."</p>
             </Show>
-            <Show when=move || !loading.get() && vehicles.get().is_empty() fallback=|| ()>
+            <Show when=move || !fetch_error.get().is_empty() fallback=|| ()>
+                <p class="text-xs text-red-500 text-center p-4">{move || format!("Erreur : {}", fetch_error.get())}</p>
+            </Show>
+            <Show when=move || !loading.get() && fetch_error.get().is_empty() && vehicles.get().is_empty() fallback=|| ()>
                 <div class="p-6 text-center">
                     <p class="text-sm text-gray-400 italic">"Aucun véhicule dans cette flotte."</p>
                     <p class="text-xs text-gray-300 mt-1">"Assignez des véhicules depuis le panel d'administration."</p>
                 </div>
             </Show>
-            <Show when=move || !loading.get() && !vehicles.get().is_empty() fallback=|| ()>
+            <Show when=move || !loading.get() && fetch_error.get().is_empty() && !vehicles.get().is_empty() fallback=|| ()>
                 <div class="divide-y divide-gray-50">
                     <For
                         each=move || vehicles.get()
@@ -497,7 +503,7 @@ fn FleetVehiclesSection(company_id: Uuid) -> impl IntoView {
 // ─── Panel administration ─────────────────────────────────────────
 
 #[component]
-fn AdminPanel(company_id: Uuid) -> impl IntoView {
+fn AdminPanel(company_id: Uuid, on_vehicles_changed: Callback<()>) -> impl IntoView {
     let (tab, set_tab) = create_signal(AdminTab::Members);
 
     let tab_cls = move |t: AdminTab| {
@@ -528,7 +534,7 @@ fn AdminPanel(company_id: Uuid) -> impl IntoView {
                     AdminTab::Members  => view! { <MembersSection  company_id=company_id /> }.into_view(),
                     AdminTab::Orgs     => view! { <OrgsSection     company_id=company_id /> }.into_view(),
                     AdminTab::Roles    => view! { <RolesSection    company_id=company_id /> }.into_view(),
-                    AdminTab::Vehicles => view! { <VehiclesSection company_id=company_id /> }.into_view(),
+                    AdminTab::Vehicles => view! { <VehiclesSection company_id=company_id on_changed=on_vehicles_changed /> }.into_view(),
                 }}
             </div>
         </div>
@@ -968,7 +974,7 @@ fn RolesSection(company_id: Uuid) -> impl IntoView {
 // ─── Véhicules (assignation) ──────────────────────────────────────
 
 #[component]
-fn VehiclesSection(company_id: Uuid) -> impl IntoView {
+fn VehiclesSection(company_id: Uuid, on_changed: Callback<()>) -> impl IntoView {
     let (personal, set_personal) = create_signal(Vec::<PersonalVehicle>::new());
     let (fleet_veh, set_fleet_veh) = create_signal(Vec::<FleetVehicle>::new());
     let (orgs, set_orgs) = create_signal(Vec::<Organization>::new());
@@ -1031,7 +1037,7 @@ fn VehiclesSection(company_id: Uuid) -> impl IntoView {
                 &token,
                 &body,
             ).await {
-                Ok(_) => { set_sel_vid.set(String::new()); reload(); }
+                Ok(_) => { set_sel_vid.set(String::new()); reload(); on_changed.call(()); }
                 Err(e) => set_error.set(e),
             }
         }
@@ -1097,7 +1103,7 @@ fn VehiclesSection(company_id: Uuid) -> impl IntoView {
                                     spawn_local(async move {
                                         let token = get_token().unwrap_or_default();
                                         let url = format!("{}/api/vehicles/{}/fleet", crate::config::API_BASE, vid);
-                                        if delete_request(&url, &token).await.is_ok() { reload(); }
+                                        if delete_request(&url, &token).await.is_ok() { reload(); on_changed.call(()); }
                                     });
                                 }
                                 class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition"
