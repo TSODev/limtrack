@@ -78,6 +78,8 @@ odo.io/
 │   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
 │   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
 │   └── seed/                  ← Données de démo + script import
+├── api/
+│   └── odoio-collection.postman_collection.json  ← Collection Postman
 └── Trunk.toml
 ```
 
