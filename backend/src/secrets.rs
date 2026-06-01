@@ -80,7 +80,7 @@ pub async fn load_secrets() {
     // Étape 2 : récupérer les secrets
     let secrets_resp = http
         .get(format!(
-            "{}/api/v4/secrets?projectId={}&environment={}&secretPath=/",
+            "{}/api/v3/secrets/raw?workspaceId={}&environment={}&secretPath=/",
             base_url, project_id, environment
         ))
         .bearer_auth(&auth.access_token)
