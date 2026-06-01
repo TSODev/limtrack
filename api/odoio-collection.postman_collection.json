@@ -1,0 +1,540 @@
+{
+  "info": {
+    "name": "odo.io API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection complète de l'API odo.io — backend Axum / PostgreSQL"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://api.tsodev.fr", "type": "string" },
+    { "key": "token",    "value": "", "type": "string" },
+    { "key": "vehicle_id",  "value": "", "type": "string" },
+    { "key": "company_id",  "value": "", "type": "string" },
+    { "key": "org_id",      "value": "", "type": "string" },
+    { "key": "user_id",     "value": "", "type": "string" },
+    { "key": "role_id",     "value": "", "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"monuser\",\n  \"password\": \"monpassword\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/user/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"user@example.com\",\n  \"password\": \"MotDePasse-Fort#42\"\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/profile",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/profile",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/profile/password",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"AncienMDP\",\n  \"new_password\": \"NouveauMDP-Fort#99\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Shared Vehicles",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/profile/shares",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Get Preferences",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/profile/preferences",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Update Preferences",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/profile/preferences",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notif_days_before\": 30,\n  \"notif_km_percent\": 80\n}"
+            }
+          }
+        },
+        {
+          "name": "Get License Status",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/profile/license",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Redeem Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/profile/redeem",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"XXXX-XXXX-XXXX-XXXX\"\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Vehicles",
+      "item": [
+        {
+          "name": "List Vehicles",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/vehicles",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Create Vehicle",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"make\": \"Renault\",\n  \"model\": \"Clio\",\n  \"plate_number\": \"AB-123-CD\",\n  \"year\": 2022,\n  \"vin\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Vehicle",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"make\": null,\n  \"model\": \"Clio V\",\n  \"plate_number\": null,\n  \"year\": 2023,\n  \"vin\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Assign to Fleet",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/fleet",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"org_id\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove from Fleet",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/fleet",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Contracts — LOA",
+      "item": [
+        {
+          "name": "List LOA",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/contracts/loa",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Create LOA",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/contracts/loa",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"km_allowed\": 45000,\n  \"km_start\": 10000,\n  \"start_date\": \"2024-01-01\",\n  \"end_date\": \"2027-01-01\"\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Contracts — Assurance",
+      "item": [
+        {
+          "name": "List Insurance",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/contracts/insurance",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Create Insurance",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/contracts/insurance",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"km_annual_limit\": 15000,\n  \"km_start\": 10000,\n  \"start_date\": \"2024-01-01\",\n  \"end_date\": \"2025-01-01\",\n  \"insurer\": \"Maif\"\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Kilométrage",
+      "item": [
+        {
+          "name": "List Mileage",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/mileage",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Add Mileage Entry",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/mileage",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 15420,\n  \"recorded_at\": \"2024-06-15\",\n  \"contract_loa_id\": null,\n  \"contract_insurance_id\": null,\n  \"source\": \"manual\"\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Partage / Accès",
+      "item": [
+        {
+          "name": "Create Share Code",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/share",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"viewer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Join with Code",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/vehicles/join",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"ABC-123-XYZ\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Revoke Access",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/access/{{user_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Leave Vehicle",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/vehicles/{{vehicle_id}}/leave",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Entreprises",
+      "item": [
+        {
+          "name": "List Companies",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Create Company",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/companies",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ACME Transport\",\n  \"siret\": \"12345678901234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Company",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies/{{company_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Delete Company",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/companies/{{company_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Organisations",
+      "item": [
+        {
+          "name": "List Organizations",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies/{{company_id}}/organizations",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Create Organization",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/companies/{{company_id}}/organizations",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agence Paris\",\n  \"parent_org_id\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Organization",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/companies/{{company_id}}/organizations/{{org_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Membres",
+      "item": [
+        {
+          "name": "List Members",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies/{{company_id}}/members",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Add Member",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/companies/{{company_id}}/members",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"collaborateur@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Member",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/companies/{{company_id}}/members/{{user_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Rôles Flotte",
+      "item": [
+        {
+          "name": "List Fleet Roles",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies/{{company_id}}/fleet-roles",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Assign Fleet Role",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/companies/{{company_id}}/fleet-roles",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"org_id\": null,\n  \"role\": \"fleet_admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Revoke Fleet Role",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/companies/{{company_id}}/fleet-roles/{{role_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "Véhicules Flotte",
+      "item": [
+        {
+          "name": "List Fleet Vehicles (Company)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies/{{company_id}}/vehicles",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "List Fleet Vehicles (Organization)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/companies/{{company_id}}/organizations/{{org_id}}/vehicles",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    }
+
+  ]
+}
