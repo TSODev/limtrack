@@ -227,12 +227,12 @@ RESEND_API_KEY=re_...   # Notifications email (Resend) — désactivé si absent
 
 ### 4. Base de données
 
-Appliquer les migrations SQL dans `migrations/` dans l'ordre :
+Appliquer les migrations SQL dans `sql/migrations/` dans l'ordre :
 
 ```bash
-psql $DATABASE_URL -f migrations/001_license_tokens.sql
-psql $DATABASE_URL -f migrations/002_license_type.sql
-psql $DATABASE_URL -f migrations/003_expiry_notif.sql
+psql $DATABASE_URL -f sql/migrations/001_license_tokens.sql
+psql $DATABASE_URL -f sql/migrations/002_license_type.sql
+psql $DATABASE_URL -f sql/migrations/003_expiry_notif.sql
 ```
 
 Tables créées : `users` (+ `trial_ends_at`, `access_expires_at`, `expiry_notif_sent_at`), `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`, `license_tokens` (+ `license_type`).

@@ -74,7 +74,10 @@ odo.io/
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
 ├── Cargo.toml                 ← version = "0.3.0"
-├── migrations/                ← SQL à appliquer manuellement sur NeonDB
+├── sql/
+│   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
+│   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
+│   └── seed/                  ← Données de démo + script import
 └── Trunk.toml
 ```
 
