@@ -2,8 +2,8 @@
 //
 // Usage :
 //   cargo run --bin gen-tokens -- --count 10 --days 30
-//   cargo run --bin gen-tokens -- --count 1 --days 365
-//   cargo run --bin gen-tokens -- --count 1 --lifetime
+//   cargo run --bin gen-tokens -- --count 1 --days 365 --fleet
+//   cargo run --bin gen-tokens -- --count 1 --lifetime --fleet
 //
 // Les jetons sont insérés en base (token_hash) et affichés en clair UNE SEULE FOIS.
 
@@ -20,6 +20,8 @@ async fn main() {
     let args: Vec<String> = env::args().collect();
     let count = parse_arg(&args, "--count").unwrap_or(1usize);
     let lifetime = args.contains(&"--lifetime".to_string());
+    let fleet = args.contains(&"--fleet".to_string());
+    let license_type = if fleet { "fleet" } else { "personal" };
 
     // 36 500 jours ≈ 100 ans : sentinelle "illimité"
     let days: i32 = if lifetime {
@@ -42,31 +44,27 @@ async fn main() {
         .await
         .expect("Connexion NeonDB impossible");
 
-    let label = if lifetime {
-        "∞ (lifetime)".to_string()
-    } else {
-        format!("{} jour(s)", days)
-    };
-    println!("Génération de {} jeton(s) {}...\n", count, label);
-    println!("{:<30}  {:>14}  {}", "Jeton (en clair)", "Durée", "Statut");
-    println!("{}", "-".repeat(62));
+    let dur_label = if lifetime { "∞ lifetime".to_string() } else { format!("{} j", days) };
+    println!("Génération de {} jeton(s) {} [{}]...\n", count, dur_label, license_type);
+    println!("{:<30}  {:>14}  {:>10}  {}", "Jeton (en clair)", "Durée", "Type", "Statut");
+    println!("{}", "-".repeat(72));
 
     for _ in 0..count {
         let token = generate_token();
         let hash = hash_token(&token);
 
         let result = sqlx::query!(
-            "INSERT INTO public.license_tokens (token_hash, duration_days) VALUES ($1, $2)",
+            "INSERT INTO public.license_tokens (token_hash, duration_days, license_type) VALUES ($1, $2, $3)",
             hash,
-            days
+            days,
+            license_type
         )
         .execute(&pool)
         .await;
 
-        let dur_label = if lifetime { "∞ lifetime".to_string() } else { format!("{} j", days) };
         match result {
-            Ok(_) => println!("{:<30}  {:>14}  OK", token, dur_label),
-            Err(e) => println!("{:<30}  {:>14}  ERREUR: {}", token, dur_label, e),
+            Ok(_) => println!("{:<30}  {:>14}  {:>10}  OK", token, dur_label, license_type),
+            Err(e) => println!("{:<30}  {:>14}  {:>10}  ERREUR: {}", token, dur_label, license_type, e),
         }
     }
 

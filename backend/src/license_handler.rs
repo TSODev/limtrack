@@ -54,9 +54,9 @@ pub async fn get_license(
         "expired"
     };
 
-    // Calcul de la fenêtre d'alerte selon la durée du dernier jeton utilisé
-    let days_until_expiry = if status == "expired" {
-        None
+    // Calcul de la fenêtre d'alerte et du type de licence depuis le dernier jeton
+    let days_until_expiry: (Option<i64>, String) = if status == "expired" {
+        (None, "personal".to_string())
     } else {
         let expiry = if is_active {
             row.access_expires_at.unwrap()
@@ -67,34 +67,33 @@ pub async fn get_license(
 
         // Jetons lifetime (≈ 100 ans) : jamais d'alerte
         if days_remaining > 3650 {
-            None
+            (None, "fleet".to_string()) // lifetime = forcément fleet
         } else {
-            // Seuil selon la durée du dernier jeton (ou 15j pour la période d'essai)
-            let threshold: i64 = if is_active {
-                let last_duration = sqlx::query_scalar!(
-                    "SELECT duration_days FROM public.license_tokens
+            // Seuil et type depuis le dernier jeton (ou défauts pour la période d'essai)
+            let last_token = if is_active {
+                sqlx::query!(
+                    "SELECT duration_days, license_type FROM public.license_tokens
                      WHERE used_by = $1 AND used_at IS NOT NULL
                      ORDER BY used_at DESC LIMIT 1",
                     user_id
                 )
                 .fetch_optional(&state.db)
                 .await
-                .unwrap_or(None);
-
-                match last_duration {
-                    Some(d) if d <= 30  => 7,
-                    Some(d) if d <= 95  => 15,
-                    _                   => 30,
-                }
-            } else {
-                15 // période d'essai ≈ 3 mois
-            };
-
-            if days_remaining <= threshold {
-                Some(days_remaining)
+                .unwrap_or(None)
             } else {
                 None
-            }
+            };
+
+            let threshold: i64 = match last_token.as_ref().map(|t| t.duration_days) {
+                Some(d) if d <= 30 => 7,
+                Some(d) if d <= 95 => 15,
+                _                  => if is_active { 30 } else { 15 },
+            };
+
+            (
+                if days_remaining <= threshold { Some(days_remaining) } else { None },
+                last_token.and_then(|t| Some(t.license_type)).unwrap_or_else(|| "personal".to_string()),
+            )
         }
     };
 
@@ -104,7 +103,8 @@ pub async fn get_license(
             status: status.to_string(),
             trial_ends_at: row.trial_ends_at,
             access_expires_at: row.access_expires_at,
-            days_until_expiry,
+            days_until_expiry: days_until_expiry.0,
+            license_type: if status == "expired" { "personal".to_string() } else { days_until_expiry.1 },
         }),
     )
         .into_response()
@@ -176,9 +176,10 @@ pub async fn redeem_token(
             StatusCode::OK,
             Json(LicenseStatus {
                 status: "active".to_string(),
-                trial_ends_at: Utc::now(), // recalculé côté client via GET /license
+                trial_ends_at: Utc::now(),    // recalculé côté client via GET /license
                 access_expires_at: Some(new_expiry),
-                days_until_expiry: None, // recalculé côté client via GET /license
+                days_until_expiry: None,       // recalculé côté client via GET /license
+                license_type: "personal".to_string(), // recalculé côté client via GET /license
             }),
         )
             .into_response(),

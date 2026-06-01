@@ -591,6 +591,8 @@ struct LicenseStatus {
     status: String,
     trial_ends_at: String,
     access_expires_at: Option<String>,
+    days_until_expiry: Option<i64>,
+    license_type: String,
 }
 
 #[component]
@@ -915,17 +917,33 @@ struct CompanyBrief {
 fn FleetSection() -> impl IntoView {
     let (companies, set_companies) = create_signal(Vec::<CompanyBrief>::new());
     let (loaded, set_loaded) = create_signal(false);
+    let (has_fleet_license, set_has_fleet_license) = create_signal(false);
 
     create_effect(move |_| {
         if let Some(token) = get_token() {
+            let token_lic = token.clone();
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<CompanyBrief>>(
-                    &format!("{}/api/companies", crate::config::API_BASE),
-                    &token,
+                // Vérifier le type de licence avant d'afficher la section
+                if let Ok(lic) = fetch_json::<LicenseStatus>(
+                    &format!("{}/api/profile/license", crate::config::API_BASE),
+                    &token_lic,
                 )
                 .await
                 {
-                    set_companies.set(list);
+                    let is_fleet = lic.license_type == "fleet"
+                        && (lic.status == "active" || lic.status == "trial");
+                    set_has_fleet_license.set(is_fleet);
+
+                    if is_fleet {
+                        if let Ok(list) = fetch_json::<Vec<CompanyBrief>>(
+                            &format!("{}/api/companies", crate::config::API_BASE),
+                            &token_lic,
+                        )
+                        .await
+                        {
+                            set_companies.set(list);
+                        }
+                    }
                 }
                 set_loaded.set(true);
             });
@@ -933,7 +951,7 @@ fn FleetSection() -> impl IntoView {
     });
 
     view! {
-        <Show when=move || loaded.get() fallback=|| ()>
+        <Show when=move || loaded.get() && has_fleet_license.get() fallback=|| ()>
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-bold text-gray-900">"Gestion de flotte"</h2>

@@ -329,6 +329,8 @@ pub struct LicenseStatus {
     pub access_expires_at: Option<DateTime<Utc>>,
     /// Jours restants si dans la fenêtre d'alerte, None sinon (lifetime ou pas d'alerte)
     pub days_until_expiry: Option<i64>,
+    /// "personal" | "fleet"
+    pub license_type: String,
 }
 
 #[derive(Debug, Deserialize)]
