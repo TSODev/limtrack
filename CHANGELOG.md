@@ -8,17 +8,30 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
-### Ajouté
-- **Page "À propos"** : accessible depuis la navbar (icône info), affiche le nom de l'application, une description, la version (lue depuis le dernier git tag via `build.rs`) et un formulaire de contact `mailto:`.
-- **Version automatique depuis les git tags** : `frontend/build.rs` exécute `git describe --tags --abbrev=0` à la compilation et expose `APP_VERSION` comme constante WASM. Fallback sur `CARGO_PKG_VERSION` si aucun tag n'existe.
+### À venir (v1.0.0 — SaaS)
+- **Paiement self-service** : intégration Stripe pour l'achat de licences en ligne avec génération automatique du jeton via webhook.
+- **Inscription libre** : activation de compte sans intervention manuelle — inscription → paiement → activation autonome.
+- **Dashboard administrateur** : vue globale des utilisateurs, licences actives, dates d'expiration et activité.
+- **Quota de véhicules par licence** : `max_vehicles` extensible par jeton (`vehicle_slots`).
+- **Licence entreprise** : table `company_licenses` couvrant une flotte entière.
 
-### À venir
-- **Notification d'expiration de licence** : alerter l'utilisateur quand sa licence approche de l'expiration (seuil J-7) et lorsqu'elle a expiré — via la cloche in-app et/ou email.
-- **Quota de véhicules par licence** : limiter le nombre de véhicules par utilisateur (`max_vehicles` dans `users`, défaut 3 ou 5). Des jetons pourront étendre la durée ET/OU ajouter des slots. Quota affiché dans la section Licence du profil.
-- **Licence entreprise** : jeton couvrant N véhicules d'une flotte entière (`company_licenses`), avec quota configurable et application automatique aux nouveaux véhicules assignés.
-- **Paiement self-service** : intégration Stripe (ou équivalent) pour l'achat de licences en ligne (durée + slots véhicules) avec génération automatique du jeton à la confirmation de paiement (webhook).
-- **Inscription libre** : activation de compte sans intervention manuelle de l'administrateur — l'utilisateur s'inscrit, paye et active sa licence de façon autonome.
-- **Dashboard administrateur** : vue globale des utilisateurs, licences actives, dates d'expiration et activité, pour piloter le service sans accès direct à la base de données.
+---
+
+## [0.4.0] — 2026-06-01
+
+### Ajouté
+- **Jetons lifetime** : flag `--lifetime` dans `gen-tokens` — génère un jeton de 36 500 jours (~100 ans), exempt de toute alerte d'expiration.
+- **Types de licence `personal` / `fleet`** : colonne `license_type` dans `license_tokens` (migration `002`), flag `--fleet` dans `gen-tokens`. Le panneau "Gestion de flotte" dans le Profil est masqué pour les licences `personal`.
+- **Alertes d'expiration in-app** : la cloche de notifications affiche une alerte quand la licence approche de son terme. Seuils adaptatifs selon la durée du jeton : J-7 (30 jours), J-15 (3 mois), J-30 (1 an). Niveau danger à J-3. Jetons lifetime exemptés.
+- **Notifications email d'expiration** via [Resend](https://resend.com) : tâche tokio intégrée au backend, déclenchée quotidiennement à 8h00 UTC. Template HTML professionnel avec CTA vers `/profile`. Anti-doublon 24h. Si `RESEND_API_KEY` est absente, les notifications sont silencieusement désactivées.
+- **CLI `assign-license`** : assigne un jeton existant à un utilisateur par email (`--email` + `--token`) ou en lot depuis un fichier CSV (`--file batch.csv`, format `email,token`). Cumul de licences respecté. Trace `used_by`/`used_at` en base.
+- **CLI `notify-expiry`** : wrapper pour déclencher manuellement l'envoi des notifications email.
+- **Migrations** : `002_license_type.sql` (colonne `license_type`), `003_expiry_notif.sql` (colonne `expiry_notif_sent_at`).
+
+### Modifié
+- **`LicenseStatus`** (type partagé `common`) : ajout des champs `days_until_expiry` et `license_type`.
+- **`GET /api/profile/license`** : retourne désormais `days_until_expiry` (seuil calculé depuis le dernier jeton) et `license_type`.
+- **`notifier.rs`** : logique de notification extraite dans un module partagé entre le backend et le binaire `notify-expiry`.
 
 ---
 

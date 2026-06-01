@@ -2,7 +2,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-0.3.0-indigo)
+![Version](https://img.shields.io/badge/version-0.4.0-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
@@ -136,9 +136,15 @@ odo.io/
 - ✅ Période d'essai gratuite de **3 mois** à l'inscription
 - ✅ Activation par **jetons** (`XXXX-XXXX-XXXX-XXXX`) de 30, 90, 180 ou 365 jours
 - ✅ Jetons cumulables (extension à partir de la date d'expiration courante)
+- ✅ **Jetons lifetime** (`--lifetime`) pour accès illimité (~100 ans)
+- ✅ **Deux types de licence** : `personal` (véhicules personnels) et `fleet` (accès gestion de flotte)
 - ✅ Accès bloqué (`402 Payment Required`) si essai et licence expirés
+- ✅ Mode lecture seule à l'expiration (`GET` autorisés, écritures bloquées)
 - ✅ Affichage du statut licence dans le Profil (`trial` / `active` / `expired`)
-- ✅ CLI `gen-tokens` pour générer des jetons en lot
+- ✅ CLI `gen-tokens` : génère des jetons (`--days`, `--lifetime`, `--fleet`)
+- ✅ CLI `assign-license` : assigne un jeton à un utilisateur (manuel ou batch CSV)
+- ✅ **Alertes d'expiration in-app** dans la cloche (J-7/J-15/J-30 selon durée du jeton)
+- ✅ **Notifications email** via Resend, envoyées automatiquement à 8h UTC quotidiennement
 
 ### Sécurité
 - ✅ Vérification de la solidité des mots de passe via [`zxcvbn`](https://github.com/shssoichiro/zxcvbn-rs) (score ≥ 3/4) à l'inscription et au changement de mot de passe
@@ -203,15 +209,23 @@ DATABASE_URL=postgres://user:password@host/dbname
 JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
 ```
 
-### 3. Base de données
+### 3. Variables d'environnement optionnelles
 
-Appliquer les migrations SQL disponibles dans `migrations/` :
+```env
+RESEND_API_KEY=re_...   # Notifications email (Resend) — désactivé si absent
+```
+
+### 4. Base de données
+
+Appliquer les migrations SQL dans `migrations/` dans l'ordre :
 
 ```bash
 psql $DATABASE_URL -f migrations/001_license_tokens.sql
+psql $DATABASE_URL -f migrations/002_license_type.sql
+psql $DATABASE_URL -f migrations/003_expiry_notif.sql
 ```
 
-Tables créées : `users` (+ `trial_ends_at`, `access_expires_at`), `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`, `license_tokens`.
+Tables créées : `users` (+ `trial_ends_at`, `access_expires_at`, `expiry_notif_sent_at`), `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`, `license_tokens` (+ `license_type`).
 
 ### 4. Lancer le backend
 
@@ -229,19 +243,25 @@ trunk serve
 # App disponible sur http://127.0.0.1:8080
 ```
 
-### 6. Générer des jetons de licence
+### 7. Gérer les jetons de licence
 
 ```bash
 cd backend
 
-# 5 jetons de 30 jours
-cargo run --bin gen-tokens -- --count 5 --days 30
+# Générer des jetons
+cargo run --bin gen-tokens -- --count 5 --days 30           # 5 jetons 30j personal
+cargo run --bin gen-tokens -- --count 1 --days 365 --fleet  # 1 jeton 1 an fleet
+cargo run --bin gen-tokens -- --count 1 --lifetime --fleet  # 1 jeton lifetime fleet
 
-# 1 jeton d'un an
-cargo run --bin gen-tokens -- --count 1 --days 365
+# Assigner un jeton directement à un utilisateur
+cargo run --bin assign-license -- --email user@example.com --token XXXX-XXXX-XXXX-XXXX
+
+# Assignation en lot (fichier CSV : email,token)
+cargo run --bin assign-license -- --file batch.csv
+
+# Envoyer manuellement les notifications d'expiration
+cargo run --bin notify-expiry
 ```
-
-Les jetons sont insérés en base et affichés **une seule fois** en clair. Transmettez-les à vos utilisateurs par email ou tout autre canal sécurisé. Ils peuvent être saisis dans la section **Profil → Licence** ou activés automatiquement via `POST /api/profile/redeem`.
 
 ---
 
@@ -364,13 +384,13 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - ✅ App iOS via Tauri Mobile
 - ✅ Gestion de flotte d'entreprise (entreprises, organisations, membres, rôles)
 - ✅ Suppression de compte utilisateur
-- ✅ Système de licences par jetons (trial 3 mois + activation par jeton)
+- ✅ Système de licences par jetons (trial + personal + fleet + lifetime)
+- ✅ Notifications d'expiration in-app et email (Resend)
 - [ ] App Android via Tauri Mobile
-- [ ] Sideloading iOS (Apple ID gratuit) → App Store (Apple Developer)
+- [ ] Sideloading iOS → App Store
 - [ ] Export PDF / CSV des historiques
 - [ ] Notifications push natives
-- [ ] Notification d'expiration de licence (in-app + email) avant et après expiration
-- [ ] Tableau de bord multi-véhicules
+- [ ] **SaaS 1.0** : paiement self-service (Stripe), inscription libre, dashboard admin
 
 ---
 

@@ -139,7 +139,15 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 ```bash
 # Générer des jetons (depuis backend/)
 cargo run --bin gen-tokens -- --count 5 --days 30
-cargo run --bin gen-tokens -- --count 1 --days 365
+cargo run --bin gen-tokens -- --count 1 --days 365 --fleet
+cargo run --bin gen-tokens -- --count 1 --lifetime --fleet
+
+# Assigner un jeton à un utilisateur
+cargo run --bin assign-license -- --email user@example.com --token XXXX-XXXX-XXXX-XXXX
+cargo run --bin assign-license -- --file batch.csv   # CSV: email,token
+
+# Notifications email manuelles
+cargo run --bin notify-expiry
 ```
 
 ## Sécurité — vérification des mots de passe
@@ -265,7 +273,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`0.3.1`
+`0.4.0`
 
 ## Roadmap
 ### Application mobile
