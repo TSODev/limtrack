@@ -36,3 +36,8 @@ chrono = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
 csv = "1"
+reqwest = { workspace = true }
+
+[[bin]]
+name = "notify-expiry"
+path = "src/bin/notify_expiry.rs"

@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.id,\n            u.email,\n            u.username,\n            u.trial_ends_at,\n            u.access_expires_at,\n            u.expiry_notif_sent_at,\n            lt.duration_days,\n            lt.license_type\n        FROM public.users u\n        LEFT JOIN LATERAL (\n            SELECT duration_days, license_type\n            FROM public.license_tokens\n            WHERE used_by = u.id AND used_at IS NOT NULL\n            ORDER BY used_at DESC\n            LIMIT 1\n        ) lt ON true\n        WHERE\n            u.access_expires_at > NOW()\n            OR u.trial_ends_at > NOW()\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "trial_ends_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "access_expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "expiry_notif_sent_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "duration_days",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "license_type",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b1fd731bf83f497a4bc4f42d361a5d51906586f13cda98f31cb22cf182899202"
+}
