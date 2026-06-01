@@ -60,7 +60,6 @@ pub async fn load_secrets() {
     let data: SecretsResponse = response.json().await.expect("Réponse Infisical invalide");
 
     for secret in &data.secrets {
-        println!("  secret: {:?} ({} chars)", secret.key, secret.value.len());
         std::env::set_var(&secret.key, &secret.value);
     }
 
