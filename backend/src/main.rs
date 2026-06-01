@@ -6,6 +6,7 @@ mod contracts_handler;
 mod license_handler;
 mod license_middleware;
 mod mileage_handler;
+mod notifier;
 mod share_handler;
 mod state;
 mod user_handler;
@@ -62,7 +63,8 @@ async fn main() {
         .await
         .expect("Impossible de se connecter à NeonDB");
 
-    let state = AppState { db: pool };
+    let state = AppState { db: pool.clone() };
+    let notif_pool = pool;
 
     tracing_subscriber::fmt()
         .pretty()
@@ -175,6 +177,27 @@ async fn main() {
     let addr = format!("0.0.0.0:{}", port);
     println!("🚀 Backend ODO lancé sur http://{}", addr);
     info!("Connexion à NeonDB réussie !");
+
+    // Tâche de fond : notifications email d'expiration, une fois par jour à ~8h
+    let notif_api_key = std::env::var("RESEND_API_KEY").unwrap_or_default();
+    if notif_api_key.is_empty() {
+        info!("RESEND_API_KEY absente — notifications email désactivées");
+    } else {
+        tokio::spawn(async move {
+            loop {
+                // Calcule le délai jusqu'au prochain 8h00 UTC
+                let now = chrono::Utc::now();
+                let next_8h = {
+                    let today_8h = now.date_naive().and_hms_opt(8, 0, 0).unwrap()
+                        .and_utc();
+                    if now < today_8h { today_8h } else { today_8h + chrono::Duration::days(1) }
+                };
+                let delay_secs = (next_8h - now).num_seconds().max(0) as u64;
+                tokio::time::sleep(tokio::time::Duration::from_secs(delay_secs)).await;
+                notifier::run_notifications(&notif_pool, &notif_api_key).await;
+            }
+        });
+    }
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
