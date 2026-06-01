@@ -7,6 +7,7 @@ mod license_handler;
 mod license_middleware;
 mod mileage_handler;
 mod notifier;
+mod secrets;
 mod share_handler;
 mod state;
 mod user_handler;
@@ -44,7 +45,6 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use dotenvy::dotenv;
 use sqlx::PgPool;
 use std::net::SocketAddr;
 
@@ -55,9 +55,14 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    secrets::load_secrets().await;
 
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL doit être définie dans .env");
+    tracing_subscriber::fmt()
+        .pretty()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL manquante");
 
     let pool = PgPool::connect(&db_url)
         .await
@@ -65,11 +70,6 @@ async fn main() {
 
     let state = AppState { db: pool.clone() };
     let notif_pool = pool;
-
-    tracing_subscriber::fmt()
-        .pretty()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
 
     info!("Le backend démarre...");
 

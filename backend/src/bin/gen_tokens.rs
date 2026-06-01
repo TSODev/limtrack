@@ -7,7 +7,7 @@
 //
 // Les jetons sont insérés en base (token_hash) et affichés en clair UNE SEULE FOIS.
 
-use dotenvy::dotenv;
+use backend::secrets::load_secrets;
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
@@ -15,7 +15,7 @@ use std::env;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    load_secrets().await;
 
     let args: Vec<String> = env::args().collect();
     let count = parse_arg(&args, "--count").unwrap_or(1usize);

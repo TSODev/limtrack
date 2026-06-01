@@ -294,3 +294,9 @@ const APP_VERSION: &str = env!("APP_VERSION");
 - [ ] **Inscription libre** : onboarding sans intervention admin — inscription → paiement → activation autonome
 - [ ] **Dashboard administrateur** : vue globale utilisateurs, licences actives/expirées, quotas, activité
 
+### Sécurité — gestion des secrets
+- [x] **Infisical (v0.5.0)** : `backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v4/secrets` et injection des secrets comme variables d'env. Sinon → fallback `dotenvy` (dev local).
+  - Railway : seulement `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`
+  - Self-hosted : ajouter `INFISICAL_URL`
+  - Les noms des secrets dans Infisical = noms des variables d'env (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`)
+

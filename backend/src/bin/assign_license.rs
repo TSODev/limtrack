@@ -9,15 +9,15 @@
 //   ami@example.com,XXXX-XXXX-XXXX-XXXX
 //   autre@example.com,YYYY-YYYY-YYYY-YYYY
 
+use backend::secrets::load_secrets;
 use chrono::Utc;
-use dotenvy::dotenv;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::env;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    load_secrets().await;
 
     let args: Vec<String> = env::args().collect();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL manquante");

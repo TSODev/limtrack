@@ -3,14 +3,13 @@
 // Usage : cargo run --bin notify-expiry
 // Variables requises : DATABASE_URL, RESEND_API_KEY
 
-use backend::notifier::run_notifications;
-use dotenvy::dotenv;
+use backend::{notifier::run_notifications, secrets::load_secrets};
 use sqlx::PgPool;
 use std::env;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
+    load_secrets().await;
     tracing_subscriber::fmt().with_max_level(tracing::Level::INFO).init();
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL manquante");
