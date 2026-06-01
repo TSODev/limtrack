@@ -11,3 +11,5 @@ node_modules/
 dist/
 #
 .DS_Store
+# Données et scripts de développement local (seeds, fixtures, etc.)
+dev/
