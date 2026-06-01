@@ -2,7 +2,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-0.4.0-indigo)
+![Version](https://img.shields.io/badge/version-0.5.0-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
@@ -49,12 +49,16 @@ odo.io/
 │       ├── main.rs
 │       ├── auth.rs
 │       ├── state.rs
+│       ├── secrets.rs          # chargement secrets Infisical (fallback .env en local)
+│       ├── notifier.rs         # envoi notifications email expiration licence (Resend)
 │       ├── handlers.rs         # login, status, helpers généraux
 │       ├── user_handler.rs
 │       ├── vehicles_handler.rs
 │       ├── contracts_handler.rs
 │       ├── mileage_handler.rs
 │       ├── share_handler.rs
+│       ├── license_handler.rs  # GET /api/profile/license + POST /api/profile/redeem
+│       ├── license_middleware.rs # middleware 402 si licence expirée
 │       └── company_handler.rs  # gestion flotte : entreprises, orgs, membres, rôles
 ├── frontend/         # App Leptos/WASM + Tauri Mobile
 │   ├── src/
