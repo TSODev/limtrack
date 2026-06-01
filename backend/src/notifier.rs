@@ -7,6 +7,14 @@ use serde_json::json;
 use sqlx::PgPool;
 use tracing::{info, warn};
 
+macro_rules! log {
+    ($($arg:tt)*) => {
+        let msg = format!($($arg)*);
+        info!("{}", msg);
+        println!("{}", msg);
+    };
+}
+
 pub async fn run_notifications(pool: &PgPool, api_key: &str) {
     let http = Client::new();
     let now = Utc::now();
@@ -40,10 +48,10 @@ pub async fn run_notifications(pool: &PgPool, api_key: &str) {
 
     let users = match users {
         Ok(u) => u,
-        Err(e) => { warn!("notify: erreur lecture utilisateurs : {}", e); return; }
+        Err(e) => { warn!("notify: erreur lecture utilisateurs : {}", e); println!("❌ Erreur DB : {}", e); return; }
     };
 
-    info!("notify: vérification de {} utilisateur(s)", users.len());
+    log!("notify: vérification de {} utilisateur(s)", users.len());
     let mut sent = 0u32;
 
     for user in users {
@@ -51,7 +59,9 @@ pub async fn run_notifications(pool: &PgPool, api_key: &str) {
         let expiry = if is_active { user.access_expires_at.unwrap() } else { user.trial_ends_at };
         let days_remaining = (expiry - now).num_days();
 
-        if days_remaining > 3650 { continue; } // lifetime
+        println!("  → {} <{}> : {} jours restants (actif={})", user.username, user.email, days_remaining, is_active);
+
+        if days_remaining > 3650 { println!("    ignoré : lifetime"); continue; }
 
         let threshold: i64 = if is_active {
             match user.duration_days {
@@ -63,11 +73,15 @@ pub async fn run_notifications(pool: &PgPool, api_key: &str) {
             15
         };
 
-        if days_remaining > threshold { continue; }
+        println!("    seuil={} jours", threshold);
+        if days_remaining > threshold { println!("    ignoré : hors seuil"); continue; }
 
         // Anti-doublon 24h
         if let Some(sent_at) = user.expiry_notif_sent_at {
-            if (now - sent_at).num_hours() < 24 { continue; }
+            if (now - sent_at).num_hours() < 24 {
+                println!("    ignoré : déjà notifié il y a moins de 24h");
+                continue;
+            }
         }
 
         let is_trial = !is_active;
@@ -101,15 +115,20 @@ pub async fn run_notifications(pool: &PgPool, api_key: &str) {
                 .execute(pool)
                 .await
                 .ok();
-                info!("notify: ✓ {} <{}> J-{}", user.username, user.email, days_remaining);
+                log!("notify: ✓ {} <{}> J-{}", user.username, user.email, days_remaining);
                 sent += 1;
             }
-            Ok(r) => warn!("notify: ✗ {} — HTTP {}", user.email, r.status()),
-            Err(e) => warn!("notify: ✗ {} — {}", user.email, e),
+            Ok(r) => {
+                let status = r.status();
+                let body = r.text().await.unwrap_or_default();
+                warn!("notify: ✗ {} — HTTP {}", user.email, status);
+                println!("    ❌ HTTP {} : {}", status, body);
+            }
+            Err(e) => { warn!("notify: ✗ {} — {}", user.email, e); println!("    ❌ Réseau : {}", e); }
         }
     }
 
-    info!("notify: {} email(s) envoyé(s)", sent);
+    log!("notify: {} email(s) envoyé(s)", sent);
 }
 
 fn build_email_html(username: &str, days: i64, is_trial: bool, license_type: &str) -> String {
