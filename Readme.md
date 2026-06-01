@@ -33,6 +33,7 @@
 | Base de données | PostgreSQL (NeonDB) via [SQLx](https://github.com/launchbadge/sqlx) |
 | Styles          | [Tailwind CSS](https://tailwindcss.com/)                            |
 | Auth            | JWT (jsonwebtoken) + bcrypt                                         |
+| Secrets         | [Infisical](https://infisical.com) (EU cloud)                       |
 | Build frontend  | [Trunk](https://trunkrs.dev/)                                       |
 | Mobile          | [Tauri](https://tauri.app/) v2 (iOS)                                |
 | Types partagés  | Crate `common` (workspace Cargo)                                    |
@@ -202,18 +203,23 @@ cd odo.io
 
 ### 2. Variables d'environnement
 
-Créer un fichier `.env` à la racine du backend :
+Créer un fichier `.env` à la racine du backend (développement local uniquement) :
 
 ```env
 DATABASE_URL=postgres://user:password@host/dbname
 JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
-```
-
-### 3. Variables d'environnement optionnelles
-
-```env
 RESEND_API_KEY=re_...   # Notifications email (Resend) — désactivé si absent
 ```
+
+> **Production (Railway)** : les secrets sont gérés via [Infisical](https://infisical.com). Le backend charge automatiquement `DATABASE_URL`, `JWT_SECRET` et `RESEND_API_KEY` depuis Infisical au démarrage si `INFISICAL_TOKEN` est présent, sinon il utilise le `.env` local.
+>
+> Variables Railway requises en production :
+> ```
+> INFISICAL_TOKEN        # Service Token Infisical
+> INFISICAL_PROJECT_ID   # ID du projet Infisical
+> INFISICAL_ENVIRONMENT  # prod
+> INFISICAL_URL          # https://eu.infisical.com
+> ```
 
 ### 4. Base de données
 
