@@ -73,7 +73,7 @@ odo.io/
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "0.3.0"
+├── Cargo.toml                 ← version = "0.5.0"
 ├── sql/
 │   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
 │   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
@@ -283,7 +283,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`0.4.0`
+`0.5.0`
 
 ## Roadmap
 ### Application mobile
@@ -293,7 +293,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ### Fonctionnalités
 - [ ] Export PDF/CSV
 - [ ] Notifications push natives
-- [ ] Notification d'expiration de licence (J-7, in-app + email)
+- [x] Notification d'expiration de licence (J-7/J-15/J-30, in-app + email quotidien Resend)
 
 ### Licences avancées
 - [ ] **Quota de véhicules par licence** : `max_vehicles` dans `users` (défaut 3 ou 5), extensible par jeton (`vehicle_slots`). Vérification au `POST /api/vehicles`. Quota affiché dans le profil.
