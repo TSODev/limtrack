@@ -12,6 +12,10 @@ path = "src/main.rs"
 name = "gen-tokens"
 path = "src/bin/gen_tokens.rs"
 
+[[bin]]
+name = "assign-license"
+path = "src/bin/assign_license.rs"
+
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
@@ -31,3 +35,4 @@ tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
+csv = "1"
