@@ -17,6 +17,21 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [0.5.0] — 2026-06-01
+
+### Ajouté
+- **Gestion des secrets via Infisical** : `backend/src/secrets.rs` — fonction `load_secrets()` async appelée au démarrage de tous les binaires (`backend`, `gen-tokens`, `assign-license`, `notify-expiry`). Les secrets (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`) sont récupérés depuis [Infisical](https://infisical.com) via l'API REST (`/api/v3/secrets/raw`) et injectés comme variables d'environnement avant tout démarrage.
+- **Fallback `.env`** : si `INFISICAL_TOKEN` est absent (développement local), `dotenvy` est utilisé automatiquement — aucun changement de workflow en local.
+
+### Modifié
+- **Railway** : `DATABASE_URL`, `JWT_SECRET` et `RESEND_API_KEY` supprimées des variables Railway. Remplacées par `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_URL`.
+
+### Infrastructure
+- Instance Infisical EU cloud (`eu.infisical.com`), projet `odo-backend`, environnement `prod`.
+- Authentification via Service Token (compatible E2EE Infisical cloud).
+
+---
+
 ## [0.4.0] — 2026-06-01
 
 ### Ajouté
