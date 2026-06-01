@@ -24,8 +24,10 @@ odo.io/
 │   ├── main.rs
 │   ├── auth.rs
 │   ├── state.rs
+│   ├── secrets.rs             ← chargement secrets Infisical au démarrage (fallback .env)
+│   ├── notifier.rs            ← envoi notifications email expiration licence (Resend)
 │   ├── handlers.rs            ← login, status, helpers généraux
-│   ├── lib.rs
+│   ├── lib.rs                 ← expose notifier + secrets aux binaires CLI
 │   ├── user_handler.rs
 │   ├── vehicles_handler.rs
 │   ├── contracts_handler.rs
@@ -34,7 +36,10 @@ odo.io/
 │   ├── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
 │   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
 │   ├── license_middleware.rs  ← middleware 402 si licence expirée
-│   └── bin/gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
+│   └── bin/
+│       ├── gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
+│       ├── assign_license.rs  ← CLI assignation jetons manuel/batch CSV
+│       └── notify_expiry.rs   ← CLI déclenchement manuel notifications email
 ├── frontend/src/
 │   ├── config.rs              ← API_BASE = "https://api.tsodev.fr"
 │   ├── build.rs               ← lit git describe --tags → APP_VERSION (fallback CARGO_PKG_VERSION)
@@ -295,8 +300,8 @@ const APP_VERSION: &str = env!("APP_VERSION");
 - [ ] **Dashboard administrateur** : vue globale utilisateurs, licences actives/expirées, quotas, activité
 
 ### Sécurité — gestion des secrets
-- [x] **Infisical (v0.5.0)** : `backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v4/secrets` et injection des secrets comme variables d'env. Sinon → fallback `dotenvy` (dev local).
-  - Railway : seulement `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`
-  - Self-hosted : ajouter `INFISICAL_URL`
+- [x] **Infisical (v0.5.0)** : `backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v3/secrets/raw` (Service Token, compatible E2EE) et injection dans l'env. Sinon → fallback `dotenvy` (dev local).
+  - Instance : EU cloud `https://eu.infisical.com` — **Service Token** (pas Machine Identity, incompatible E2EE)
+  - Railway : `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_URL`
   - Les noms des secrets dans Infisical = noms des variables d'env (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`)
 
