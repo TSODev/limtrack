@@ -1,5 +1,5 @@
 // src/components/notification_bell.rs
-use common::{ContractInsurance, ContractLoa};
+use common::{ContractInsurance, ContractLoa, LicenseStatus};
 use leptos::*;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsCast;
@@ -65,6 +65,35 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
         spawn_local(async move {
             let Some(token) = get_token() else { return };
             let mut new_alerts: Vec<Alert> = Vec::new();
+
+            // Alerte expiration de licence
+            if let Ok(license) = fetch_json::<LicenseStatus>(
+                &format!("{}/api/profile/license", crate::config::API_BASE),
+                &token,
+            )
+            .await
+            {
+                if let Some(days) = license.days_until_expiry {
+                    let msg = if license.status == "trial" {
+                        format!(
+                            "Période d'essai : expire dans {} jour{}",
+                            days,
+                            if days > 1 { "s" } else { "" }
+                        )
+                    } else {
+                        format!(
+                            "Licence : expire dans {} jour{}",
+                            days,
+                            if days > 1 { "s" } else { "" }
+                        )
+                    };
+                    new_alerts.push(Alert {
+                        vehicle_name: "Licence odo.io".to_string(),
+                        message: msg,
+                        level: if days <= 3 { AlertLevel::Danger } else { AlertLevel::Warning },
+                    });
+                }
+            }
 
             for vehicle in &vehicle_list {
                 let vehicle_name = format!("{} {}", vehicle.make, vehicle.model);

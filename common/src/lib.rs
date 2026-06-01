@@ -327,6 +327,8 @@ pub struct LicenseStatus {
     pub trial_ends_at: DateTime<Utc>,
     /// Date d'expiration du dernier jeton activé (None si aucun jeton)
     pub access_expires_at: Option<DateTime<Utc>>,
+    /// Jours restants si dans la fenêtre d'alerte, None sinon (lifetime ou pas d'alerte)
+    pub days_until_expiry: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]

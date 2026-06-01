@@ -45,12 +45,57 @@ pub async fn get_license(
     };
 
     let now = Utc::now();
-    let status = if row.access_expires_at.map_or(false, |e| e > now) {
+    let is_active = row.access_expires_at.map_or(false, |e| e > now);
+    let status = if is_active {
         "active"
     } else if row.trial_ends_at > now {
         "trial"
     } else {
         "expired"
+    };
+
+    // Calcul de la fenêtre d'alerte selon la durée du dernier jeton utilisé
+    let days_until_expiry = if status == "expired" {
+        None
+    } else {
+        let expiry = if is_active {
+            row.access_expires_at.unwrap()
+        } else {
+            row.trial_ends_at
+        };
+        let days_remaining = (expiry - now).num_days();
+
+        // Jetons lifetime (≈ 100 ans) : jamais d'alerte
+        if days_remaining > 3650 {
+            None
+        } else {
+            // Seuil selon la durée du dernier jeton (ou 15j pour la période d'essai)
+            let threshold: i64 = if is_active {
+                let last_duration = sqlx::query_scalar!(
+                    "SELECT duration_days FROM public.license_tokens
+                     WHERE used_by = $1 AND used_at IS NOT NULL
+                     ORDER BY used_at DESC LIMIT 1",
+                    user_id
+                )
+                .fetch_optional(&state.db)
+                .await
+                .unwrap_or(None);
+
+                match last_duration {
+                    Some(d) if d <= 30  => 7,
+                    Some(d) if d <= 95  => 15,
+                    _                   => 30,
+                }
+            } else {
+                15 // période d'essai ≈ 3 mois
+            };
+
+            if days_remaining <= threshold {
+                Some(days_remaining)
+            } else {
+                None
+            }
+        }
     };
 
     (
@@ -59,6 +104,7 @@ pub async fn get_license(
             status: status.to_string(),
             trial_ends_at: row.trial_ends_at,
             access_expires_at: row.access_expires_at,
+            days_until_expiry,
         }),
     )
         .into_response()
@@ -132,6 +178,7 @@ pub async fn redeem_token(
                 status: "active".to_string(),
                 trial_ends_at: Utc::now(), // recalculé côté client via GET /license
                 access_expires_at: Some(new_expiry),
+                days_until_expiry: None, // recalculé côté client via GET /license
             }),
         )
             .into_response(),
