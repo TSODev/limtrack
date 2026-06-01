@@ -3,6 +3,7 @@
 // Usage :
 //   cargo run --bin gen-tokens -- --count 10 --days 30
 //   cargo run --bin gen-tokens -- --count 1 --days 365
+//   cargo run --bin gen-tokens -- --count 1 --lifetime
 //
 // Les jetons sont insérés en base (token_hash) et affichés en clair UNE SEULE FOIS.
 
@@ -18,25 +19,37 @@ async fn main() {
 
     let args: Vec<String> = env::args().collect();
     let count = parse_arg(&args, "--count").unwrap_or(1usize);
-    let days = parse_arg::<i32>(&args, "--days").unwrap_or(30);
+    let lifetime = args.contains(&"--lifetime".to_string());
 
-    let valid_durations = [30, 90, 180, 365];
-    if !valid_durations.contains(&days) {
-        eprintln!(
-            "Durée invalide : {}. Valeurs autorisées : {:?}",
-            days, valid_durations
-        );
-        std::process::exit(1);
-    }
+    // 36 500 jours ≈ 100 ans : sentinelle "illimité"
+    let days: i32 = if lifetime {
+        36500
+    } else {
+        let d = parse_arg::<i32>(&args, "--days").unwrap_or(30);
+        let valid_durations = [30, 90, 180, 365];
+        if !valid_durations.contains(&d) {
+            eprintln!(
+                "Durée invalide : {}. Valeurs autorisées : {:?}",
+                d, valid_durations
+            );
+            std::process::exit(1);
+        }
+        d
+    };
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL manquante");
     let pool = PgPool::connect(&db_url)
         .await
         .expect("Connexion NeonDB impossible");
 
-    println!("Génération de {} jeton(s) de {} jour(s)...\n", count, days);
-    println!("{:<30}  {:>5}  {}", "Jeton (en clair)", "Jours", "Statut");
-    println!("{}", "-".repeat(55));
+    let label = if lifetime {
+        "∞ (lifetime)".to_string()
+    } else {
+        format!("{} jour(s)", days)
+    };
+    println!("Génération de {} jeton(s) {}...\n", count, label);
+    println!("{:<30}  {:>14}  {}", "Jeton (en clair)", "Durée", "Statut");
+    println!("{}", "-".repeat(62));
 
     for _ in 0..count {
         let token = generate_token();
@@ -50,9 +63,10 @@ async fn main() {
         .execute(&pool)
         .await;
 
+        let dur_label = if lifetime { "∞ lifetime".to_string() } else { format!("{} j", days) };
         match result {
-            Ok(_) => println!("{:<30}  {:>5}  OK", token, days),
-            Err(e) => println!("{:<30}  {:>5}  ERREUR: {}", token, days, e),
+            Ok(_) => println!("{:<30}  {:>14}  OK", token, dur_label),
+            Err(e) => println!("{:<30}  {:>14}  ERREUR: {}", token, dur_label, e),
         }
     }
 
