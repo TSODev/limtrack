@@ -1,4 +1,4 @@
-# odo.io
+# LimTrack
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
@@ -13,7 +13,7 @@
 
 ## Présentation
 
-**odo.io** est une application full-stack écrite entièrement en Rust. Elle permet à des particuliers et à des entreprises de :
+**LimTrack** est une application full-stack écrite entièrement en Rust. Elle permet à des particuliers et à des entreprises de :
 
 - Gérer leurs véhicules et partager leur accès avec d'autres utilisateurs
 - Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique
@@ -43,7 +43,7 @@
 ## Architecture
 
 ```
-odo.io/
+limtrack/
 ├── backend/          # API REST Axum
 │   └── src/
 │       ├── main.rs
@@ -201,8 +201,8 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
 ### 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/ton-repo/odo.io.git
-cd odo.io
+git clone https://github.com/TSODev/limtrack.git
+cd limtrack
 ```
 
 ### 2. Variables d'environnement
@@ -282,7 +282,7 @@ cargo run --bin notify-expiry
 L'URL de l'API est centralisée dans `frontend/src/config.rs` :
 
 ```rust
-pub const API_BASE: &str = "https://api.tsodev.fr";
+pub const API_BASE: &str = "https://api.limtrack.app";
 ```
 
 Modifier cette valeur pour pointer vers votre propre backend.
@@ -380,11 +380,11 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ## Déploiement production
 
-| Service  | URL                   | Plateforme |
-| -------- | --------------------- | ---------- |
-| Frontend | https://odo.tsodev.fr | Netlify    |
-| Backend  | https://api.tsodev.fr | Railway    |
-| BDD      | NeonDB (PostgreSQL)   | Neon       |
+| Service  | URL                        | Plateforme        |
+| -------- | -------------------------- | ----------------- |
+| Frontend | https://limtrack.app       | Cloudflare Pages  |
+| Backend  | https://api.limtrack.app   | Railway           |
+| BDD      | NeonDB (PostgreSQL)        | Neon              |
 
 ---
 
