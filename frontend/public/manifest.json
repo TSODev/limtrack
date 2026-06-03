@@ -1,6 +1,6 @@
 {
-    "name": "odo.io",
-    "short_name": "odo.io",
+    "name": "LimTrack",
+    "short_name": "LimTrack",
     "description": "Gestion de flotte kilométrique — contrats LOA, assurance et relevés",
     "start_url": "/",
     "display": "standalone",
