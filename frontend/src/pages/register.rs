@@ -28,13 +28,6 @@ pub fn RegisterPage() -> impl IntoView {
                     return;
                 }
 
-                if pass.len() < 8 {
-                    set_status_message
-                        .set("Le mot de passe doit contenir au moins 8 caractères.".to_string());
-                    set_is_success.set(false);
-                    return;
-                }
-
                 let url = format!("{}/api/user/register", crate::config::API_BASE);
 
                 let mut opts = web_sys::RequestInit::new();
@@ -175,10 +168,14 @@ pub fn RegisterPage() -> impl IntoView {
                             prop:value=password
                             on:input=move |ev| set_password.set(event_target_value(&ev))
                             required
-                            minlength="8"
                             class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
-                            placeholder="8 caractères minimum"
+                            placeholder="Choisissez un mot de passe robuste"
                         />
+                        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 leading-relaxed">
+                            "Le mot de passe doit être suffisamment complexe (score \u{2265}3/4). "
+                            "Mélangez majuscules, chiffres et symboles. "
+                            "Évitez les prénoms, dates et mots courants."
+                        </p>
                     </div>
 
                     // Confirmation mot de passe

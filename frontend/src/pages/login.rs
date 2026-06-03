@@ -22,7 +22,7 @@ pub fn LoginPage() -> impl IntoView {
 
         async move {
             // Remplace par l'URL réelle de ton backend
-            let url = "https://api.tsodev.fr/login";
+            let url = format!("{}/login", crate::config::API_BASE);
 
             // Préparation du body en JSON
             let body = serde_json::json!({
@@ -33,7 +33,7 @@ pub fn LoginPage() -> impl IntoView {
             // Appel Fetch via reqwest (courant en Leptos frontend)
             // Assure-je d'avoir la dépendance `reqwest = { version = "...", features = ["json"] }`
             let client = reqwest::Client::new();
-            match client.post(url).json(&body).send().await {
+            match client.post(&url).json(&body).send().await {
                 Ok(response) => {
                     if response.status().is_success() {
                         // On extrait le token (en supposant que ton backend renvoie {"token": "..."})
@@ -102,7 +102,7 @@ pub fn LoginPage() -> impl IntoView {
                             on:input=move |ev| set_username.set(event_target_value(&ev))
                             required
                             class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
-                            placeholder="Ex: shaun_the_sheep"
+                            placeholder="Ex: PercevalDeGalle"
                         />
                     </div>
 

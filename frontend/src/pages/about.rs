@@ -31,8 +31,8 @@ pub fn AboutPage() -> impl IntoView {
         let subj = percent_encode(&subject.get());
         let body = percent_encode(&message.get());
         let mailto = format!(
-            "mailto:thierry.soulie@tsodev.fr?subject={}&body={}",
-            subj, body
+            "mailto:{}?subject={}&body={}",
+            crate::config::CONTACT_EMAIL, subj, body
         );
         let _ = leptos::window().location().set_href(&mailto);
         set_sent.set(true);
@@ -94,10 +94,10 @@ pub fn AboutPage() -> impl IntoView {
                     <div>
                         <h2 class="text-base font-bold text-gray-900">"Contact"</h2>
                         <a
-                            href="mailto:thierry.soulie@tsodev.fr"
+                            href=format!("mailto:{}", crate::config::CONTACT_EMAIL)
                             class="text-sm text-indigo-600 hover:text-indigo-700 transition duration-150"
                         >
-                            "thierry.soulie@tsodev.fr"
+                            {crate::config::CONTACT_EMAIL}
                         </a>
                     </div>
 

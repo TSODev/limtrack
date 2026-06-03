@@ -208,12 +208,6 @@ fn ChangePasswordSection() -> impl IntoView {
                     set_error.set("Les mots de passe ne correspondent pas.".to_string());
                     return;
                 }
-                if new_pass.len() < 8 {
-                    set_error
-                        .set("Le mot de passe doit contenir au moins 8 caractères.".to_string());
-                    return;
-                }
-
                 let token = get_token().unwrap_or_default();
                 let body = serde_json::json!({
                     "current_password": current,
@@ -259,7 +253,7 @@ fn ChangePasswordSection() -> impl IntoView {
                         <label class="text-sm font-medium text-gray-700 block">"Nouveau mot de passe"</label>
                         <input type="password" required prop:value=new_pass
                             on:input=move |ev| set_new_pass.set(event_target_value(&ev))
-                            placeholder="8 caractères minimum"
+                            placeholder="Choisissez un mot de passe robuste"
                             class=input_class() />
                     </div>
                     <div class="space-y-1">
@@ -269,6 +263,11 @@ fn ChangePasswordSection() -> impl IntoView {
                             class=input_class() />
                     </div>
                 </div>
+                <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 leading-relaxed">
+                    "Le mot de passe doit être suffisamment complexe (score \u{2265}3/4). "
+                    "Mélangez majuscules, chiffres et symboles. "
+                    "Évitez les prénoms, dates et mots courants."
+                </p>
                 <Show when=move || !error.get().is_empty() fallback=|| ()>
                     <p class="text-sm text-red-600">{move || error.get()}</p>
                 </Show>
