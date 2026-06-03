@@ -1,4 +1,5 @@
 .env
+ADMIN.md
 target/
 **/*.rs.bk
 *.env

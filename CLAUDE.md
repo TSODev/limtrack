@@ -246,6 +246,12 @@ git commit -m "fix: sqlx cache"
 git push
 ```
 
+## Infisical — gestion des secrets
+`backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v3/secrets/raw` et injection dans l'env. Sinon → fallback `dotenvy` (dev local).
+- Instance : EU cloud `https://eu.infisical.com` — **Service Token** (pas Machine Identity, incompatible E2EE)
+- Railway : `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_URL`
+- Les noms des secrets dans Infisical = noms des variables d'env (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`)
+
 ## Pièges SQLx connus
 
 ### LEFT JOIN → colonne nullable
@@ -285,28 +291,4 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ## Version actuelle
 `0.5.0`
 
-## Roadmap
-### Application mobile
-- [ ] Tauri Android
-- [ ] Sideloading iPhone réel → App Store
-
-### Fonctionnalités
-- [ ] Export PDF/CSV
-- [ ] Notifications push natives
-- [x] Notification d'expiration de licence (J-7/J-15/J-30, in-app + email quotidien Resend)
-
-### Licences avancées
-- [ ] **Quota de véhicules par licence** : `max_vehicles` dans `users` (défaut 3 ou 5), extensible par jeton (`vehicle_slots`). Vérification au `POST /api/vehicles`. Quota affiché dans le profil.
-- [ ] **Licence entreprise** : table `company_licenses` (company_id, max_vehicles, expires_at), jeton couvrant toute la flotte avec quota véhicules, application automatique aux nouveaux véhicules assignés.
-
-### SaaS complet
-- [ ] **Paiement self-service** : intégration Stripe, achat de licence en ligne (durée + slots véhicules), génération automatique du jeton via webhook
-- [ ] **Inscription libre** : onboarding sans intervention admin — inscription → paiement → activation autonome
-- [ ] **Dashboard administrateur** : vue globale utilisateurs, licences actives/expirées, quotas, activité
-
-### Sécurité — gestion des secrets
-- [x] **Infisical (v0.5.0)** : `backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v3/secrets/raw` (Service Token, compatible E2EE) et injection dans l'env. Sinon → fallback `dotenvy` (dev local).
-  - Instance : EU cloud `https://eu.infisical.com` — **Service Token** (pas Machine Identity, incompatible E2EE)
-  - Railway : `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_URL`
-  - Les noms des secrets dans Infisical = noms des variables d'env (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`)
 
