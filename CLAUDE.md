@@ -2,7 +2,7 @@ Voici un résumé complet pour Claude Code :
 
 ---
 
-# odo.io — Résumé projet pour Claude Code
+# LimTrack — Résumé projet pour Claude Code
 
 ## Présentation
 Application web full-stack **entièrement en Rust** de gestion de flotte kilométrique. Suivi contrats LOA/assurance, relevés kilométriques, alertes personnalisées.
@@ -15,17 +15,17 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`
 - **Mobile** : Tauri v2 (iOS configuré, Android à faire)
 - **Types partagés** : crate `common` (workspace Cargo)
-- **Déploiement** : Netlify (frontend) + Railway (backend)
+- **Déploiement** : Cloudflare Pages (frontend, GitHub Actions) + Railway (backend)
 
 ## Architecture workspace
 ```
-odo.io/
+limtrack/
 ├── backend/src/
 │   ├── main.rs
 │   ├── auth.rs
 │   ├── state.rs
 │   ├── secrets.rs             ← chargement secrets Infisical au démarrage (fallback .env)
-│   ├── notifier.rs            ← envoi notifications email expiration licence (Resend)
+│   ├── notifier.rs            ← envoi notifications email expiration licence (Resend noreply@limtrack.app)
 │   ├── handlers.rs            ← login, status, helpers généraux
 │   ├── lib.rs                 ← expose notifier + secrets aux binaires CLI
 │   ├── user_handler.rs
@@ -41,7 +41,7 @@ odo.io/
 │       ├── assign_license.rs  ← CLI assignation jetons manuel/batch CSV
 │       └── notify_expiry.rs   ← CLI déclenchement manuel notifications email
 ├── frontend/src/
-│   ├── config.rs              ← API_BASE = "https://api.tsodev.fr"
+│   ├── config.rs              ← API_BASE = "https://api.limtrack.app"
 │   ├── build.rs               ← lit git describe --tags → APP_VERSION (fallback CARGO_PKG_VERSION)
 │   ├── pages/
 │   │   ├── home.rs
@@ -78,14 +78,16 @@ odo.io/
 │   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
 │   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
 │   └── seed/                  ← Données de démo + script import
+├── .github/workflows/
+│   └── deploy-frontend.yml    ← CI/CD : build Leptos/WASM + deploy Cloudflare Pages
 ├── api/
 │   └── odoio-collection.postman_collection.json  ← Collection Postman
 └── Trunk.toml
 ```
 
 ## URLs production
-- Frontend : `https://odo.tsodev.fr` (Netlify)
-- Backend : `https://api.tsodev.fr` (Railway)
+- Frontend : `https://limtrack.app` (Cloudflare Pages)
+- Backend : `https://api.limtrack.app` (Railway)
 - BDD : NeonDB PostgreSQL
 
 ## Base de données
