@@ -63,7 +63,7 @@ Si vous utilisez le logiciel en violation de ces termes, cette utilisation n'est
 ## Définitions
 
 - **Le titulaire** est l'entité proposant ces termes, soit TSODev / Thierry Soulie.
-- **Le logiciel** désigne le logiciel odo.io mis à disposition sous ces termes, y compris toute partie de celui-ci.
+- **Le logiciel** désigne le logiciel LimTrack mis à disposition sous ces termes, y compris toute partie de celui-ci.
 - **Vous** désigne la personne ou l'entité acceptant ces termes.
 - **Votre entreprise** désigne toute entité juridique, entreprise individuelle ou organisation pour laquelle vous travaillez, ainsi que toutes les organisations qui la contrôlent ou sont sous son contrôle.
 - **Vos licences** désigne l'ensemble des licences qui vous sont accordées pour le logiciel dans le cadre de ces termes.

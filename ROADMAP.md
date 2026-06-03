@@ -29,54 +29,52 @@
 > **Contexte** : le nom "odo.io" est une trademark réservée. L'application est renommée **LimTrack**.  
 > Ce chantier est un prérequis au lancement SaaS public (v1.0.0).
 
-### DNS et infrastructure
+### DNS et infrastructure ✅
 
-| Actuel | Cible | Service |
-|--------|-------|---------|
-| `odo.tsodev.fr` | `limtrack.app` (TBD) | Netlify — frontend |
-| `api.tsodev.fr` | `api.limtrack.app` (TBD) | Railway — backend |
-| `noreply@tsodev.fr` | `noreply@limtrack.app` (TBD) | Resend — emails |
+| Ancien | Nouveau | Service |
+|--------|---------|---------|
+| `odo.tsodev.fr` (Netlify) | `limtrack.app` (Cloudflare Pages) | Frontend |
+| `api.tsodev.fr` | `api.limtrack.app` | Railway — backend |
+| `noreply@tsodev.fr` | `noreply@limtrack.app` | Resend — emails |
 
-- [ ] Choisir et enregistrer le domaine `limtrack.app` (ou `.fr`, `.io`)
-- [ ] Configurer le domaine custom sur Netlify
-- [ ] Configurer le domaine custom sur Railway
-- [ ] Mettre à jour le domaine expéditeur dans Resend
-- [ ] Redirection 301 `odo.tsodev.fr` → `limtrack.app` (période de transition)
+- [x] Domaine `limtrack.app` enregistré sur Cloudflare (2026-06-03)
+- [x] Frontend déployé sur Cloudflare Pages via GitHub Actions
+- [x] Domaine custom `api.limtrack.app` configuré sur Railway
+- [x] Domaine `limtrack.app` vérifié sur Resend
+- [x] Netlify supprimé
 
-### Code source — occurrences à remplacer
+### Code source ✅
 
 **Configuration et manifestes**
-- [ ] `frontend/index.html` — `<title>` et `apple-mobile-web-app-title`
-- [ ] `frontend/public/manifest.json` — `name` et `short_name` (PWA)
-- [ ] `frontend/src-tauri/tauri.conf.json` — `title` (fenêtre Tauri iOS)
-- [ ] `Cargo.toml` — `repository` URL (`TSODev/odo.io` → `TSODev/LimTrack`)
-- [ ] `frontend/src/config.rs` — `API_BASE` URL
-- [ ] `frontend/Trunk.toml` — `backend` URL
+- [x] `frontend/index.html` — `<title>` et `apple-mobile-web-app-title`
+- [x] `frontend/public/manifest.json` — `name` et `short_name` (PWA)
+- [x] `frontend/src-tauri/tauri.conf.json` — `title` (fenêtre Tauri iOS)
+- [x] `Cargo.toml` — `repository` URL → `TSODev/limtrack`
+- [x] `frontend/src/config.rs` — `API_BASE` → `https://api.limtrack.app`
 
 **Pages frontend**
-- [ ] `frontend/src/pages/home.rs` — brand navbar + copyright
-- [ ] `frontend/src/pages/mainpage.rs` — brand navbar
-- [ ] `frontend/src/pages/register.rs` — brand formulaire
-- [ ] `frontend/src/pages/profile.rs` — brand header + message licence expirée
-- [ ] `frontend/src/pages/about.rs` — nom + description (3 occurrences)
+- [x] `frontend/src/pages/home.rs`
+- [x] `frontend/src/pages/mainpage.rs`
+- [x] `frontend/src/pages/register.rs`
+- [x] `frontend/src/pages/profile.rs`
+- [x] `frontend/src/pages/about.rs`
 
 **Composants frontend**
-- [ ] `frontend/src/components/notification_bell.rs` — label `"Licence odo.io"`
+- [x] `frontend/src/components/notification_bell.rs`
 
 **Backend**
-- [ ] `backend/src/notifier.rs` — objet emails, expéditeur `from`, template HTML, liens profile
+- [x] `backend/src/notifier.rs` — sujets, expéditeur `noreply@limtrack.app`, liens `limtrack.app`
 
 **Documentation**
-- [ ] `Readme.md` — titre et mentions (5 occurrences)
-- [ ] `licence.md` — définition du logiciel (ELv2)
-- [ ] `CLAUDE.md` — titre et mentions
-- [ ] `CHANGELOG.md` — mentions historiques (laisser en place pour la traçabilité)
-- [ ] `sql/seed/SEED_FLEET_DEMO.md`
+- [x] `Readme.md`
+- [x] `licence.md`
+- [x] `CLAUDE.md`
+- [x] `CHANGELOG.md`
+- [x] `sql/seed/SEED_FLEET_DEMO.md`
 
 **Artefacts**
 - [ ] Renommer `api/odoio-collection.postman_collection.json` → `api/limtrack-collection.postman_collection.json`
-- [ ] Renommer le dépôt GitHub `TSODev/odo.io` → `TSODev/LimTrack`
-- [ ] Renommer le dossier local `odo.io/` → `LimTrack/` (après push)
+- [x] Dépôt GitHub renommé `TSODev/odo.io` → `TSODev/limtrack`
 
 ---
 

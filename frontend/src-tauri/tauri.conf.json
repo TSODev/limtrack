@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "odo.io",
+        "title": "LimTrack",
         "width": 800,
         "height": 600,
         "resizable": true,
