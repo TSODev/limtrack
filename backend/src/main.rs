@@ -175,7 +175,7 @@ async fn main() {
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
-    println!("🚀 Backend ODO lancé sur http://{}", addr);
+    println!("🚀 Backend LimTrack lancé sur http://{}", addr);
     info!("Connexion à NeonDB réussie !");
 
     // Tâche de fond : notifications email d'expiration, une fois par jour à ~8h
