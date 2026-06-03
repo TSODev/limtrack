@@ -127,7 +127,7 @@ pub fn ProfilePage() -> impl IntoView {
                         </svg>
                         "Retour"
                     </A>
-                    <span class="text-xl font-bold text-indigo-600">"odo.io"</span>
+                    <span class="text-xl font-bold text-indigo-600">"LimTrack"</span>
                     <div class="w-20" />
                 </div>
             </nav>
@@ -679,7 +679,7 @@ fn LicenseSection() -> impl IntoView {
                     _ => (
                         "bg-red-100 text-red-700",
                         "Expirée",
-                        "Activez un jeton pour continuer à utiliser odo.io.".to_string(),
+                        "Activez un jeton pour continuer à utiliser LimTrack.".to_string(),
                     ),
                 };
                 view! {

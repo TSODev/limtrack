@@ -25,7 +25,7 @@ pub fn HomePage() -> impl IntoView {
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M12 3v1m0 16v1M4.22 4.22l.707.707m12.02 12.02.708.708M1 12h1m20 0h1M4.22 19.78l.707-.707M18.95 5.05l.708-.707M12 7a5 5 0 1 0 0 10A5 5 0 0 0 12 7Z" />
                         </svg>
-                        <span class="text-white font-bold text-xl tracking-tight">"odo.io"</span>
+                        <span class="text-white font-bold text-xl tracking-tight">"LimTrack"</span>
                     </div>
 
                 </nav>
@@ -91,7 +91,7 @@ pub fn HomePage() -> impl IntoView {
 
                 // Footer
                 <footer class="text-center py-5 text-white/30 text-xs">
-                    "© 2026 TSODev · odo.io"
+                    "© 2026 TSODev · LimTrack"
                 </footer>
             </div>
         </div>

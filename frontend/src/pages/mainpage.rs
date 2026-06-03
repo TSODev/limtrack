@@ -72,7 +72,7 @@ pub fn MainPage() -> impl IntoView {
                 // ─── Navbar ──────────────────────────────────────────
                 <nav class="bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm shrink-0 z-20">
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between">
-                        <span class="text-lg md:text-xl font-bold text-indigo-600">"odo.io"</span>
+                        <span class="text-lg md:text-xl font-bold text-indigo-600">"LimTrack"</span>
 
                         <div class="flex items-center gap-2 md:gap-3">
                             // Cloche

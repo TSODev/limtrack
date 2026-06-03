@@ -88,7 +88,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                         )
                     };
                     new_alerts.push(Alert {
-                        vehicle_name: "Licence odo.io".to_string(),
+                        vehicle_name: "Licence LimTrack".to_string(),
                         message: msg,
                         level: if days <= 3 { AlertLevel::Danger } else { AlertLevel::Warning },
                     });

@@ -53,7 +53,7 @@ pub fn AboutPage() -> impl IntoView {
                         </svg>
                         "Retour"
                     </A>
-                    <span class="text-xl font-bold text-indigo-600">"odo.io"</span>
+                    <span class="text-xl font-bold text-indigo-600">"LimTrack"</span>
                     <div class="w-20" />
                 </div>
             </nav>
@@ -71,7 +71,7 @@ pub fn AboutPage() -> impl IntoView {
                         </div>
                     </div>
                     <div>
-                        <h1 class="text-3xl font-bold text-gray-900">"odo.io"</h1>
+                        <h1 class="text-3xl font-bold text-gray-900">"LimTrack"</h1>
                         <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-indigo-100 text-indigo-700">
                             {APP_VERSION}
                         </span>
@@ -82,7 +82,7 @@ pub fn AboutPage() -> impl IntoView {
                 <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
                     <h2 class="text-base font-bold text-gray-900">"À propos"</h2>
                     <p class="text-sm text-gray-600 leading-relaxed">
-                        "odo.io est une application web de gestion de flotte kilométrique. "
+                        "LimTrack est une application web de gestion de flotte kilométrique. "
                         "Elle permet de suivre vos contrats LOA et d'assurance, d'enregistrer "
                         "vos relevés kilométriques et de recevoir des alertes personnalisées "
                         "avant d'atteindre les seuils contractuels."

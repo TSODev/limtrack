@@ -112,7 +112,7 @@ pub fn RegisterPage() -> impl IntoView {
 
                 // En-tête
                 <div class="text-center">
-                    <span class="text-2xl font-bold text-indigo-600">"odo.io"</span>
+                    <span class="text-2xl font-bold text-indigo-600">"LimTrack"</span>
                     <h2 class="mt-4 text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
                         "Créer un compte"
                     </h2>

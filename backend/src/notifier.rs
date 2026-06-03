@@ -89,16 +89,16 @@ pub async fn run_notifications(pool: &PgPool, api_key: &str) {
         let html = build_email_html(&user.username, days_remaining, is_trial, license_type);
 
         let subject = if days_remaining <= 1 {
-            "⚠️ Votre licence odo.io expire aujourd'hui".to_string()
+            "⚠️ Votre licence LimTrack expire aujourd'hui".to_string()
         } else {
-            format!("Votre licence odo.io expire dans {} jours", days_remaining)
+            format!("Votre licence LimTrack expire dans {} jours", days_remaining)
         };
 
         let res = http
             .post("https://api.resend.com/emails")
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&json!({
-                "from": "odo.io <noreply@tsodev.fr>",
+                "from": "LimTrack <noreply@limtrack.app>",
                 "to": [&user.email],
                 "subject": subject,
                 "html": html,
@@ -153,7 +153,7 @@ fn build_email_html(username: &str, days: i64, is_trial: bool, license_type: &st
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Expiration de licence — odo.io</title>
+  <title>Expiration de licence — LimTrack</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:40px 16px;">
@@ -161,7 +161,7 @@ fn build_email_html(username: &str, days: i64, is_trial: bool, license_type: &st
       <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
         <tr>
           <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
-            <p style="margin:0;font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">odo.io</p>
+            <p style="margin:0;font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">LimTrack</p>
             <p style="margin:8px 0 0;font-size:13px;color:#c4b5fd;">Gestion de flotte kilométrique</p>
           </td>
         </tr>
@@ -184,7 +184,7 @@ fn build_email_html(username: &str, days: i64, is_trial: bool, license_type: &st
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
               <tr>
                 <td align="center">
-                  <a href="https://odo.tsodev.fr/profile"
+                  <a href="https://limtrack.app/profile"
                      style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">
                     Renouveler ma licence →
                   </a>
@@ -200,7 +200,7 @@ fn build_email_html(username: &str, days: i64, is_trial: bool, license_type: &st
         <tr>
           <td style="background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:20px 40px;text-align:center;">
             <p style="margin:0;font-size:12px;color:#94a3b8;">
-              odo.io · <a href="https://odo.tsodev.fr" style="color:#6366f1;text-decoration:none;">odo.tsodev.fr</a><br/>
+              LimTrack · <a href="https://limtrack.app" style="color:#6366f1;text-decoration:none;">limtrack.app</a><br/>
               Vous recevez cet email car votre licence approche de son échéance.
             </p>
           </td>
