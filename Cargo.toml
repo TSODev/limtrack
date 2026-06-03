@@ -6,7 +6,7 @@ members = ["backend", "frontend", "common", "frontend/src-tauri"]
 version = "0.5.0"
 edition = "2021"
 authors = ["thierry.soulie@tsodev.fr"]
-repository = "https://github.com/TSODev/odo.io"                                     # corrigé : odo.io et non ido.io
+repository = "https://github.com/TSODev/limtrack"
 description = "Gestion de flotte kilométrique — contrats LOA, assurance et relevés"
 license = "Elastic-2.0"
 
