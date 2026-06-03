@@ -75,6 +75,7 @@
 **Artefacts**
 - [x] Renommer `api/odoio-collection.postman_collection.json` → `api/limtrack-collection.postman_collection.json`
 - [x] Dépôt GitHub renommé `TSODev/odo.io` → `TSODev/limtrack`
+- [ ] **Logo app** — refaire les icônes/assets qui mentionnent encore "odo.io" (PWA icons, Tauri iOS icons)
 
 ---
 
