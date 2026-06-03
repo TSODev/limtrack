@@ -8,6 +8,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Amélioré
+- **Notice de complexité du mot de passe** : encadré informatif affiché sous le champ mot de passe dans les formulaires d'inscription et de changement de mot de passe. Rappelle que la validation est assurée côté serveur par `zxcvbn` (score ≥ 3/4) et donne des conseils pratiques (majuscules, chiffres, symboles, éviter prénoms et dates).
+- **Suppression de la contrainte `minlength="8"` et de la validation `len() < 8` côté client** : la complexité est évaluée exclusivement par `zxcvbn` côté backend.
+- **`CONTACT_EMAIL` centralisé dans `config.rs`** : l'adresse email de contact n'est plus dupliquée en dur dans `about.rs`.
+- **URL de login via `API_BASE`** : suppression de l'URL hardcodée dans `login.rs`, alignement sur le pattern existant.
+
 ### À venir (v1.0.0 — SaaS)
 - **Paiement self-service** : intégration Stripe pour l'achat de licences en ligne avec génération automatique du jeton via webhook.
 - **Inscription libre** : activation de compte sans intervention manuelle — inscription → paiement → activation autonome.
