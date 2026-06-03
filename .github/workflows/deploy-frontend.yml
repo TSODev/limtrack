@@ -45,6 +45,13 @@ jobs:
         run: trunk build --release
         working-directory: frontend
 
+      - name: Create Pages project if needed
+        run: npx wrangler pages project create limtrack --production-branch=main || true
+        working-directory: frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
