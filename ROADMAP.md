@@ -73,7 +73,7 @@
 - [x] `sql/seed/SEED_FLEET_DEMO.md`
 
 **Artefacts**
-- [ ] Renommer `api/odoio-collection.postman_collection.json` → `api/limtrack-collection.postman_collection.json`
+- [x] Renommer `api/odoio-collection.postman_collection.json` → `api/limtrack-collection.postman_collection.json`
 - [x] Dépôt GitHub renommé `TSODev/odo.io` → `TSODev/limtrack`
 
 ---

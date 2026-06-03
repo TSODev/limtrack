@@ -81,7 +81,7 @@ limtrack/
 ├── .github/workflows/
 │   └── deploy-frontend.yml    ← CI/CD : build Leptos/WASM + deploy Cloudflare Pages
 ├── api/
-│   └── odoio-collection.postman_collection.json  ← Collection Postman
+│   └── limtrack-collection.postman_collection.json  ← Collection Postman
 └── Trunk.toml
 ```
 
