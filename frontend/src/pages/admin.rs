@@ -1,3 +1,4 @@
+use crate::components::ui::get_token as get_jwt_token;
 use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
@@ -70,16 +71,8 @@ struct GenerateTokenPayload {
 
 // ─── Helpers fetch ────────────────────────────────────────────
 
-fn get_token() -> Option<String> {
-    leptos::window()
-        .local_storage()
-        .ok()??
-        .get_item("token")
-        .ok()?
-}
-
 async fn api_get<T: for<'de> serde::Deserialize<'de>>(path: &str) -> Result<T, String> {
-    let token = get_token().ok_or("Non connecté")?;
+    let token = get_jwt_token().ok_or("Non connecté")?;
     let url = format!("{}{}", crate::config::API_BASE, path);
     let mut opts = web_sys::RequestInit::new();
     opts.method("GET");
@@ -104,7 +97,7 @@ async fn api_get<T: for<'de> serde::Deserialize<'de>>(path: &str) -> Result<T, S
 }
 
 async fn api_post(path: &str, body: &str) -> Result<String, String> {
-    let token = get_token().ok_or("Non connecté")?;
+    let token = get_jwt_token().ok_or("Non connecté")?;
     let url = format!("{}{}", crate::config::API_BASE, path);
     let mut opts = web_sys::RequestInit::new();
     opts.method("POST");
@@ -181,7 +174,7 @@ pub fn AdminPage() -> impl IntoView {
     });
 
     view! {
-        <div class="min-h-screen bg-gray-100">
+        <div class="min-h-screen bg-gray-100" style="padding-top: env(safe-area-inset-top)">
 
             // ─── Navbar ──────────────────────────────────────
             <nav class="bg-white shadow-sm border-b border-gray-200">
