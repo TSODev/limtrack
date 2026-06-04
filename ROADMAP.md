@@ -126,3 +126,9 @@ Rien en cours.
 
 - [ ] **Export PDF/CSV** — relevés kilométriques et contrats
 - [ ] **Notifications push natives** — mobile Tauri
+
+---
+
+## Documentation technique
+
+- [ ] **Documentation API Swagger/OpenAPI** — intégration `utoipa` + `utoipa-swagger-ui`, endpoint `/api-docs` avec Swagger UI interactif. Utile pour les contributeurs open source.
