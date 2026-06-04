@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE public.license_tokens SET used_at = NOW(), used_by = $1 WHERE token_hash = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e6bd47c49ccd773cdf94e86074eacb49df8d0ce71c6c0e1db303a0274c515f23"
+}

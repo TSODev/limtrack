@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM public.users WHERE trial_ends_at <= $1 AND (access_expires_at IS NULL OR access_expires_at <= $1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a7fb20fc505998e83be7d3eb9cce4b29f409f01f9614221aeb20bba018fdfd01"
+}

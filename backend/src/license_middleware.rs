@@ -30,6 +30,8 @@ const EXEMPT_PATHS: &[&str] = &[
     "/api/license/request",
 ];
 
+const EXEMPT_PREFIXES: &[&str] = &["/api/admin/"];
+
 pub async fn check_license(
     State(state): State<AppState>,
     request: Request<Body>,
@@ -38,7 +40,9 @@ pub async fn check_license(
     let path = request.uri().path().to_string();
 
     // Laisser passer les routes exemptées
-    if EXEMPT_PATHS.iter().any(|p| path == *p) {
+    if EXEMPT_PATHS.iter().any(|p| path == *p)
+        || EXEMPT_PREFIXES.iter().any(|p| path.starts_with(*p))
+    {
         return next.run(request).await;
     }
 

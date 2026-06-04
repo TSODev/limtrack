@@ -1,4 +1,5 @@
 pub mod about;
+pub mod admin;
 pub mod fleet;
 pub mod home;
 pub mod login;

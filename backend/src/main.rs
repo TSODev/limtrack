@@ -1,5 +1,6 @@
 // src/main.rs
 
+mod admin_handler;
 mod auth;
 mod company_handler;
 mod contracts_handler;
@@ -30,6 +31,7 @@ use crate::user_handler::{
     update_preferences,
     delete_account,
 };
+use crate::admin_handler::{generate_token_handler, get_stats, list_license_requests, list_users};
 use crate::license_handler::{get_license, redeem_token};
 use crate::request_license_handler::request_license;
 use crate::company_handler::{
@@ -115,6 +117,11 @@ async fn main() {
         .route("/api/profile/license", get(get_license))
         .route("/api/profile/redeem", post(redeem_token))
         .route("/api/license/request", post(request_license))
+        // Admin
+        .route("/api/admin/stats", get(get_stats))
+        .route("/api/admin/users", get(list_users))
+        .route("/api/admin/license-requests", get(list_license_requests))
+        .route("/api/admin/generate-token", post(generate_token_handler))
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         // Fleet : véhicule → entreprise
