@@ -165,7 +165,7 @@ pub async fn request_license(
     }
 
     // Envoyer le token par email
-    let api_key = std::env::var("RESEND_API_KEY").unwrap_or_default();
+    let api_key = &state.resend_api_key;
     if !api_key.is_empty() {
         let html = build_email_html(&token);
         let http = Client::new();

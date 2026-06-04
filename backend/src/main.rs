@@ -70,7 +70,8 @@ async fn main() {
         .await
         .expect("Impossible de se connecter à NeonDB");
 
-    let state = AppState { db: pool.clone() };
+    let resend_api_key = std::env::var("RESEND_API_KEY").unwrap_or_default();
+    let state = AppState { db: pool.clone(), resend_api_key: resend_api_key.clone() };
     let notif_pool = pool;
 
     info!("Le backend démarre...");
@@ -182,7 +183,7 @@ async fn main() {
     info!("Connexion à NeonDB réussie !");
 
     // Tâche de fond : notifications email d'expiration, une fois par jour à ~8h
-    let notif_api_key = std::env::var("RESEND_API_KEY").unwrap_or_default();
+    let notif_api_key = resend_api_key;
     if notif_api_key.is_empty() {
         info!("RESEND_API_KEY absente — notifications email désactivées");
     } else {
