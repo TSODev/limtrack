@@ -116,7 +116,8 @@ pub fn AboutPage() -> impl IntoView {
                             href="https://ko-fi.com/limtrack"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 transition duration-150"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
+                            style="background-color:#f59e0b;color:#ffffff;"
                         >
                             "☕ Ko-fi"
                         </a>
@@ -124,7 +125,8 @@ pub fn AboutPage() -> impl IntoView {
                             href="https://github.com/sponsors/TSODev"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gray-800 hover:bg-gray-900 transition duration-150"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
+                            style="background-color:#1f2937;color:#ffffff;"
                         >
                             "♥ GitHub Sponsors"
                         </a>
