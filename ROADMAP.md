@@ -12,15 +12,13 @@
 | [0.3.1] | 2026-05-28 | Middleware lecture seule en mode expiré ; notice période d'essai à l'inscription |
 | [0.4.0] | 2026-06-01 | Alertes expiration in-app + email Resend, jetons lifetime/fleet, CLI assign-license |
 | [0.5.0] | 2026-06-01 | Secrets via Infisical (EU cloud), fallback .env en local |
+| [0.6.0] | 2026-06-04 | Migration AGPL v3, open source public, licences gratuites sur formulaire, Ko-fi / GitHub Sponsors |
 
 ---
 
 ## En cours — [Unreleased]
 
-- **Notice de complexité du mot de passe** : encadré informatif dans les formulaires d'inscription et de changement de mot de passe.
-- **Suppression `minlength` côté client** : validation déléguée exclusivement à `zxcvbn` côté backend.
-- **`CONTACT_EMAIL` centralisé** dans `config.rs` (suppression du hard-code dans `about.rs`).
-- **URL de login via `API_BASE`** : suppression de l'URL hardcodée dans `login.rs`.
+Rien en cours actuellement.
 
 ---
 
@@ -89,9 +87,9 @@
 - ~~[ ] Génération automatique du jeton via webhook Stripe~~
 - ~~[ ] Statut micro-entrepreneur à régulariser avant activation du mode live~~
 
-### Délivrance de licences gratuites
-- [ ] Formulaire de demande de licence → génération automatique via `gen-tokens` → envoi email (Resend)
-- [ ] Page Ko-fi et/ou GitHub Sponsors pour les dons volontaires
+### Délivrance de licences gratuites ✅
+- [x] Formulaire `/request-license` → génération automatique du jeton → envoi email (Resend)
+- [x] Ko-fi (`ko-fi.com/limtrack`) et GitHub Sponsors (`github.com/sponsors/TSODev`)
 
 ### ~~Inscription libre~~
 - ~~[ ] Onboarding sans intervention admin : inscription → paiement → activation autonome~~
