@@ -7,7 +7,7 @@
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-yellow)
-![License](https://img.shields.io/badge/license-ELv2-blue)
+![License](https://img.shields.io/badge/license-AGPL--v3-blue)
 
 ---
 
@@ -400,13 +400,16 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - [ ] Sideloading iOS → App Store
 - [ ] Export PDF / CSV des historiques
 - [ ] Notifications push natives
-- [ ] **SaaS 1.0** : paiement self-service (Stripe), inscription libre, dashboard admin
+- [ ] Formulaire de demande de licence gratuite (envoi automatique par email)
+- [ ] Page Ko-fi / GitHub Sponsors
 
 ---
 
 ## Licence
 
-Elastic License 2.0 (ELv2) © 2026 [TSODev](mailto:thierry.soulie@tsodev.fr)
+GNU Affero General Public License v3.0 (AGPL-3.0) © 2026 [TSODev](mailto:thierry.soulie@tsodev.fr)
+
+Voir [licence.md](licence.md) pour les détails.
 
 ---
 

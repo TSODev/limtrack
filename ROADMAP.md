@@ -27,7 +27,7 @@
 ## Rebranding — odo.io → LimTrack
 
 > **Contexte** : le nom "odo.io" est une trademark réservée. L'application est renommée **LimTrack**.  
-> Ce chantier est un prérequis au lancement SaaS public (v1.0.0).
+> Ce chantier est un prérequis au lancement public open source (v1.0.0).
 
 ### DNS et infrastructure ✅
 
@@ -79,17 +79,22 @@
 
 ---
 
-## v1.0.0 — SaaS complet
+## v1.0.0 — Open Source + Communauté
 
-Objectif : autonomie complète des utilisateurs, sans intervention admin.
+> Modèle retenu (2026-06-04) : **open source, licences gratuites sur demande, dons volontaires** (Ko-fi / GitHub Sponsors).  
+> Objectif : partage et communauté, pas de monétisation.
 
-### Paiement self-service
-- [ ] Intégration Stripe — achat de licence en ligne (durée + slots véhicules)
-- [ ] Génération automatique du jeton via webhook Stripe
-- [ ] Statut micro-entrepreneur à régulariser avant activation du mode live
+### ~~Paiement self-service~~
+- ~~[ ] Intégration Stripe — achat de licence en ligne (durée + slots véhicules)~~
+- ~~[ ] Génération automatique du jeton via webhook Stripe~~
+- ~~[ ] Statut micro-entrepreneur à régulariser avant activation du mode live~~
 
-### Inscription libre
-- [ ] Onboarding sans intervention admin : inscription → paiement → activation autonome
+### Délivrance de licences gratuites
+- [ ] Formulaire de demande de licence → génération automatique via `gen-tokens` → envoi email (Resend)
+- [ ] Page Ko-fi et/ou GitHub Sponsors pour les dons volontaires
+
+### ~~Inscription libre~~
+- ~~[ ] Onboarding sans intervention admin : inscription → paiement → activation autonome~~
 
 ### Dashboard administrateur
 - [ ] Vue globale utilisateurs, licences actives/expirées, quotas, activité
