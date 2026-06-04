@@ -13,12 +13,13 @@
 | [0.4.0] | 2026-06-01 | Alertes expiration in-app + email Resend, jetons lifetime/fleet, CLI assign-license |
 | [0.5.0] | 2026-06-01 | Secrets via Infisical (EU cloud), fallback .env en local |
 | [0.6.0] | 2026-06-04 | Migration AGPL v3, open source public, licences gratuites sur formulaire, Ko-fi / GitHub Sponsors |
+| [0.7.0] | 2026-06-04 | Dashboard administrateur — stats, utilisateurs, licences, flottes, génération de jetons |
 
 ---
 
 ## En cours — [Unreleased]
 
-Rien en cours actuellement.
+Rien en cours.
 
 ---
 

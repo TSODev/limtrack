@@ -8,34 +8,43 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
-### Infrastructure
-- **Rebrand odo.io → LimTrack** : nouveau nom, nouveau domaine `limtrack.app`
-- **Cloudflare Pages** : le frontend est désormais déployé sur Cloudflare Pages (`limtrack.app`) via GitHub Actions (build Leptos/WASM + Trunk), en remplacement de Netlify
-- **`api.limtrack.app`** : le backend Railway répond sur le nouveau domaine
-- **Resend** : domaine d'envoi migré de `tsodev.fr` vers `limtrack.app` — expéditeur `noreply@limtrack.app`, domaine vérifié, enregistrement DMARC ajouté
-- **GitHub** : dépôt renommé `TSODev/odo.io` → `TSODev/limtrack`, passé en **public**
+Rien en cours.
 
-### Modèle open source
-- **Licence AGPL v3** : migration ELv2 → GNU Affero General Public License v3.0. Fichiers `licence.md` et `LICENSE` mis à jour.
-- **Licences gratuites sur demande** : route publique `POST /api/license/request` — génère un jeton 365 jours et l'envoie par email via Resend. Anti-doublon : 1 jeton par adresse email (`license_requests` table, migration `004`).
-- **Page `/request-license`** : formulaire email avec feedback succès/erreur et section dons.
-- **Ko-fi** : page de dons `ko-fi.com/limtrack` intégrée dans `/about` et `/request-license`.
-- **GitHub Sponsors** : page `github.com/sponsors/TSODev` intégrée dans `/about` et `/request-license`.
+---
+
+## [0.7.0] — 2026-06-04
 
 ### Dashboard administrateur
 - **Page `/admin`** : accès réservé aux comptes `is_admin = true` (migration `005`, colonne `users.is_admin`).
 - **Bouton Admin** dans la navbar principale — visible uniquement pour les admins, desktop (texte + icône) et mobile (icône seule).
 - **Stats globales** : total utilisateurs, en essai, actifs, expirés, demandes de licence.
-- **Génération de jeton** : formulaire admin (durée, type, email optionnel) — si l'email correspond à un compte existant, le jeton est assigné directement et la licence appliquée. Feedback visuel vert/orange selon le résultat. Rafraîchissement automatique du dashboard après succès.
+- **Génération de jeton** : formulaire admin (durée, type, email optionnel) — si l'email correspond à un compte existant, le jeton est assigné directement et la licence appliquée. Feedback visuel vert/orange. Rafraîchissement automatique après succès.
 - **Liste utilisateurs** : tableau complet avec statut (trial/active/expired) et date d'expiration.
 - **Demandes de licence** : historique des emails passés par `/request-license`.
-- **Section Flottes** : entreprises dépliables avec membres (rôle fleet), organisations et véhicules (marque, modèle, immatriculation).
+- **Section Flottes** : entreprises dépliables avec membres (rôle fleet), organisations et véhicules.
 - Routes `/api/admin/*` exemptées du middleware licence, protégées par l'extracteur `AdminUser`.
 
+---
+
+## [0.6.0] — 2026-06-04
+
+### Infrastructure
+- **Rebrand odo.io → LimTrack** : nouveau nom, nouveau domaine `limtrack.app`
+- **Cloudflare Pages** : frontend déployé sur Cloudflare Pages via GitHub Actions, en remplacement de Netlify
+- **`api.limtrack.app`** : backend Railway sur le nouveau domaine
+- **Resend** : domaine d'envoi migré vers `limtrack.app`, domaine vérifié, DMARC configuré
+- **GitHub** : dépôt renommé `TSODev/limtrack`, passé en **public**
+
+### Modèle open source
+- **Licence AGPL v3** : migration ELv2 → GNU Affero General Public License v3.0.
+- **Licences gratuites sur demande** : `POST /api/license/request` — génère un jeton 365 jours et l'envoie par email. Anti-doublon 1 jeton/email (migration `004`).
+- **Page `/request-license`** : formulaire email avec feedback et section dons.
+- **Ko-fi** `ko-fi.com/limtrack` et **GitHub Sponsors** `github.com/sponsors/TSODev` intégrés dans `/about` et `/request-license`.
+
 ### Amélioré
-- **Notice de complexité du mot de passe** : encadré informatif affiché sous le champ mot de passe dans les formulaires d'inscription et de changement de mot de passe.
-- **Suppression de la contrainte `minlength="8"` côté client** : la complexité est évaluée exclusivement par `zxcvbn` côté backend.
-- **`CONTACT_EMAIL` centralisé dans `config.rs`** : l'adresse email de contact n'est plus dupliquée en dur dans `about.rs`.
+- **Notice de complexité du mot de passe** : encadré informatif dans les formulaires d'inscription et de changement de mot de passe.
+- **Suppression de la contrainte `minlength="8"` côté client** : validation exclusivement par `zxcvbn` côté backend.
+- **`CONTACT_EMAIL` centralisé dans `config.rs`**.
 - **URL de login via `API_BASE`** : suppression de l'URL hardcodée dans `login.rs`.
 
 ---

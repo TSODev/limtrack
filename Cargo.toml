@@ -3,7 +3,7 @@ resolver = "2"
 members = ["backend", "frontend", "common", "frontend/src-tauri"]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["thierry.soulie@tsodev.fr"]
 repository = "https://github.com/TSODev/limtrack"
