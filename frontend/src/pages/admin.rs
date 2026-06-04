@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 // ─── Types ────────────────────────────────────────────────────
 
-#[derive(Clone, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 struct AdminStats {
     total_users: i64,
     trial: i64,
@@ -13,7 +13,7 @@ struct AdminStats {
     total_license_requests: i64,
 }
 
-#[derive(Clone, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 struct AdminUser {
     id: String,
     username: String,
@@ -24,7 +24,7 @@ struct AdminUser {
     access_expires_at: Option<String>,
 }
 
-#[derive(Clone, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 struct LicenseRequest {
     email: String,
     requested_at: String,
