@@ -174,12 +174,12 @@ pub fn AdminPage() -> impl IntoView {
     });
 
     view! {
-        <div class="min-h-screen bg-gray-100" style="padding-top: env(safe-area-inset-top)">
+        <div class="min-h-screen bg-gray-100">
 
             // ─── Navbar ──────────────────────────────────────
             <nav class="bg-white shadow-sm border-b border-gray-200">
-                <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-                    <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm">
+                <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
+                    <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                         </svg>
@@ -190,7 +190,7 @@ pub fn AdminPage() -> impl IntoView {
                 </div>
             </nav>
 
-            <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+            <div class="max-w-4xl mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-8">
 
                 // ─── Stats ───────────────────────────────────
                 <Suspense fallback=|| view! { <p class="text-sm text-gray-400">"Chargement..."</p> }>
@@ -216,7 +216,7 @@ pub fn AdminPage() -> impl IntoView {
                 </Suspense>
 
                 // ─── Générer un token ─────────────────────────
-                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
                     <h2 class="text-base font-bold text-gray-900">"Générer un jeton"</h2>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div class="md:col-span-2 space-y-1">
