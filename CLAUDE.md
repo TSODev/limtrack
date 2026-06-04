@@ -76,7 +76,7 @@ limtrack/
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "0.5.0"
+├── Cargo.toml                 ← version = "0.6.0"
 ├── sql/
 │   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
 │   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
