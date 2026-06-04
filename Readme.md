@@ -1,5 +1,9 @@
 # LimTrack
 
+<p align="center">
+  <img src="frontend/public/icons/icon-192.png" width="96" alt="LimTrack" />
+</p>
+
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
 ![Version](https://img.shields.io/badge/version-0.6.0-indigo)
