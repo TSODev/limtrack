@@ -406,6 +406,7 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - [ ] Notifications push natives
 - ✅ Formulaire de demande de licence gratuite (envoi automatique par email)
 - ✅ Ko-fi et GitHub Sponsors
+- ✅ Dashboard administrateur (stats, utilisateurs, licences, flottes)
 
 ---
 

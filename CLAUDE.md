@@ -38,6 +38,7 @@ limtrack/
 │   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
 │   ├── license_middleware.rs  ← middleware 402 si licence expirée
 │   ├── request_license_handler.rs ← POST /api/license/request (public, délivrance automatique)
+│   ├── admin_handler.rs           ← /api/admin/* — dashboard admin (AdminUser extractor, is_admin requis)
 │   └── bin/
 │       ├── gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
 │       ├── assign_license.rs  ← CLI assignation jetons manuel/batch CSV
@@ -54,7 +55,8 @@ limtrack/
 │   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
 │   │   ├── profile.rs
 │   │   ├── about.rs           ← page À propos : version, description, contact mailto:, Ko-fi, GitHub Sponsors
-│   │   └── request_license.rs ← page /request-license : formulaire email → jeton gratuit 365j
+│   │   ├── request_license.rs ← page /request-license : formulaire email → jeton gratuit 365j
+│   │   └── admin.rs           ← page /admin : dashboard admin (stats, users, licences, flottes)
 │   └── components/
 │       ├── ui.rs              ← helpers partagés : input_class(), get_token(), format_km()
 │       ├── vehicle.rs         ← VehicleCard component
@@ -109,6 +111,7 @@ company_members        -- user_id, company_id
 fleet_roles            -- user_id, company_id, org_id, role, granted_by
 license_tokens         -- token_hash (SHA-256), duration_days, used_at, used_by
 license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doublon formulaire public
+-- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 ```
 
 ## Routes API
@@ -146,7 +149,9 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 ## Licences — système de jetons
 - Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
-- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`
+- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/admin/*`
+- **Dashboard admin** : routes `/api/admin/*` protégées par `AdminUser` extractor (vérifie `users.is_admin = true`). Activer avec `UPDATE public.users SET is_admin = TRUE WHERE email = '...'`
+- `AppState` contient `resend_api_key: String` (lu au démarrage depuis Infisical via `load_secrets()`)
 - **Mode lecture seule** : licence expirée → `GET` passe (lecture autorisée), `POST/PUT/DELETE/PATCH` → `402 Payment Required`
 - Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
 - Durées disponibles : 30, 90, 180, 365 jours

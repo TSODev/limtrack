@@ -94,8 +94,10 @@ Rien en cours actuellement.
 ### ~~Inscription libre~~
 - ~~[ ] Onboarding sans intervention admin : inscription → paiement → activation autonome~~
 
-### Dashboard administrateur
-- [ ] Vue globale utilisateurs, licences actives/expirées, quotas, activité
+### Dashboard administrateur ✅
+- [x] Page `/admin` avec stats globales, liste utilisateurs, demandes de licence, génération de jeton
+- [x] Section Flottes : entreprises, membres, organisations, véhicules
+- [x] Bouton Admin dans la navbar (admins uniquement)
 
 ### Licences avancées
 

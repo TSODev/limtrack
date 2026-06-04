@@ -22,6 +22,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Ko-fi** : page de dons `ko-fi.com/limtrack` intégrée dans `/about` et `/request-license`.
 - **GitHub Sponsors** : page `github.com/sponsors/TSODev` intégrée dans `/about` et `/request-license`.
 
+### Dashboard administrateur
+- **Page `/admin`** : accès réservé aux comptes `is_admin = true` (migration `005`, colonne `users.is_admin`).
+- **Bouton Admin** dans la navbar principale — visible uniquement pour les admins, desktop (texte + icône) et mobile (icône seule).
+- **Stats globales** : total utilisateurs, en essai, actifs, expirés, demandes de licence.
+- **Génération de jeton** : formulaire admin (durée, type, email optionnel) — si l'email correspond à un compte existant, le jeton est assigné directement et la licence appliquée. Feedback visuel vert/orange selon le résultat. Rafraîchissement automatique du dashboard après succès.
+- **Liste utilisateurs** : tableau complet avec statut (trial/active/expired) et date d'expiration.
+- **Demandes de licence** : historique des emails passés par `/request-license`.
+- **Section Flottes** : entreprises dépliables avec membres (rôle fleet), organisations et véhicules (marque, modèle, immatriculation).
+- Routes `/api/admin/*` exemptées du middleware licence, protégées par l'extracteur `AdminUser`.
+
 ### Amélioré
 - **Notice de complexité du mot de passe** : encadré informatif affiché sous le champ mot de passe dans les formulaires d'inscription et de changement de mot de passe.
 - **Suppression de la contrainte `minlength="8"` côté client** : la complexité est évaluée exclusivement par `zxcvbn` côté backend.
