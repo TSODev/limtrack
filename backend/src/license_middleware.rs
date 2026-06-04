@@ -27,6 +27,7 @@ const EXEMPT_PATHS: &[&str] = &[
     "/api/user/register",
     "/api/profile/license",
     "/api/profile/redeem",
+    "/api/license/request",
 ];
 
 pub async fn check_license(

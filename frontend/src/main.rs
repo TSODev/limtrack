@@ -13,6 +13,7 @@ use pages::login::LoginPage;
 use pages::mainpage::MainPage;
 use pages::profile::ProfilePage;
 use pages::register::RegisterPage;
+use pages::request_license::RequestLicensePage;
 
 #[component]
 fn App() -> impl IntoView {
@@ -27,6 +28,7 @@ fn App() -> impl IntoView {
                     <Route path="/profile" view=ProfilePage />
                     <Route path="/fleet" view=FleetPage />
                     <Route path="/about" view=AboutPage />
+                    <Route path="/request-license" view=RequestLicensePage />
                 </Routes>
             </main>
         </Router>

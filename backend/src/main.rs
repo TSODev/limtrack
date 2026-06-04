@@ -7,6 +7,7 @@ mod license_handler;
 mod license_middleware;
 mod mileage_handler;
 mod notifier;
+mod request_license_handler;
 mod secrets;
 mod share_handler;
 mod state;
@@ -30,6 +31,7 @@ use crate::user_handler::{
     delete_account,
 };
 use crate::license_handler::{get_license, redeem_token};
+use crate::request_license_handler::request_license;
 use crate::company_handler::{
     add_member, assign_fleet_role, assign_vehicle_to_fleet, create_company, create_organization,
     delete_company, delete_organization, get_company, list_companies, list_fleet_roles,
@@ -111,6 +113,7 @@ async fn main() {
         )
         .route("/api/profile/license", get(get_license))
         .route("/api/profile/redeem", post(redeem_token))
+        .route("/api/license/request", post(request_license))
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         // Fleet : véhicule → entreprise

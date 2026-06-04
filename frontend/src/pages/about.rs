@@ -89,6 +89,48 @@ pub fn AboutPage() -> impl IntoView {
                     </p>
                 </div>
 
+                // ─── Licence gratuite ─────────────────────────────────
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
+                    <h2 class="text-base font-bold text-gray-900">"Licence gratuite"</h2>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        "LimTrack est open source et gratuit. Demandez un jeton de licence "
+                        "(365 jours) en renseignant simplement votre adresse email."
+                    </p>
+                    <A
+                        href="/request-license"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                    >
+                        "Obtenir ma licence gratuite →"
+                    </A>
+                </div>
+
+                // ─── Soutenir ─────────────────────────────────────────
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
+                    <h2 class="text-base font-bold text-gray-900">"Soutenir le projet"</h2>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        "LimTrack est développé et hébergé bénévolement. "
+                        "Un don aide à couvrir les frais d'infrastructure."
+                    </p>
+                    <div class="flex gap-3 flex-wrap">
+                        <a
+                            href="https://ko-fi.com/limtrack"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 transition duration-150"
+                        >
+                            "☕ Ko-fi"
+                        </a>
+                        <a
+                            href="https://github.com/sponsors/TSODev"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gray-800 hover:bg-gray-900 transition duration-150"
+                        >
+                            "♥ GitHub Sponsors"
+                        </a>
+                    </div>
+                </div>
+
                 // ─── Contact ──────────────────────────────────────────
                 <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
                     <div>
