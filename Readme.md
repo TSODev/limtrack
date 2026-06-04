@@ -400,8 +400,23 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - [ ] Sideloading iOS → App Store
 - [ ] Export PDF / CSV des historiques
 - [ ] Notifications push natives
-- [ ] Formulaire de demande de licence gratuite (envoi automatique par email)
-- [ ] Page Ko-fi / GitHub Sponsors
+- ✅ Formulaire de demande de licence gratuite (envoi automatique par email)
+- ✅ Ko-fi et GitHub Sponsors
+
+---
+
+## Licence gratuite
+
+LimTrack est open source et gratuit. Demandez un jeton de licence (365 jours) sur **[limtrack.app/request-license](https://limtrack.app/request-license)**.
+
+---
+
+## Soutenir le projet
+
+LimTrack est développé et hébergé bénévolement (~5 €/mois d'infrastructure). Si vous souhaitez contribuer :
+
+- ☕ **Ko-fi** : [ko-fi.com/limtrack](https://ko-fi.com/limtrack)
+- ♥ **GitHub Sponsors** : [github.com/sponsors/TSODev](https://github.com/sponsors/TSODev)
 
 ---
 

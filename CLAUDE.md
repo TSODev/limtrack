@@ -12,7 +12,8 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (NeonDB)
 - **Auth** : JWT (jsonwebtoken) + bcrypt
 - **Sécurité mots de passe** : `zxcvbn` (score ≥ 3/4) à l'inscription et au changement de mot de passe
-- **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`
+- **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`, délivrance automatique via formulaire
+- **Modèle** : open source AGPL v3, licences gratuites sur demande, dons Ko-fi / GitHub Sponsors
 - **Mobile** : Tauri v2 (iOS configuré, Android à faire)
 - **Types partagés** : crate `common` (workspace Cargo)
 - **Déploiement** : Cloudflare Pages (frontend, GitHub Actions) + Railway (backend)
@@ -36,6 +37,7 @@ limtrack/
 │   ├── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
 │   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
 │   ├── license_middleware.rs  ← middleware 402 si licence expirée
+│   ├── request_license_handler.rs ← POST /api/license/request (public, délivrance automatique)
 │   └── bin/
 │       ├── gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
 │       ├── assign_license.rs  ← CLI assignation jetons manuel/batch CSV
@@ -51,7 +53,8 @@ limtrack/
 │   │   ├── mainpage.rs
 │   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
 │   │   ├── profile.rs
-│   │   └── about.rs           ← page À propos : version, description, contact mailto:
+│   │   ├── about.rs           ← page À propos : version, description, contact mailto:, Ko-fi, GitHub Sponsors
+│   │   └── request_license.rs ← page /request-license : formulaire email → jeton gratuit 365j
 │   └── components/
 │       ├── ui.rs              ← helpers partagés : input_class(), get_token(), format_km()
 │       ├── vehicle.rs         ← VehicleCard component
@@ -105,6 +108,7 @@ organizations          -- company_id, parent_org_id, name (hiérarchie)
 company_members        -- user_id, company_id
 fleet_roles            -- user_id, company_id, org_id, role, granted_by
 license_tokens         -- token_hash (SHA-256), duration_days, used_at, used_by
+license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doublon formulaire public
 ```
 
 ## Routes API
@@ -142,11 +146,12 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 ## Licences — système de jetons
 - Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
-- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`
+- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`
 - **Mode lecture seule** : licence expirée → `GET` passe (lecture autorisée), `POST/PUT/DELETE/PATCH` → `402 Payment Required`
 - Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
 - Durées disponibles : 30, 90, 180, 365 jours
 - **Page d'inscription** : encadré info "Période d'essai gratuite — 3 mois" affiché avant le bouton de soumission ; message de succès rappelle la durée d'essai
+- **Délivrance automatique** : `POST /api/license/request` (public, sans auth) — email → jeton 365j généré et envoyé via Resend. 1 jeton max par adresse (table `license_requests`). `RESEND_API_KEY` lu au démarrage via `AppState.resend_api_key`.
 
 ```bash
 # Générer des jetons (depuis backend/)

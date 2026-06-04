@@ -12,21 +12,21 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Rebrand odo.io → LimTrack** : nouveau nom, nouveau domaine `limtrack.app`
 - **Cloudflare Pages** : le frontend est désormais déployé sur Cloudflare Pages (`limtrack.app`) via GitHub Actions (build Leptos/WASM + Trunk), en remplacement de Netlify
 - **`api.limtrack.app`** : le backend Railway répond sur le nouveau domaine
-- **Resend** : domaine d'envoi migré de `tsodev.fr` vers `limtrack.app` — expéditeur `noreply@limtrack.app`
-- **GitHub** : dépôt renommé `TSODev/odo.io` → `TSODev/limtrack`
+- **Resend** : domaine d'envoi migré de `tsodev.fr` vers `limtrack.app` — expéditeur `noreply@limtrack.app`, domaine vérifié, enregistrement DMARC ajouté
+- **GitHub** : dépôt renommé `TSODev/odo.io` → `TSODev/limtrack`, passé en **public**
+
+### Modèle open source
+- **Licence AGPL v3** : migration ELv2 → GNU Affero General Public License v3.0. Fichiers `licence.md` et `LICENSE` mis à jour.
+- **Licences gratuites sur demande** : route publique `POST /api/license/request` — génère un jeton 365 jours et l'envoie par email via Resend. Anti-doublon : 1 jeton par adresse email (`license_requests` table, migration `004`).
+- **Page `/request-license`** : formulaire email avec feedback succès/erreur et section dons.
+- **Ko-fi** : page de dons `ko-fi.com/limtrack` intégrée dans `/about` et `/request-license`.
+- **GitHub Sponsors** : page `github.com/sponsors/TSODev` intégrée dans `/about` et `/request-license`.
 
 ### Amélioré
-- **Notice de complexité du mot de passe** : encadré informatif affiché sous le champ mot de passe dans les formulaires d'inscription et de changement de mot de passe. Rappelle que la validation est assurée côté serveur par `zxcvbn` (score ≥ 3/4) et donne des conseils pratiques (majuscules, chiffres, symboles, éviter prénoms et dates).
-- **Suppression de la contrainte `minlength="8"` et de la validation `len() < 8` côté client** : la complexité est évaluée exclusivement par `zxcvbn` côté backend.
+- **Notice de complexité du mot de passe** : encadré informatif affiché sous le champ mot de passe dans les formulaires d'inscription et de changement de mot de passe.
+- **Suppression de la contrainte `minlength="8"` côté client** : la complexité est évaluée exclusivement par `zxcvbn` côté backend.
 - **`CONTACT_EMAIL` centralisé dans `config.rs`** : l'adresse email de contact n'est plus dupliquée en dur dans `about.rs`.
-- **URL de login via `API_BASE`** : suppression de l'URL hardcodée dans `login.rs`, alignement sur le pattern existant.
-
-### À venir (v1.0.0 — SaaS)
-- **Paiement self-service** : intégration Stripe pour l'achat de licences en ligne avec génération automatique du jeton via webhook.
-- **Inscription libre** : activation de compte sans intervention manuelle — inscription → paiement → activation autonome.
-- **Dashboard administrateur** : vue globale des utilisateurs, licences actives, dates d'expiration et activité.
-- **Quota de véhicules par licence** : `max_vehicles` extensible par jeton (`vehicle_slots`).
-- **Licence entreprise** : table `company_licenses` couvrant une flotte entière.
+- **URL de login via `API_BASE`** : suppression de l'URL hardcodée dans `login.rs`.
 
 ---
 
