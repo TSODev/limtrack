@@ -265,18 +265,20 @@ pub fn AdminPage() -> impl IntoView {
 
                     {move || gen_result.get().map(|res| match res {
                         Ok(json) => {
-                            let token = serde_json::from_str::<serde_json::Value>(&json)
-                                .ok()
-                                .and_then(|v| v["token"].as_str().map(|s| s.to_string()))
-                                .unwrap_or(json);
-                            let assigned = serde_json::from_str::<serde_json::Value>(
-                                &serde_json::to_string(&token).unwrap_or_default()
-                            ).ok().and_then(|v| v["assigned_to"].as_str().map(|s| s.to_string()));
-                            let _ = assigned;
+                            let v = serde_json::from_str::<serde_json::Value>(&json).unwrap_or_default();
+                            let token      = v["token"].as_str().unwrap_or("").to_string();
+                            let assigned   = v["assigned_to"].as_str().map(|s| s.to_string());
+                            let label      = if assigned.is_some() { "Jeton généré et assigné :" } else { "Jeton généré (non assigné — email introuvable) :" };
+                            let badge_cls  = if assigned.is_some() { "bg-green-50 border-green-200" } else { "bg-amber-50 border-amber-200" };
+                            let token_cls  = if assigned.is_some() { "text-green-800" } else { "text-amber-800" };
+                            let label_cls  = if assigned.is_some() { "text-green-600" } else { "text-amber-600" };
                             view! {
-                                <div class="p-3 rounded-lg bg-green-50 border border-green-200">
-                                    <p class="text-xs text-green-600 font-medium mb-1">"Jeton généré :"</p>
-                                    <p class="font-mono text-sm font-bold text-green-800 tracking-widest">{token}</p>
+                                <div class=format!("p-3 rounded-lg border {}", badge_cls)>
+                                    <p class=format!("text-xs font-medium mb-1 {}", label_cls)>{label}</p>
+                                    <p class=format!("font-mono text-sm font-bold tracking-widest {}", token_cls)>{token}</p>
+                                    {assigned.map(|email| view! {
+                                        <p class="text-xs text-green-600 mt-1">"✓ Licence appliquée à "{email}</p>
+                                    })}
                                 </div>
                             }.into_view()
                         },
