@@ -143,10 +143,12 @@ fn StatusBadge(status: String) -> impl IntoView {
 
 #[component]
 pub fn AdminPage() -> impl IntoView {
-    let stats     = create_resource(|| (), |_| async { api_get::<AdminStats>("/api/admin/stats").await });
-    let users     = create_resource(|| (), |_| async { api_get::<Vec<AdminUser>>("/api/admin/users").await });
-    let requests  = create_resource(|| (), |_| async { api_get::<Vec<LicenseRequest>>("/api/admin/license-requests").await });
-    let companies = create_resource(|| (), |_| async { api_get::<Vec<AdminCompany>>("/api/admin/companies").await });
+    let (refresh, set_refresh) = create_signal(0u32);
+
+    let stats     = create_resource(move || refresh.get(), |_| async { api_get::<AdminStats>("/api/admin/stats").await });
+    let users     = create_resource(move || refresh.get(), |_| async { api_get::<Vec<AdminUser>>("/api/admin/users").await });
+    let requests  = create_resource(move || refresh.get(), |_| async { api_get::<Vec<LicenseRequest>>("/api/admin/license-requests").await });
+    let companies = create_resource(move || refresh.get(), |_| async { api_get::<Vec<AdminCompany>>("/api/admin/companies").await });
 
     // Formulaire génération token
     let (gen_email, set_gen_email)     = create_signal(String::new());
@@ -168,6 +170,9 @@ pub fn AdminPage() -> impl IntoView {
                 "license_type": ltype,
             });
             let result = api_post("/api/admin/generate-token", &payload.to_string()).await;
+            if result.is_ok() {
+                set_refresh.update(|n| *n += 1);
+            }
             set_gen_result.set(Some(result));
             set_gen_loading.set(false);
         }
