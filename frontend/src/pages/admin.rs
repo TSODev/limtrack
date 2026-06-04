@@ -30,6 +30,37 @@ struct LicenseRequest {
     requested_at: String,
 }
 
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct AdminCompanyMember {
+    username: String,
+    email: String,
+    fleet_role: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct AdminCompanyVehicle {
+    make: String,
+    model: String,
+    plate_number: String,
+    org_name: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct AdminCompanyOrg {
+    name: String,
+    vehicle_count: i64,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct AdminCompany {
+    id: String,
+    name: String,
+    siret: Option<String>,
+    members: Vec<AdminCompanyMember>,
+    vehicles: Vec<AdminCompanyVehicle>,
+    organizations: Vec<AdminCompanyOrg>,
+}
+
 #[derive(Clone, Serialize)]
 struct GenerateTokenPayload {
     email: Option<String>,
@@ -119,9 +150,10 @@ fn StatusBadge(status: String) -> impl IntoView {
 
 #[component]
 pub fn AdminPage() -> impl IntoView {
-    let stats    = create_resource(|| (), |_| async { api_get::<AdminStats>("/api/admin/stats").await });
-    let users    = create_resource(|| (), |_| async { api_get::<Vec<AdminUser>>("/api/admin/users").await });
-    let requests = create_resource(|| (), |_| async { api_get::<Vec<LicenseRequest>>("/api/admin/license-requests").await });
+    let stats     = create_resource(|| (), |_| async { api_get::<AdminStats>("/api/admin/stats").await });
+    let users     = create_resource(|| (), |_| async { api_get::<Vec<AdminUser>>("/api/admin/users").await });
+    let requests  = create_resource(|| (), |_| async { api_get::<Vec<LicenseRequest>>("/api/admin/license-requests").await });
+    let companies = create_resource(|| (), |_| async { api_get::<Vec<AdminCompany>>("/api/admin/companies").await });
 
     // Formulaire génération token
     let (gen_email, set_gen_email)     = create_signal(String::new());
@@ -346,6 +378,149 @@ pub fn AdminPage() -> impl IntoView {
                                             }).collect_view()}
                                         </tbody>
                                     </table>
+                                </div>
+                            }.into_view(),
+                        })}
+                    </Suspense>
+                </div>
+
+                // ─── Flottes ─────────────────────────────────
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-base font-bold text-gray-900">"Flottes"</h2>
+                    </div>
+                    <Suspense fallback=|| view! { <p class="p-4 text-sm text-gray-400">"Chargement..."</p> }>
+                        {move || companies.get().map(|res| match res {
+                            Err(e) => view! {
+                                <p class="p-4 text-sm text-red-600">{format!("Erreur : {}", e)}</p>
+                            }.into_view(),
+                            Ok(list) if list.is_empty() => view! {
+                                <p class="p-4 text-sm text-gray-400">"Aucune flotte enregistrée."</p>
+                            }.into_view(),
+                            Ok(list) => view! {
+                                <div class="divide-y divide-gray-100">
+                                    {list.into_iter().map(|company| {
+                                        let (open, set_open) = create_signal(false);
+                                        let nb_members  = company.members.len();
+                                        let nb_vehicles = company.vehicles.len();
+                                        let nb_orgs     = company.organizations.len();
+                                        let has_members  = nb_members > 0;
+                                        let has_vehicles = nb_vehicles > 0;
+                                        let has_orgs     = nb_orgs > 0;
+                                        let (members,  _) = create_signal(company.members.clone());
+                                        let (vehicles, _) = create_signal(company.vehicles.clone());
+                                        let (orgs,     _) = create_signal(company.organizations.clone());
+                                        view! {
+                                            <div>
+                                                // En-tête cliquable
+                                                <button
+                                                    on:click=move |_| set_open.update(|v| *v = !*v)
+                                                    class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition duration-150 text-left"
+                                                >
+                                                    <div class="flex items-center gap-3">
+                                                        <svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                                                        </svg>
+                                                        <div>
+                                                            <span class="font-semibold text-sm text-gray-900">{company.name}</span>
+                                                            {company.siret.as_ref().map(|s| view! {
+                                                                <span class="ml-2 text-xs text-gray-400">"SIRET : "{s.clone()}</span>
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex items-center gap-4 text-xs text-gray-500">
+                                                        <span>{nb_members}" membres"</span>
+                                                        <span>{nb_orgs}" orgs"</span>
+                                                        <span>{nb_vehicles}" véhicules"</span>
+                                                        <svg
+                                                            class=move || if open.get() { "w-4 h-4 text-gray-400 rotate-180 transition-transform" } else { "w-4 h-4 text-gray-400 transition-transform" }
+                                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                                                        >
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                                        </svg>
+                                                    </div>
+                                                </button>
+
+                                                // Détail dépliable
+                                                <Show when=move || open.get() fallback=|| ()>
+                                                    <div class="px-4 pb-4 space-y-4 bg-gray-50 border-t border-gray-100">
+
+                                                        // Membres
+                                                        {if has_members { view! {
+                                                            <div class="pt-3">
+                                                                <p class="text-xs font-semibold text-gray-500 uppercase mb-2">"Membres"</p>
+                                                                <div class="space-y-1">
+                                                                    {move || members.get().into_iter().map(|m| {
+                                                                        let role_cls = match m.fleet_role.as_deref() {
+                                                                            Some("fleet_admin")  => Some(("Admin",  "bg-indigo-100 text-indigo-700")),
+                                                                            Some("fleet_viewer") => Some(("Viewer", "bg-gray-100 text-gray-600")),
+                                                                            _                    => None,
+                                                                        };
+                                                                        view! {
+                                                                            <div class="flex items-center justify-between text-sm py-1">
+                                                                                <div class="flex items-center gap-2">
+                                                                                    <span class="font-medium text-gray-800">{m.username}</span>
+                                                                                    <span class="text-gray-400 text-xs">{m.email}</span>
+                                                                                </div>
+                                                                                {role_cls.map(|(label, cls)| view! {
+                                                                                    <span class=format!("px-2 py-0.5 rounded-full text-xs font-semibold {}", cls)>{label}</span>
+                                                                                })}
+                                                                            </div>
+                                                                        }
+                                                                    }).collect_view()}
+                                                                </div>
+                                                            </div>
+                                                        }.into_view() } else { ().into_view() }}
+
+                                                        // Organisations
+                                                        {if has_orgs { view! {
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-500 uppercase mb-2">"Organisations"</p>
+                                                                <div class="flex flex-wrap gap-2">
+                                                                    {move || orgs.get().into_iter().map(|o| view! {
+                                                                        <span class="px-2 py-1 rounded-md bg-white border border-gray-200 text-xs text-gray-700">
+                                                                            {o.name}
+                                                                        </span>
+                                                                    }).collect_view()}
+                                                                </div>
+                                                            </div>
+                                                        }.into_view() } else { ().into_view() }}
+
+                                                        // Véhicules
+                                                        {if has_vehicles { view! {
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-gray-500 uppercase mb-2">"Véhicules"</p>
+                                                                <div class="overflow-x-auto">
+                                                                    <table class="w-full text-xs">
+                                                                        <thead>
+                                                                            <tr class="text-gray-400">
+                                                                                <th class="text-left py-1 pr-4">"Marque / Modèle"</th>
+                                                                                <th class="text-left py-1 pr-4">"Immatriculation"</th>
+                                                                                <th class="text-left py-1">"Organisation"</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody class="divide-y divide-gray-100">
+                                                                            {move || vehicles.get().into_iter().map(|v| view! {
+                                                                                <tr>
+                                                                                    <td class="py-1.5 pr-4 text-gray-800 font-medium">
+                                                                                        {format!("{} {}", v.make, v.model)}
+                                                                                    </td>
+                                                                                    <td class="py-1.5 pr-4 font-mono text-gray-600">{v.plate_number}</td>
+                                                                                    <td class="py-1.5 text-gray-400">{v.org_name.unwrap_or_default()}</td>
+                                                                                </tr>
+                                                                            }).collect_view()}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        }.into_view() } else { ().into_view() }}
+
+                                                    </div>
+                                                </Show>
+                                            </div>
+                                        }
+                                    }).collect_view()}
                                 </div>
                             }.into_view(),
                         })}

@@ -365,3 +365,132 @@ pub async fn generate_token_handler(
 
     Json(GenerateTokenResponse { token, assigned_to }).into_response()
 }
+
+// ─── GET /api/admin/companies ─────────────────────────────────
+
+#[derive(Serialize)]
+pub struct AdminCompanyMember {
+    pub username: String,
+    pub email: String,
+    pub fleet_role: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct AdminCompanyVehicle {
+    pub make: String,
+    pub model: String,
+    pub plate_number: String,
+    pub org_name: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct AdminCompanyOrg {
+    pub name: String,
+    pub vehicle_count: i64,
+}
+
+#[derive(Serialize)]
+pub struct AdminCompany {
+    pub id: Uuid,
+    pub name: String,
+    pub siret: Option<String>,
+    pub created_at: chrono::DateTime<Utc>,
+    pub members: Vec<AdminCompanyMember>,
+    pub vehicles: Vec<AdminCompanyVehicle>,
+    pub organizations: Vec<AdminCompanyOrg>,
+}
+
+pub async fn list_companies_admin(
+    AdminUser(_): AdminUser,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let companies = sqlx::query!(
+        "SELECT id, name, siret, created_at FROM public.companies ORDER BY created_at DESC"
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    let companies = match companies {
+        Ok(c) => c,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur base de données"}))).into_response(),
+    };
+
+    let mut result: Vec<AdminCompany> = Vec::new();
+
+    for c in companies {
+        let members = sqlx::query!(
+            r#"SELECT u.username, u.email,
+               (SELECT fr.role FROM public.fleet_roles fr
+                WHERE fr.user_id = u.id AND fr.company_id = $1 AND fr.org_id IS NULL
+                LIMIT 1) AS fleet_role
+               FROM public.company_members cm
+               JOIN public.users u ON u.id = cm.user_id
+               WHERE cm.company_id = $1
+               ORDER BY u.username"#,
+            c.id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|r| AdminCompanyMember {
+            username: r.username,
+            email: r.email,
+            fleet_role: r.fleet_role,
+        })
+        .collect();
+
+        let vehicles = sqlx::query!(
+            r#"SELECT v.make, v.model, v.plate_number, o.name AS "org_name?"
+               FROM public.vehicles v
+               LEFT JOIN public.vehicle_access va_fleet
+                 ON va_fleet.vehicle_id = v.id
+               LEFT JOIN public.organizations o ON o.id = v.company_id
+               WHERE v.company_id = $1
+               ORDER BY v.make, v.model"#,
+            c.id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|r| AdminCompanyVehicle {
+            make: r.make,
+            model: r.model,
+            plate_number: r.plate_number,
+            org_name: r.org_name,
+        })
+        .collect();
+
+        let organizations = sqlx::query!(
+            r#"SELECT o.name,
+               (SELECT COUNT(*) FROM public.vehicles v WHERE v.company_id = $1) AS "vehicle_count!"
+               FROM public.organizations o
+               WHERE o.company_id = $1
+               ORDER BY o.name"#,
+            c.id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|r| AdminCompanyOrg {
+            name: r.name,
+            vehicle_count: r.vehicle_count,
+        })
+        .collect();
+
+        result.push(AdminCompany {
+            id: c.id,
+            name: c.name,
+            siret: c.siret,
+            created_at: c.created_at,
+            members,
+            vehicles,
+            organizations,
+        });
+    }
+
+    Json(result).into_response()
+}

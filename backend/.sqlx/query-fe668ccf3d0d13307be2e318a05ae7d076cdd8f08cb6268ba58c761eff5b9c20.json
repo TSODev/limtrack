@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.make, v.model, v.plate_number, o.name AS \"org_name?\"\n               FROM public.vehicles v\n               LEFT JOIN public.vehicle_access va_fleet\n                 ON va_fleet.vehicle_id = v.id\n               LEFT JOIN public.organizations o ON o.id = v.company_id\n               WHERE v.company_id = $1\n               ORDER BY v.make, v.model",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "make",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "model",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "plate_number",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "org_name?",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fe668ccf3d0d13307be2e318a05ae7d076cdd8f08cb6268ba58c761eff5b9c20"
+}

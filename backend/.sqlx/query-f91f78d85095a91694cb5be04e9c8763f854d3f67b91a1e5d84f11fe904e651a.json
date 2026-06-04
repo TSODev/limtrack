@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.username, u.email,\n               (SELECT fr.role FROM public.fleet_roles fr\n                WHERE fr.user_id = u.id AND fr.company_id = $1 AND fr.org_id IS NULL\n                LIMIT 1) AS fleet_role\n               FROM public.company_members cm\n               JOIN public.users u ON u.id = cm.user_id\n               WHERE cm.company_id = $1\n               ORDER BY u.username",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "fleet_role",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "f91f78d85095a91694cb5be04e9c8763f854d3f67b91a1e5d84f11fe904e651a"
+}

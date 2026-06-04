@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.name,\n               (SELECT COUNT(*) FROM public.vehicles v WHERE v.company_id = $1) AS \"vehicle_count!\"\n               FROM public.organizations o\n               WHERE o.company_id = $1\n               ORDER BY o.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "vehicle_count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "b3d08397fcb4ac673be0e45fbbd63662c4ac6d82a671c071c4d10140473aaba7"
+}

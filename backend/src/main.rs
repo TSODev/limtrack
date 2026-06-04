@@ -31,7 +31,7 @@ use crate::user_handler::{
     update_preferences,
     delete_account,
 };
-use crate::admin_handler::{generate_token_handler, get_stats, list_license_requests, list_users};
+use crate::admin_handler::{generate_token_handler, get_stats, list_companies_admin, list_license_requests, list_users};
 use crate::license_handler::{get_license, redeem_token};
 use crate::request_license_handler::request_license;
 use crate::company_handler::{
@@ -122,6 +122,7 @@ async fn main() {
         .route("/api/admin/users", get(list_users))
         .route("/api/admin/license-requests", get(list_license_requests))
         .route("/api/admin/generate-token", post(generate_token_handler))
+        .route("/api/admin/companies", get(list_companies_admin))
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         // Fleet : véhicule → entreprise
