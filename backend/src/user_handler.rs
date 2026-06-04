@@ -50,6 +50,7 @@ pub struct UserProfile {
     pub id: Uuid,
     pub username: String,
     pub email: String,
+    pub is_admin: bool,
 }
 
 #[derive(Serialize)]
@@ -229,7 +230,7 @@ pub async fn get_profile(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let user = sqlx::query!(
-        "SELECT id, username, email FROM public.users WHERE id = $1",
+        "SELECT id, username, email, is_admin FROM public.users WHERE id = $1",
         user_id
     )
     .fetch_optional(&state.db)
@@ -242,6 +243,7 @@ pub async fn get_profile(
                 id: u.id,
                 username: u.username,
                 email: u.email,
+                is_admin: u.is_admin,
             }),
         )
             .into_response(),
