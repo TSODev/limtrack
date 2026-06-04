@@ -6,6 +6,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use tracing::{info, warn};
 
 use crate::state::AppState;
 
@@ -166,10 +167,11 @@ pub async fn request_license(
 
     // Envoyer le token par email
     let api_key = &state.resend_api_key;
+    info!("license/request: envoi email à {} (api_key présente: {})", email, !api_key.is_empty());
     if !api_key.is_empty() {
         let html = build_email_html(&token);
         let http = Client::new();
-        let _ = http
+        match http
             .post("https://api.resend.com/emails")
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&json!({
@@ -179,7 +181,18 @@ pub async fn request_license(
                 "html": html,
             }))
             .send()
-            .await;
+            .await
+        {
+            Ok(r) if r.status().is_success() => info!("license/request: email envoyé à {}", email),
+            Ok(r) => {
+                let status = r.status();
+                let body = r.text().await.unwrap_or_default();
+                warn!("license/request: Resend erreur {} pour {} — {}", status, email, body);
+            }
+            Err(e) => warn!("license/request: Resend réseau erreur pour {} — {}", email, e),
+        }
+    } else {
+        warn!("license/request: RESEND_API_KEY absente — email non envoyé à {}", email);
     }
 
     // Enregistrer la demande (anti-doublon)
