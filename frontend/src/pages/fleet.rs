@@ -1,6 +1,7 @@
 // src/pages/fleet.rs — Gestion de flotte
 
 use crate::components::ui::{get_token, input_class};
+use js_sys;
 use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
@@ -322,7 +323,12 @@ fn FleetView(
                         </div>
 
                         // Véhicules flotte
-                        <FleetVehiclesSection company_id=company_id refresh=fleet_refresh />
+                        <FleetVehiclesSection
+                            company_id=company_id
+                            company_name=company.name.clone()
+                            company_siret=company.siret.clone()
+                            refresh=fleet_refresh
+                        />
 
                         // Panel admin
                         <Show when=move || is_admin fallback=|| ()>
@@ -420,7 +426,12 @@ fn NewCompanyInline(on_created: impl Fn() + 'static + Copy) -> impl IntoView {
 // ─── Section véhicules flotte ─────────────────────────────────────
 
 #[component]
-fn FleetVehiclesSection(company_id: Uuid, refresh: ReadSignal<u32>) -> impl IntoView {
+fn FleetVehiclesSection(
+    company_id: Uuid,
+    company_name: String,
+    company_siret: Option<String>,
+    refresh: ReadSignal<u32>,
+) -> impl IntoView {
     let (vehicles, set_vehicles) = create_signal(Vec::<FleetVehicle>::new());
     let (loading, set_loading) = create_signal(true);
     let (fetch_error, set_fetch_error) = create_signal(String::new());
@@ -442,16 +453,63 @@ fn FleetVehiclesSection(company_id: Uuid, refresh: ReadSignal<u32>) -> impl Into
         });
     });
 
+    // Stocké dans un signal pour être accessible par multiple closures
+    let (company_name_sig, _) = create_signal(company_name.clone());
+    // Action PDF : fetche les membres puis génère le rapport
+    let cn = company_name.clone();
+    let cs = company_siret.clone();
+    let pdf_action = create_action(move |_: &()| {
+        let cn = cn.clone();
+        let cs = cs.clone();
+        async move {
+            if let Some(token) = get_token() {
+                let members = fetch_json::<Vec<CompanyMember>>(
+                    &format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id),
+                    &token,
+                ).await.unwrap_or_default();
+                export_fleet_pdf(&cn, cs.as_deref(), &vehicles.get_untracked(), &members);
+            }
+        }
+    });
+
     view! {
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                 <h2 class="text-sm font-semibold text-gray-800">"Véhicules de la flotte"</h2>
-                <span class="text-xs text-gray-400">
-                    {move || {
-                        let n = vehicles.get().len();
-                        format!("{} véhicule{}", n, if n > 1 { "s" } else { "" })
-                    }}
-                </span>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-gray-400">
+                        {move || {
+                            let n = vehicles.get().len();
+                            format!("{} véhicule{}", n, if n > 1 { "s" } else { "" })
+                        }}
+                    </span>
+                    <Show when=move || !vehicles.get().is_empty() fallback=|| ()>
+                        <div class="flex gap-1.5">
+                            <button
+                                on:click=move |_| {
+                                    export_fleet_csv(&vehicles.get_untracked(), &company_name_sig.get_untracked());
+                                }
+                                title="Exporter en CSV"
+                                class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-green-600 transition duration-150"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                "CSV"
+                            </button>
+                            <button
+                                on:click=move |_| { pdf_action.dispatch(()); }
+                                title="Exporter en PDF"
+                                class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                </svg>
+                                "PDF"
+                            </button>
+                        </div>
+                    </Show>
+                </div>
             </div>
             <Show when=move || loading.get() fallback=|| ()>
                 <p class="text-sm text-gray-400 animate-pulse text-center p-6">"Chargement..."</p>
@@ -1180,4 +1238,127 @@ async fn delete_request(url: &str, token: &str) -> Result<(), String> {
         .await.map_err(|e| format!("{e:?}"))?;
     let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{e:?}"))?;
     if resp.ok() || resp.status() == 204 { Ok(()) } else { Err(format!("HTTP {}", resp.status())) }
+}
+
+// ─── Export CSV flotte ─────────────────────────────────────────────
+
+fn export_fleet_csv(vehicles: &[FleetVehicle], company_name: &str) {
+    let mut csv = String::from("Marque,Modèle,Immatriculation,Année,Organisation\n");
+    for v in vehicles {
+        let year = v.year.map(|y| y.to_string()).unwrap_or_default();
+        let org  = v.org_name.as_deref().unwrap_or("");
+        csv.push_str(&format!("{},{},{},{},{}\n",
+            v.make, v.model, v.plate_number, year, org));
+    }
+    let filename = format!("flotte-{}.csv",
+        company_name.to_lowercase().replace(' ', "-"));
+    fleet_download(&csv, &filename, "text/csv;charset=utf-8");
+}
+
+// ─── Export PDF flotte ─────────────────────────────────────────────
+
+fn export_fleet_pdf(
+    company_name: &str,
+    siret: Option<&str>,
+    vehicles: &[FleetVehicle],
+    members: &[CompanyMember],
+) {
+    let siret_line = siret
+        .map(|s| format!("<tr><td>SIRET</td><td>{}</td></tr>", s))
+        .unwrap_or_default();
+
+    let members_rows = members.iter().map(|m| {
+        let role = match m.fleet_role.as_deref() {
+            Some("fleet_admin")  => "Administrateur",
+            Some("fleet_viewer") => "Observateur",
+            _                    => "Membre",
+        };
+        format!("<tr><td>{}</td><td>{}</td><td>{}</td></tr>",
+            m.username, m.email, role)
+    }).collect::<String>();
+
+    let vehicles_rows = vehicles.iter().map(|v| {
+        let year = v.year.map(|y| y.to_string()).unwrap_or_else(|| "—".to_string());
+        let org  = v.org_name.as_deref().unwrap_or("—");
+        format!("<tr><td>{} {}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+            v.make, v.model, v.plate_number, year, org)
+    }).collect::<String>();
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/>
+<title>Rapport Flotte — {company_name}</title>
+<style>
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:40px auto;color:#1e293b;font-size:14px}}
+h1{{color:#4f46e5;font-size:22px;margin-bottom:4px}}
+.sub{{color:#94a3b8;font-size:12px;margin-bottom:32px}}
+h2{{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:28px 0 12px}}
+table{{width:100%;border-collapse:collapse}}
+th{{text-align:left;padding:8px 12px;background:#f8fafc;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0}}
+td{{padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px}}
+.info-table td:first-child{{color:#64748b;width:40%}}
+.info-table td:last-child{{font-weight:600}}
+footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:12px}}
+@media print{{@page{{margin:20mm}}}}
+</style></head>
+<body>
+<script>window.addEventListener('load',function(){{setTimeout(function(){{window.print()}},400)}})</script>
+<h1>Rapport de Flotte</h1>
+<div class="sub">Généré le {date} — LimTrack</div>
+<h2>Entreprise</h2>
+<table class="info-table">
+<tr><td>Nom</td><td>{company_name}</td></tr>
+{siret_line}
+<tr><td>Véhicules</td><td>{nb_vehicles}</td></tr>
+<tr><td>Membres</td><td>{nb_members}</td></tr>
+</table>
+<h2>Membres</h2>
+<table>
+<thead><tr><th>Nom d'utilisateur</th><th>Email</th><th>Rôle</th></tr></thead>
+<tbody>{members_rows}</tbody>
+</table>
+<h2>Véhicules</h2>
+<table>
+<thead><tr><th>Véhicule</th><th>Immatriculation</th><th>Année</th><th>Organisation</th></tr></thead>
+<tbody>{vehicles_rows}</tbody>
+</table>
+<footer>LimTrack · limtrack.app · Rapport généré automatiquement</footer>
+</body></html>"#,
+        company_name = company_name,
+        date         = chrono::Local::now().format("%d/%m/%Y"),
+        siret_line   = siret_line,
+        nb_vehicles  = vehicles.len(),
+        nb_members   = members.len(),
+        members_rows = members_rows,
+        vehicles_rows = vehicles_rows,
+    );
+
+    fleet_open_print(&html);
+}
+
+fn fleet_open_print(html: &str) {
+    let array = js_sys::Array::new();
+    array.push(&wasm_bindgen::JsValue::from_str(html));
+    let mut opts = web_sys::BlobPropertyBag::new();
+    opts.type_("text/html;charset=utf-8");
+    if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&array, &opts) {
+        if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
+            leptos::window().open_with_url_and_target(&url, "_blank").ok();
+        }
+    }
+}
+
+fn fleet_download(content: &str, filename: &str, mime: &str) {
+    let array = js_sys::Array::new();
+    array.push(&wasm_bindgen::JsValue::from_str(content));
+    let mut opts = web_sys::BlobPropertyBag::new();
+    opts.type_(mime);
+    let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&array, &opts) else { return };
+    let Ok(url)  = web_sys::Url::create_object_url_with_blob(&blob) else { return };
+    let document = leptos::document();
+    let Ok(el)   = document.create_element("a") else { return };
+    let Ok(a)    = el.dyn_into::<web_sys::HtmlAnchorElement>() else { return };
+    a.set_href(&url);
+    a.set_download(filename);
+    a.click();
+    web_sys::Url::revoke_object_url(&url).ok();
 }
