@@ -1,3 +1,5 @@
+use crate::components::add_vehicle_button::AddVehicleButton;
+use crate::components::join_vehicle_button::JoinVehicleButton;
 use crate::components::notification_bell::NotificationBell;
 use crate::components::vehicle_dashboard::VehicleDashboard;
 use crate::components::vehicle_list::{fetch_vehicles, Vehicle_list};
@@ -342,14 +344,22 @@ pub fn MainPage() -> impl IntoView {
                                 </button>
                             </div>
 
-                            // Liste scrollable
-                            <div class="flex-1 overflow-y-auto p-4">
+                            // Liste scrollable (sans les boutons)
+                            <div class="flex-1 min-h-0 overflow-y-auto p-4">
                                 <Vehicle_list
                                     vehicles=vehicles
                                     set_vehicles=set_vehicles
                                     set_selected=set_selected_vehicle_id
+                                    hide_actions=true
                                 />
                             </div>
+                            // Boutons fixes au-dessus du home indicator
+                            <div class="shrink-0 p-3 flex flex-row gap-2 border-t border-gray-100">
+                                <AddVehicleButton set_vehicles=set_vehicles />
+                                <JoinVehicleButton set_vehicles=set_vehicles />
+                            </div>
+                            // Spacer safe area — fond blanc derrière le home indicator
+                            <div class="shrink-0 bg-white" style="height: env(safe-area-inset-bottom)" />
                         </div>
                     </Show>
                 </div>

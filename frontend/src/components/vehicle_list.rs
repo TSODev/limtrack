@@ -11,6 +11,7 @@ pub fn Vehicle_list(
     vehicles: ReadSignal<Vec<Vehicle>>,
     set_vehicles: WriteSignal<Vec<Vehicle>>,
     set_selected: WriteSignal<Option<uuid::Uuid>>,
+    #[prop(optional)] hide_actions: bool,
 ) -> impl IntoView {
     view! {
         <div class="h-full flex flex-col bg-white rounded-xl border border-gray-100">
@@ -44,11 +45,13 @@ pub fn Vehicle_list(
                 </Show>
             </div>
 
-            // Boutons en bas
-            <div class="shrink-0 p-3 flex flex-col gap-2 border-t border-gray-100">
-                <AddVehicleButton set_vehicles=set_vehicles />
-                <JoinVehicleButton set_vehicles=set_vehicles />
-            </div>
+            // Boutons en bas (masqués si hide_actions=true)
+            <Show when=move || !hide_actions fallback=|| ()>
+                <div class="shrink-0 p-3 flex flex-row gap-2 border-t border-gray-100">
+                    <AddVehicleButton set_vehicles=set_vehicles />
+                    <JoinVehicleButton set_vehicles=set_vehicles />
+                </div>
+            </Show>
         </div>
     }
 }
