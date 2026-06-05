@@ -772,7 +772,7 @@ fn download_mileage_csv(
     filename: &str,
 ) {
     let total_days = (end_date - start_date).num_days().max(1);
-    let mut csv = String::from("Date,Kilométrage (km),Écart relevé précédent (km),Trajectoire idéale (km),Écart vs idéale (km),Source\n");
+    let mut csv = String::from("Date,Kilométrage (km),Écart relevé précédent (km),Trajectoire idéale (km),Écart vs idéale (km),Statut trajectoire,Source\n");
 
     for (i, entry) in entries.iter().enumerate() {
         let ecart_prev = if i + 1 < entries.len() {
@@ -784,6 +784,7 @@ fn download_mileage_csv(
         let days_elapsed = (entry.recorded_at - start_date).num_days().max(0);
         let ideal = km_start + (km_total as f64 * days_elapsed as f64 / total_days as f64) as i32;
         let ecart_ideal = entry.value - ideal;
+        let statut = if ecart_ideal >= 0 { "En avance" } else { "En retard" };
 
         let source = match entry.source.as_str() {
             "manual" => "Manuelle",
@@ -791,8 +792,8 @@ fn download_mileage_csv(
             "api"    => "API",
             s        => s,
         };
-        csv.push_str(&format!("{},{},{},{},{},{}\n",
-            entry.recorded_at, entry.value, ecart_prev, ideal, ecart_ideal, source));
+        csv.push_str(&format!("{},{},{},{},{},{},{}\n",
+            entry.recorded_at, entry.value, ecart_prev, ideal, ecart_ideal, statut, source));
     }
     trigger_download(&csv, filename, "text/csv;charset=utf-8");
 }
