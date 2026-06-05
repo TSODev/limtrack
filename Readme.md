@@ -51,56 +51,60 @@
 
 ```
 limtrack/
-├── backend/          # API REST Axum
-│   └── src/
-│       ├── main.rs
-│       ├── auth.rs
-│       ├── state.rs
-│       ├── secrets.rs          # chargement secrets Infisical (fallback .env en local)
-│       ├── notifier.rs         # envoi notifications email expiration licence (Resend)
-│       ├── handlers.rs         # login, status, helpers généraux
-│       ├── user_handler.rs
-│       ├── vehicles_handler.rs
-│       ├── contracts_handler.rs
-│       ├── mileage_handler.rs
-│       ├── share_handler.rs
-│       ├── license_handler.rs  # GET /api/profile/license + POST /api/profile/redeem
-│       ├── license_middleware.rs # middleware 402 si licence expirée
-│       └── company_handler.rs  # gestion flotte : entreprises, orgs, membres, rôles
-├── frontend/         # App Leptos/WASM + Tauri Mobile
-│   ├── src/
-│   │   ├── config.rs           # URL API centralisée (API_BASE)
-│   │   ├── pages/
-│   │   │   ├── mainpage.rs
-│   │   │   ├── login.rs
-│   │   │   ├── register.rs
-│   │   │   ├── signup.rs
-│   │   │   ├── fleet.rs        # page gestion de flotte (admin entreprise)
-│   │   │   ├── profile.rs
-│   │   │   └── home.rs
-│   │   └── components/
-│   │       ├── ui.rs           # helpers partagés (input_class, get_token, format_km)
-│   │       ├── vehicle.rs      # VehicleCard
-│   │       ├── vehicle_dashboard.rs
-│   │       ├── vehicle_detail.rs
-│   │       ├── vehicle_header.rs
-│   │       ├── vehicle_list.rs
-│   │       ├── notification_bell.rs
-│   │       ├── contracts/
-│   │       │   ├── contract_list.rs
-│   │       │   └── contract_widget.rs
-│   │       └── mileage/
-│   │           ├── mileage_list.rs
-│   │           └── mileage_widget.rs
-│   └── src-tauri/    # Configuration Tauri Mobile
-│       ├── src/
-│       ├── gen/apple/          # Projet Xcode généré
-│       ├── icons/              # Icônes app toutes tailles
-│       └── tauri.conf.json
-├── common/           # Types partagés backend/frontend
-│   └── src/lib.rs
-├── Cargo.toml        # Workspace
-└── Trunk.toml        # Config build frontend
+├── backend/src/
+│   ├── main.rs
+│   ├── auth.rs
+│   ├── state.rs                    # AppState (db, resend_api_key)
+│   ├── secrets.rs                  # chargement secrets Infisical (fallback .env)
+│   ├── notifier.rs                 # notifications email expiration (Resend)
+│   ├── user_handler.rs
+│   ├── vehicles_handler.rs
+│   ├── contracts_handler.rs
+│   ├── mileage_handler.rs
+│   ├── share_handler.rs
+│   ├── company_handler.rs          # flotte : entreprises, orgs, membres, rôles
+│   ├── license_handler.rs          # GET /api/profile/license + POST /api/profile/redeem
+│   ├── license_middleware.rs       # middleware 402 si licence expirée
+│   ├── request_license_handler.rs  # POST /api/license/request (public, délivrance auto)
+│   ├── admin_handler.rs            # /api/admin/* — dashboard admin
+│   └── bin/
+│       ├── gen_tokens.rs           # CLI génération jetons
+│       ├── assign_license.rs       # CLI assignation jetons (manuel/batch CSV)
+│       └── notify_expiry.rs        # CLI notifications email manuelles
+├── frontend/src/
+│   ├── config.rs                   # API_BASE, CONTACT_EMAIL
+│   ├── build.rs                    # APP_VERSION depuis git describe --tags
+│   ├── pages/
+│   │   ├── home.rs
+│   │   ├── login.rs
+│   │   ├── register.rs
+│   │   ├── mainpage.rs
+│   │   ├── fleet.rs                # gestion de flotte + export PDF/CSV
+│   │   ├── profile.rs
+│   │   ├── about.rs                # À propos, Ko-fi, GitHub Sponsors
+│   │   ├── request_license.rs      # /request-license : formulaire licence gratuite
+│   │   └── admin.rs                # /admin : dashboard administrateur
+│   └── components/
+│       ├── ui.rs                   # helpers : input_class(), get_token(), format_km()
+│       ├── vehicle.rs
+│       ├── vehicle_dashboard.rs
+│       ├── vehicle_detail.rs
+│       ├── vehicle_header.rs
+│       ├── vehicle_list.rs
+│       ├── notification_bell.rs
+│       ├── contracts/
+│       │   ├── contract_list.rs    # export PDF contrat + CSV relevés
+│       │   └── contract_widget.rs
+│       └── mileage/
+│           ├── mileage_list.rs
+│           └── mileage_widget.rs
+├── frontend/src-tauri/             # Tauri iOS
+├── common/src/lib.rs               # Types partagés backend/frontend
+├── Cargo.toml                      # Workspace (version 0.7.0)
+├── sql/migrations/                 # Migrations SQL (001→005)
+├── .github/workflows/
+│   └── deploy-frontend.yml         # CI/CD Cloudflare Pages
+└── Trunk.toml
 ```
 
 ---
