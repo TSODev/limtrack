@@ -8,6 +8,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] — 2026-06-05
+
+### Ajouté — Préparation App Store iOS
+- **Seed App Store review** : `sql/seed/seed_appstore_review.sql` — compte `apple.reviewer / AppReview2024!` avec 5 véhicules couvrant tous les cas d'usage iOS (LOA saine ✅, alerte km ⚠️, alerte date ⚠️, expiré+dépassé ❌, partagé 👁). Script `import_appstore_review.sh`.
+- **Guide screenshots** : `docs/appstore-screenshots.md` — procédure complète Simulator, credentials, checklist tests, plan des 9 screenshots, tailles requises App Store (iPhone 15 Plus 6.7" obligatoire).
+
 ### Ajouté — Contrats LOA
 - **Prix/km dépassement LOA** : champ optionnel `price_per_extra_km` (Float) sur les contrats LOA (migration `006`). Renseignable à la création ou via le bouton "€/km" sur chaque carte contrat. Accepte virgule et point comme séparateur décimal.
 - **Estimation du coût de dépassement** : affiché en rouge/orange sur le widget dashboard, la liste détaillée et le rapport PDF — coût réel si dépassé, coût projeté si risque. Calcul : km_excess × prix/km.
@@ -19,14 +27,24 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Types partagés** : `FleetReportVehicle` + `FleetReportContract` dans `common`.
 
 ### Ajouté — App Store iOS
-- **Conformité Apple (règle 3.1.1)** : section dons Ko-fi/GitHub Sponsors masquée dans la version Tauri.
+- **Version Personal iOS** (`is_ios = true`) : flag en base, migration `007`. Masque la section Flotte dans la navbar et le profil. Sections Licence et Flotte dans le profil pilotées par `is_ios` (DB) et non par `is_tauri()` — fonctionne aussi depuis un navigateur web.
+- **Conformité Apple (règle 3.1.1)** : sections "Licence gratuite" et "Soutenir le projet" (Ko-fi/GitHub Sponsors) masquées sur la page À propos pour les comptes iOS. Détection via `is_ios` du profil + cache localStorage (pas de flash au chargement).
 - **Activation lifetime iOS** : `POST /api/ios/activate` — accordé au premier lancement, vérifié par `IOS_ACTIVATION_KEY` (Infisical), idempotent.
-- **Section Licence masquée sur iOS** : accès complet inclus dans l'achat App Store.
 - **Page `/privacy`** : politique de confidentialité RGPD (obligatoire App Store).
 - **Exception AGPL v3 App Store** : ajoutée dans `licence.md`.
 
+### Corrigé — Safe area iOS
+- **CSS variable `--nav-top`** : remplace `env(safe-area-inset-top)` inline dans tous les navbars. En contexte Tauri (classe `tauri-ios` posée par JS synchrone), utilise `max(env(safe-area-inset-top), 44px)` pour couvrir le Dynamic Island iPhone 15 Plus.
+- **`overscroll-behavior-y: none`** sur le body — bloque le rubber-band iOS qui faisait remonter le contenu derrière l'encoche.
+- **Bottom sheet** : boutons Ajouter/Rejoindre extraits du container scrollable (`hide_actions` prop sur `Vehicle_list`) et placés directement dans le flex column du panneau, suivis d'un spacer `env(safe-area-inset-bottom)`.
+- **Panneau notifications** : position `top: calc(var(--nav-top) + 3.5rem)` — toujours sous la navbar quelle que soit la safe area. Bouton ✕ ajouté dans l'en-tête.
+- **Champs username** : `autocapitalize="none"` + `autocorrect="off"` sur login et register — désactive la majuscule automatique iOS.
+
 ### Corrigé
 - **CORS** : méthode `PATCH` ajoutée aux méthodes autorisées.
+
+### Supprimé
+- `frontend/src/pages/signup.rs` — page orpheline non référencée.
 
 ---
 

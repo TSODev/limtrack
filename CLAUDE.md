@@ -51,7 +51,6 @@ limtrack/
 │   │   ├── home.rs
 │   │   ├── login.rs
 │   │   ├── register.rs
-│   │   ├── signup.rs
 │   │   ├── mainpage.rs
 │   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
 │   │   ├── profile.rs
@@ -80,10 +79,16 @@ limtrack/
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
 ├── Cargo.toml                 ← version = "1.1.0"
+├── docs/
+│   └── appstore-screenshots.md  ← guide screenshots App Store (credentials, checklist, tailles)
 ├── sql/
 │   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
 │   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
-│   └── seed/                  ← Données de démo + script import
+│   └── seed/
+│       ├── seed_fleet_demo.sql        ← données flotte (alice.martin / FleetAdmin2024!)
+│       ├── seed_appstore_review.sql   ← compte App Store (apple.reviewer / AppReview2024!)
+│       ├── import_seed.sh
+│       └── import_appstore_review.sh
 ├── .github/workflows/
 │   └── deploy-frontend.yml    ← CI/CD : build Leptos/WASM + deploy Cloudflare Pages
 ├── api/
@@ -114,6 +119,7 @@ license_tokens         -- token_hash (SHA-256), duration_days, used_at, used_by
 license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doublon formulaire public
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
+-- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
 ```
 
 ## Routes API
@@ -164,11 +170,13 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 - **Version web (PWA)** : gratuite, licences sur demande, dons Ko-fi/GitHub Sponsors
 - **Version App Store iOS** : payante (achat unique), accès lifetime inclus
 - **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (Infisical). Idempotent. Stocké `ios_activated` en localStorage.
-- **Détection Tauri** : `crate::config::is_tauri()` via `window.__TAURI__`. Masque : section Licence (profil), boutons Ko-fi/GitHub Sponsors (about, request-license).
+- **Détection Tauri** : `crate::config::is_tauri()` via `window.__TAURI__`. Fiable en production ; **peu fiable en dev Simulator** (ne pas s'y fier pour masquer du contenu).
+- **Détection compte iOS** : champ `users.is_ios` (migration 007) — source de vérité pour masquer Licence/Flotte dans le profil et les sections web-only dans À propos. Stocké dans `localStorage["limtrack_is_ios"]` dès le chargement de mainpage pour éviter le flash au rendu.
 - **Clé iOS** : `IOS_ACTIVATION_KEY` injectée à la compilation (`option_env!`) — à définir en variable d'env lors du build Tauri iOS.
 - **Conformité AGPL v3** : exception App Store ajoutée dans `licence.md` (Thierry Soulie, détenteur unique).
 - **Privacy Policy** : page `/privacy` hébergée sur `limtrack.app/privacy` (obligatoire App Store).
-- **Règle Apple 3.1.1** : liens de dons masqués dans la version Tauri (liens externes vers Ko-fi/GitHub Sponsors interdits sur iOS).
+- **Règle Apple 3.1.1** : liens de dons masqués pour les comptes `is_ios = true` (Ko-fi/GitHub Sponsors interdits sur iOS).
+- **Compte review App Store** : `apple.reviewer / AppReview2024!` (seed `seed_appstore_review.sql`). Voir `docs/appstore-screenshots.md`.
 
 ```bash
 # Générer des jetons (depuis backend/)
@@ -234,9 +242,11 @@ fetch_json::<T>(&format!("{}/api/profile", crate::config::API_BASE), &token)
 ## Responsive mobile-first
 - **mainpage.rs** : `hidden md:flex` (desktop) + `flex md:hidden` (mobile)
 - Bottom sheet mobile pour sélection véhicule
-- Safe areas iOS : `style="padding-top: env(safe-area-inset-top)"`
+- Safe areas iOS : CSS variable `--nav-top` définie dans `index.html`. En contexte Tauri (`tauri-ios` class), `max(env(safe-area-inset-top), 44px)` pour couvrir Dynamic Island. Usage : `style="padding-top: var(--nav-top)"` sur tous les `<nav>`.
+- `overscroll-behavior-y: none` sur `body` (index.html) — bloque le rubber-band iOS
+- Bottom sheet : boutons Ajouter/Rejoindre en `flex-row` hors du container scrollable + spacer `height: env(safe-area-inset-bottom)` en bas du panneau
+- Notification bell : position panneau `top: calc(var(--nav-top) + 3.5rem)` + bouton ✕ explicite
 - Boutons icônes seuls mobile : `hidden md:inline` sur les textes
-- Notification bell : `fixed sm:absolute`
 
 ## Tauri iOS — lancer le Simulator
 ```bash
@@ -246,18 +256,23 @@ python3 -c "
 import http.server, socketserver, os
 class H(http.server.SimpleHTTPRequestHandler):
     def guess_type(self, p):
-        return 'application/wasm' if p.endswith('.wasm') else super().guess_type(p)
+        return 'application/wasm' if str(p).endswith('.wasm') else super().guess_type(p)
     def end_headers(self):
         self.send_header('Cross-Origin-Opener-Policy','same-origin')
         self.send_header('Cross-Origin-Embedder-Policy','require-corp')
         super().end_headers()
+    def log_message(self, *a): pass
 os.chdir('dist')
 with socketserver.TCPServer(('',1430),H) as s: s.serve_forever()
 "
 
 # Terminal 2 — Tauri
+# Tests de développement (iPhone 13 Pro, 6.1")
 cargo tauri ios dev "77F8FC35-195B-4C78-9690-28CF71ECDE54" --no-dev-server-wait
-# Puis ▶ Run dans Xcode sur iPhone 13 Pro
+
+# Screenshots App Store (iPhone 15 Plus, 6.7" — taille OBLIGATOIRE App Store)
+cargo tauri ios dev "78B0BB67-3882-4D31-B9C7-D455DFC505C3" --no-dev-server-wait
+# Puis ▶ Run dans Xcode — screenshot : Cmd+S dans le Simulator
 ```
 
 ## Railway — point important
@@ -313,6 +328,6 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`0.5.0`
+`1.1.0`
 
 
