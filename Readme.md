@@ -403,9 +403,6 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - ✅ Suppression de compte utilisateur
 - ✅ Système de licences par jetons (trial + personal + fleet + lifetime)
 - ✅ Notifications d'expiration in-app et email (Resend)
-- [ ] App Android via Tauri Mobile
-- [ ] Sideloading iOS → App Store
-- [ ] Export PDF / CSV des historiques
 - [ ] Notifications push natives
 - ✅ Formulaire de demande de licence gratuite (envoi automatique par email)
 - ✅ Ko-fi et GitHub Sponsors
