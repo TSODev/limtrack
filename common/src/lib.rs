@@ -105,15 +105,16 @@ pub struct ContractLoa {
     pub km_start: i32,
     pub start_date: chrono::NaiveDate,
     pub end_date: chrono::NaiveDate,
+    pub price_per_extra_km: Option<f64>, // prix/km en cas de dépassement (optionnel)
     // Calculé à la lecture
     pub km_current: i32,
-    pub km_consumed: i32,    // km_current - km_start
-    pub km_remaining: i32,   // km_allowed - km_consumed
-    pub status: String,      // active | exceeded | closed
-    pub days_remaining: i64, // jours jusqu'à end_date
-    pub forecast_km: i32,    // projection km à échéance
+    pub km_consumed: i32,
+    pub km_remaining: i32,
+    pub status: String,
+    pub days_remaining: i64,
+    pub forecast_km: i32,
     pub overage_risk: bool,
-    pub estimated_limit_date: Option<chrono::NaiveDate>, // true si projection > km_allowed
+    pub estimated_limit_date: Option<chrono::NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -122,6 +123,7 @@ pub struct CreateLoaPayload {
     pub km_start: i32,
     pub start_date: chrono::NaiveDate,
     pub end_date: chrono::NaiveDate,
+    pub price_per_extra_km: Option<f64>,
 }
 
 // ═══════════════════════════════════════════════════════════════

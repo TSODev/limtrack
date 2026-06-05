@@ -188,6 +188,22 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                     "📅 Limite estimée : "{d.to_string()}
                 </p>
             })}
+            {contract.price_per_extra_km.and_then(|price| {
+                let extra_km = if contract.km_consumed > contract.km_allowed {
+                    contract.km_consumed - contract.km_allowed
+                } else if contract.forecast_km > contract.km_allowed {
+                    contract.forecast_km - contract.km_allowed
+                } else {
+                    return None;
+                };
+                let cost = extra_km as f64 * price;
+                let (label, cls) = if contract.km_consumed > contract.km_allowed {
+                    (format!("💶 Coût dépassement : {:.2} €", cost), "text-red-600")
+                } else {
+                    (format!("💶 Coût projeté : {:.2} €", cost), "text-amber-600")
+                };
+                Some(view! { <p class=format!("text-xs font-semibold {}", cls)>{label}</p> })
+            })}
             <div class="flex items-center justify-between pt-1 border-t border-gray-50">
                 <div class="flex text-xs text-gray-400 gap-2">
                     <span>"Du "{contract.start_date.to_string()}</span>
@@ -373,30 +389,32 @@ fn LoaModal(
     on_close: Callback<()>,
     on_created: Callback<()>,
 ) -> impl IntoView {
-    let (km_allowed, set_km_allowed) = create_signal(String::new());
-    let (km_start, set_km_start) = create_signal(String::new());
-    let (start_date, set_start_date) = create_signal(String::new());
-    let (end_date, set_end_date) = create_signal(String::new());
-    let (error, set_error) = create_signal(String::new());
+    let (km_allowed, set_km_allowed)     = create_signal(String::new());
+    let (km_start, set_km_start)         = create_signal(String::new());
+    let (start_date, set_start_date)     = create_signal(String::new());
+    let (end_date, set_end_date)         = create_signal(String::new());
+    let (price_per_km, set_price_per_km) = create_signal(String::new());
+    let (error, set_error)               = create_signal(String::new());
 
     let submit = create_action(
-        move |(vid, km_a, km_s, sd, ed): &(Uuid, String, String, String, String)| {
-            let (vid, km_a, km_s, sd, ed) =
-                (*vid, km_a.clone(), km_s.clone(), sd.clone(), ed.clone());
+        move |(vid, km_a, km_s, sd, ed, price): &(Uuid, String, String, String, String, String)| {
+            let (vid, km_a, km_s, sd, ed, price) =
+                (*vid, km_a.clone(), km_s.clone(), sd.clone(), ed.clone(), price.clone());
             async move {
                 let token = get_token().unwrap_or_default();
-                let body = serde_json::json!({ "km_allowed": km_a.parse::<i32>().unwrap_or(0), "km_start": km_s.parse::<i32>().unwrap_or(0), "start_date": sd, "end_date": ed });
+                let price_val = price.trim().parse::<f64>().ok();
+                let body = serde_json::json!({
+                    "km_allowed": km_a.parse::<i32>().unwrap_or(0),
+                    "km_start": km_s.parse::<i32>().unwrap_or(0),
+                    "start_date": sd, "end_date": ed,
+                    "price_per_extra_km": price_val,
+                });
                 match post_json(
                     &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, vid),
                     &token,
                     &body,
-                )
-                .await
-                {
-                    Ok(_) => {
-                        on_created.call(());
-                        on_close.call(());
-                    }
+                ).await {
+                    Ok(_) => { on_created.call(()); on_close.call(()); }
                     Err(e) => set_error.set(e),
                 }
             }
@@ -407,13 +425,7 @@ fn LoaModal(
         ev.prevent_default();
         let Some(id) = vehicle_id.get() else { return };
         set_error.set(String::new());
-        submit.dispatch((
-            id,
-            km_allowed.get(),
-            km_start.get(),
-            start_date.get(),
-            end_date.get(),
-        ));
+        submit.dispatch((id, km_allowed.get(), km_start.get(), start_date.get(), end_date.get(), price_per_km.get()));
     };
 
     view! {
@@ -433,6 +445,11 @@ fn LoaModal(
                         <input type="date" required prop:value=end_date on:input=move |ev| set_end_date.set(event_target_value(&ev)) class=input_class() />
                     </Field>
                 </div>
+                <Field label="Prix/km dépassement (optionnel, €)">
+                    <input type="number" min="0" step="0.01" prop:value=price_per_km
+                        on:input=move |ev| set_price_per_km.set(event_target_value(&ev))
+                        placeholder="ex: 0.08" class=input_class() />
+                </Field>
                 <ModalActions pending=submit.pending() on_cancel=Callback::new(move |_| on_close.call(())) label_submit="Créer le contrat" error=error />
             </form>
         </Modal>
@@ -633,6 +650,19 @@ fn export_loa_pdf(c: &ContractLoa) {
         .map(|d| format!("<tr><td>Limite estimée</td><td>{}</td></tr>", d))
         .unwrap_or_default();
 
+    let cost_line = c.price_per_extra_km.and_then(|price| {
+        let extra_km = if c.km_consumed > c.km_allowed {
+            c.km_consumed - c.km_allowed
+        } else if c.forecast_km > c.km_allowed {
+            c.forecast_km - c.km_allowed
+        } else { return None; };
+        let cost = extra_km as f64 * price;
+        let label = if c.km_consumed > c.km_allowed {
+            format!("Coût dépassement ({:.2} €/km)", price)
+        } else { format!("Coût projeté ({:.2} €/km)", price) };
+        Some(format!("<tr><td style='color:#dc2626;font-weight:700'>{}</td><td style='color:#dc2626;font-weight:700'>{:.2} €</td></tr>", label, cost))
+    }).unwrap_or_default();
+
     let html = format!(r#"<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8"/>
 <title>Contrat LOA — LimTrack</title>
@@ -664,6 +694,7 @@ footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f
 <tr><td>Kilomètres restants</td><td>{} km</td></tr>
 <tr><td>Projection à échéance</td><td>{} km</td></tr>
 {}
+{}
 </table>
 <h2>Période</h2>
 <table>
@@ -677,7 +708,7 @@ footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f
         status_label, pct,
         format_km(c.km_allowed), format_km(c.km_consumed), pct,
         format_km(c.km_remaining), format_km(c.forecast_km),
-        limit_line,
+        limit_line, cost_line,
         c.start_date, c.end_date, c.days_remaining,
     );
     open_print_window(&html);

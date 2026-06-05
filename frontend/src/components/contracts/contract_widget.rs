@@ -233,6 +233,26 @@ fn ContractLoaSummary(contract: ContractLoa) -> impl IntoView {
                     <span>{format_km(contract.km_remaining)}" restants"</span>
                     <span>{contract.days_remaining}" j jusqu'à l'échéance"</span>
                 </div>
+                {contract.price_per_extra_km.and_then(|price| {
+                    let extra_km = if contract.km_consumed > contract.km_allowed {
+                        contract.km_consumed - contract.km_allowed
+                    } else if contract.forecast_km > contract.km_allowed {
+                        contract.forecast_km - contract.km_allowed
+                    } else {
+                        return None;
+                    };
+                    let cost = extra_km as f64 * price;
+                    let label = if contract.km_consumed > contract.km_allowed {
+                        format!("Coût dépassement : {:.2} €", cost)
+                    } else {
+                        format!("Coût projeté : {:.2} €", cost)
+                    };
+                    Some(view! {
+                        <div class=format!("flex items-center gap-1.5 text-xs font-semibold {}", colors.text)>
+                            <span>"💶"</span><span>{label}</span>
+                        </div>
+                    })
+                })}
             </div>
         </div>
     }
@@ -304,22 +324,25 @@ fn LoaModal(
     on_close: Callback<()>,
     on_created: Callback<()>,
 ) -> impl IntoView {
-    let (km_allowed, set_km_allowed) = create_signal(String::new());
-    let (km_start, set_km_start) = create_signal(String::new());
-    let (start_date, set_start_date) = create_signal(String::new());
-    let (end_date, set_end_date) = create_signal(String::new());
-    let (error, set_error) = create_signal(String::new());
+    let (km_allowed, set_km_allowed)         = create_signal(String::new());
+    let (km_start, set_km_start)             = create_signal(String::new());
+    let (start_date, set_start_date)         = create_signal(String::new());
+    let (end_date, set_end_date)             = create_signal(String::new());
+    let (price_per_km, set_price_per_km)     = create_signal(String::new());
+    let (error, set_error)                   = create_signal(String::new());
 
     let submit = create_action(
-        move |(vid, km_a, km_s, sd, ed): &(Uuid, String, String, String, String)| {
-            let (vid, km_a, km_s, sd, ed) =
-                (*vid, km_a.clone(), km_s.clone(), sd.clone(), ed.clone());
+        move |(vid, km_a, km_s, sd, ed, price): &(Uuid, String, String, String, String, String)| {
+            let (vid, km_a, km_s, sd, ed, price) =
+                (*vid, km_a.clone(), km_s.clone(), sd.clone(), ed.clone(), price.clone());
             async move {
                 let token = get_token().unwrap_or_default();
+                let price_val = price.trim().parse::<f64>().ok();
                 let body = serde_json::json!({
                     "km_allowed": km_a.parse::<i32>().unwrap_or(0),
                     "km_start":   km_s.parse::<i32>().unwrap_or(0),
                     "start_date": sd, "end_date": ed,
+                    "price_per_extra_km": price_val,
                 });
                 match post_json(
                     &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, vid),
@@ -328,10 +351,7 @@ fn LoaModal(
                 )
                 .await
                 {
-                    Ok(_) => {
-                        on_created.call(());
-                        on_close.call(());
-                    }
+                    Ok(_) => { on_created.call(()); on_close.call(()); }
                     Err(e) => set_error.set(e),
                 }
             }
@@ -342,13 +362,7 @@ fn LoaModal(
         ev.prevent_default();
         let Some(id) = vehicle_id.get() else { return };
         set_error.set(String::new());
-        submit.dispatch((
-            id,
-            km_allowed.get(),
-            km_start.get(),
-            start_date.get(),
-            end_date.get(),
-        ));
+        submit.dispatch((id, km_allowed.get(), km_start.get(), start_date.get(), end_date.get(), price_per_km.get()));
     };
 
     view! {
@@ -376,6 +390,11 @@ fn LoaModal(
                             class=input_class() />
                     </Field>
                 </div>
+                <Field label="Prix/km en cas de dépassement (optionnel, €)">
+                    <input type="number" min="0" step="0.01" prop:value=price_per_km
+                        on:input=move |ev| set_price_per_km.set(event_target_value(&ev))
+                        placeholder="ex: 0.08" class=input_class() />
+                </Field>
                 <ModalActions pending=submit.pending() on_cancel=Callback::new(move |_| on_close.call(())) label_submit="Créer le contrat" error=error />
             </form>
         </Modal>

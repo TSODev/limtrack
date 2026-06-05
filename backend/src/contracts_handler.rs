@@ -113,8 +113,8 @@ pub async fn create_loa(
     let result = sqlx::query!(
         r#"
         INSERT INTO public.contracts_loa
-            (vehicle_id, km_allowed, km_start, start_date, end_date)
-        VALUES ($1, $2, $3, $4, $5)
+            (vehicle_id, km_allowed, km_start, start_date, end_date, price_per_extra_km)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
         "#,
         vehicle_id,
@@ -122,6 +122,7 @@ pub async fn create_loa(
         payload.km_start,
         payload.start_date,
         payload.end_date,
+        payload.price_per_extra_km,
     )
     .fetch_one(&state.db)
     .await;
@@ -174,6 +175,7 @@ pub async fn list_loa(
             l.start_date,
             l.end_date,
             l.status,
+            l.price_per_extra_km,
             COALESCE(
                 (SELECT value FROM public.mileage_log m
                  WHERE m.vehicle_id = l.vehicle_id
@@ -234,6 +236,7 @@ pub async fn list_loa(
                 km_start: r.km_start,
                 start_date: r.start_date,
                 end_date: r.end_date,
+                price_per_extra_km: r.price_per_extra_km,
                 km_current: r.km_current,
                 km_consumed,
                 km_remaining,
