@@ -160,34 +160,36 @@ pub fn RequestLicensePage() -> impl IntoView {
                     </Show>
                 </div>
 
-                // ─── Don volontaire ────────────────────────────────
-                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-center space-y-3">
-                    <p class="text-sm font-semibold text-gray-700">"Soutenir le projet"</p>
-                    <p class="text-sm text-gray-500 leading-relaxed">
-                        "LimTrack est développé et hébergé bénévolement. "
-                        "Un don aide à couvrir les frais d'infrastructure (~5 €/mois)."
-                    </p>
-                    <div class="flex justify-center gap-3 flex-wrap">
-                        <a
-                            href="https://ko-fi.com/limtrack"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
-                            style="background-color:#f59e0b;color:#ffffff;"
-                        >
-                            "☕ Ko-fi"
-                        </a>
-                        <a
-                            href="https://github.com/sponsors/TSODev"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
-                            style="background-color:#1f2937;color:#ffffff;"
-                        >
-                            "♥ GitHub Sponsors"
-                        </a>
+                // ─── Don volontaire (masqué sur iOS/Tauri — règles App Store) ───
+                <Show when=move || !crate::config::is_tauri() fallback=|| ()>
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-center space-y-3">
+                        <p class="text-sm font-semibold text-gray-700">"Soutenir le projet"</p>
+                        <p class="text-sm text-gray-500 leading-relaxed">
+                            "LimTrack est développé et hébergé bénévolement. "
+                            "Un don aide à couvrir les frais d'infrastructure (~5 €/mois)."
+                        </p>
+                        <div class="flex justify-center gap-3 flex-wrap">
+                            <a
+                                href="https://ko-fi.com/limtrack"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
+                                style="background-color:#f59e0b;color:#ffffff;"
+                            >
+                                "☕ Ko-fi"
+                            </a>
+                            <a
+                                href="https://github.com/sponsors/TSODev"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium"
+                                style="background-color:#1f2937;color:#ffffff;"
+                            >
+                                "♥ GitHub Sponsors"
+                            </a>
+                        </div>
                     </div>
-                </div>
+                </Show>
 
             </div>
         </div>
