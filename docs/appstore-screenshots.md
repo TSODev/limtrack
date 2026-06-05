@@ -22,11 +22,20 @@ with socketserver.TCPServer(('',1430),H) as s: s.serve_forever()
 ```
 
 **Terminal 2 — Tauri iOS**
+
+Pour les **screenshots App Store** (taille 6.7" obligatoire) :
+```bash
+cargo tauri ios dev "78B0BB67-3882-4D31-B9C7-D455DFC505C3" --no-dev-server-wait
+```
+Puis **▶ Run** dans Xcode sur **iPhone 15 Plus** (1290 × 2796).
+
+Pour les **tests de développement** (6.1") :
 ```bash
 cargo tauri ios dev "77F8FC35-195B-4C78-9690-28CF71ECDE54" --no-dev-server-wait
 ```
+Puis **▶ Run** dans Xcode sur **iPhone 13 Pro** (1170 × 2532).
 
-Puis **▶ Run** dans Xcode sur **iPhone 13 Pro**.
+**Prendre un screenshot dans le Simulator :** `Cmd+S` → sauvegardé sur le Bureau.
 
 ---
 
@@ -85,17 +94,15 @@ Puis **▶ Run** dans Xcode sur **iPhone 13 Pro**.
 
 ---
 
-## Tailles de screenshots requises (iPhone 13 Pro)
+## Tailles de screenshots requises par l'App Store
 
-Xcode propose la capture via **Simulator → File → Take Screenshot** (`⌘S`).
+| Résolution    | Appareil          | Obligatoire |
+|---------------|-------------------|-------------|
+| 1290 × 2796   | **iPhone 15 Plus** (6.7") | ✅ Oui |
+| 1170 × 2532   | iPhone 13 Pro (6.1") | ❌ Non accepté |
 
-| Résolution   | Appareil          |
-|--------------|-------------------|
-| 1284 × 2778  | iPhone 13 Pro Max |
-| 1170 × 2532  | iPhone 13 Pro     |
-
-L'App Store requiert au minimum une taille **6.7"** et une **6.5"** ou **5.5"**.
-Simuler une taille différente : **Simulator → File → Open Simulator → iPhone 14 Plus**.
+> Apple exige au minimum la taille **6.7"**. Les screenshots 6.1" ne sont pas
+> acceptés comme taille principale dans App Store Connect.
 
 ---
 
