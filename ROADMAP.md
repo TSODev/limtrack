@@ -15,12 +15,13 @@
 | [0.6.0] | 2026-06-04 | Migration AGPL v3, open source public, licences gratuites sur formulaire, Ko-fi / GitHub Sponsors |
 | [0.7.0] | 2026-06-04 | Dashboard administrateur — stats, utilisateurs, licences, flottes, génération de jetons |
 | [1.0.0] | 2026-06-05 | Version stable — export PDF/CSV, SaaS ready, Mobile ready (PWA), open source AGPL v3 |
+| [1.1.0] | 2026-06-05 | Prix/km dépassement LOA, rapport flotte enrichi (contrats), App Store iOS ready |
 
 ---
 
 ## En cours — [Unreleased]
 
-Rien en cours.
+Rien en cours. Prochaine étape : soumission App Store iOS (en attente licence Developer Apple).
 
 ---
 
