@@ -49,10 +49,10 @@ pub async fn ios_activate(
         }
     }
 
-    // Accorder un accès lifetime (~100 ans)
+    // Accorder un accès lifetime (~100 ans) et marquer le compte comme iOS Personal
     let lifetime = now + chrono::Duration::days(36500);
     match sqlx::query!(
-        "UPDATE public.users SET access_expires_at = $1 WHERE id = $2",
+        "UPDATE public.users SET access_expires_at = $1, is_ios = TRUE WHERE id = $2",
         lifetime,
         user_id
     )

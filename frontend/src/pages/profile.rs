@@ -161,8 +161,11 @@ pub fn ProfilePage() -> impl IntoView {
                     <Show when=move || !crate::config::is_tauri() fallback=|| ()>
                         <LicenseSection />
                     </Show>
+                    // Section Flotte masquée sur iOS Personal
+                    <Show when=move || !crate::config::is_tauri() fallback=|| ()>
+                        <FleetSection />
+                    </Show>
                     <DeleteAccountSection />
-                    <FleetSection />
                 </Show>
             </div>
         </div>

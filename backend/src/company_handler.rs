@@ -28,6 +28,29 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ApiError
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
+/// Retourne une erreur 403 si l'utilisateur est un compte iOS (Personal — pas d'accès flotte).
+async fn require_not_ios(
+    db: &sqlx::PgPool,
+    user_id: Uuid,
+) -> Result<(), (StatusCode, Json<ApiError>)> {
+    let is_ios = sqlx::query_scalar!(
+        "SELECT is_ios FROM public.users WHERE id = $1",
+        user_id
+    )
+    .fetch_optional(db)
+    .await
+    .unwrap_or(Some(false))
+    .unwrap_or(false);
+
+    if is_ios {
+        return Err(err(
+            StatusCode::FORBIDDEN,
+            "Les fonctionnalités de flotte ne sont pas disponibles sur la version iOS Personal. Utilisez la version web sur limtrack.app.",
+        ));
+    }
+    Ok(())
+}
+
 /// Renvoie le rôle fleet global de l'utilisateur (org_id IS NULL).
 /// Si org_id est fourni, vérifie aussi ce rôle local en cas d'absence de rôle global.
 async fn get_fleet_role(
@@ -87,6 +110,7 @@ pub async fn list_companies(
     AuthenticatedUser(user_id): AuthenticatedUser,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_not_ios(&state.db, user_id).await { return e.into_response(); }
     let rows = sqlx::query!(
         r#"
         SELECT
@@ -140,6 +164,7 @@ pub async fn create_company(
     State(state): State<AppState>,
     Json(payload): Json<CreateCompanyPayload>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_not_ios(&state.db, user_id).await { return e.into_response(); }
     if payload.name.trim().is_empty() {
         return err(
             StatusCode::UNPROCESSABLE_ENTITY,

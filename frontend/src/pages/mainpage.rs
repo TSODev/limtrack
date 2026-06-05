@@ -14,6 +14,7 @@ pub fn MainPage() -> impl IntoView {
     let (sheet_open, set_sheet_open) = create_signal(false);
     let (has_fleet, set_has_fleet) = create_signal(false);
     let (is_admin, set_is_admin) = create_signal(false);
+    let (is_ios_user, set_is_ios_user) = create_signal(false);
 
     let navigate_effect = navigate.clone();
     create_effect(move |_| {
@@ -39,10 +40,11 @@ pub fn MainPage() -> impl IntoView {
                 let count = fetch_companies_count(&token_fleet).await;
                 set_has_fleet.set(count > 0);
             });
-            // Vérification admin
+            // Vérification admin + is_ios depuis le profil
             spawn_local(async move {
-                if let Ok(admin) = fetch_is_admin(&token_admin).await {
+                if let Ok((admin, ios)) = fetch_profile_flags(&token_admin).await {
                     set_is_admin.set(admin);
+                    set_is_ios_user.set(ios);
                 }
             });
 
@@ -149,8 +151,8 @@ pub fn MainPage() -> impl IntoView {
                                 </A>
                             </Show>
 
-                            // Flotte — visible uniquement si l'utilisateur a des entreprises
-                            <Show when=move || has_fleet.get() fallback=|| ()>
+                            // Flotte — masquée pour les comptes iOS Personal
+                            <Show when=move || has_fleet.get() && !is_ios_user.get() fallback=|| ()>
                                 <A
                                     href="/fleet"
                                     class="hidden md:flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
@@ -359,7 +361,8 @@ pub fn MainPage() -> impl IntoView {
     }
 }
 
-pub async fn fetch_is_admin(token: &str) -> Result<bool, String> {
+/// Retourne (is_admin, is_ios) depuis GET /api/profile en un seul appel.
+pub async fn fetch_profile_flags(token: &str) -> Result<(bool, bool), String> {
     let url = format!("{}/api/profile", crate::config::API_BASE);
     let mut opts = web_sys::RequestInit::new();
     opts.method("GET");
@@ -372,14 +375,15 @@ pub async fn fetch_is_admin(token: &str) -> Result<bool, String> {
         .map_err(|_| "Network")?;
     use wasm_bindgen::JsCast;
     let resp: web_sys::Response = resp.dyn_into().map_err(|_| "Cast")?;
-    if !resp.ok() { return Ok(false); }
+    if !resp.ok() { return Ok((false, false)); }
     let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|_| "Text")?)
         .await
         .map_err(|_| "Text await")?
         .as_string()
         .unwrap_or_default();
-    Ok(serde_json::from_str::<serde_json::Value>(&text)
-        .ok()
-        .and_then(|v| v["is_admin"].as_bool())
-        .unwrap_or(false))
+    let v = serde_json::from_str::<serde_json::Value>(&text).unwrap_or_default();
+    Ok((
+        v["is_admin"].as_bool().unwrap_or(false),
+        v["is_ios"].as_bool().unwrap_or(false),
+    ))
 }

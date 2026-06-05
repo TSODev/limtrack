@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE public.users SET access_expires_at = $1, is_ios = TRUE WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "97eeb218c7fcbe685068670b66f333dc2a0411d5f9016c0da6ae0900c7b06ff6"
+}
