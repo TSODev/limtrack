@@ -124,7 +124,7 @@ Rien en cours.
 
 ## Fonctionnalités
 
-- [ ] **Export PDF/CSV** — relevés kilométriques et contrats
+- [x] **Export PDF/CSV** — contrats (rapport + relevés avec trajectoire idéale), flotte (membres + véhicules)
 - [ ] **Notifications push natives** — mobile Tauri
 
 ---

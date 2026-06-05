@@ -12,19 +12,22 @@
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-yellow)
 ![License](https://img.shields.io/badge/license-AGPL--v3-blue)
+![PWA](https://img.shields.io/badge/PWA-Mobile%20ready-brightgreen)
+![Web](https://img.shields.io/badge/Web-SaaS%20ready-brightgreen)
 
 ---
 
 ## Présentation
 
-**LimTrack** est une application full-stack écrite entièrement en Rust. Elle permet à des particuliers et à des entreprises de :
+**LimTrack** est une application full-stack écrite entièrement en Rust, **SaaS ready** (déployée sur le web) et **Mobile ready** (PWA installable + app iOS via Tauri). Elle permet à des particuliers et à des entreprises de :
 
 - Gérer leurs véhicules et partager leur accès avec d'autres utilisateurs
 - Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique
 - Enregistrer leurs relevés kilométriques et visualiser leur trajectoire vs l'idéale
 - Recevoir des **alertes** personnalisées avant de dépasser les limites contractuelles
 - Gérer une **flotte d'entreprise** : organisations, membres, rôles et véhicules assignés
-- Utiliser l'application sur **iOS** via Tauri Mobile
+- **Exporter** les données en PDF (rapport de contrat ou de flotte) et CSV (relevés kilométriques)
+- Utiliser l'application sur **iOS** via Tauri Mobile ou en **PWA** sur tout appareil
 
 ---
 
@@ -407,6 +410,7 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 - ✅ Formulaire de demande de licence gratuite (envoi automatique par email)
 - ✅ Ko-fi et GitHub Sponsors
 - ✅ Dashboard administrateur (stats, utilisateurs, licences, flottes)
+- ✅ Export PDF / CSV — contrats, relevés kilométriques et données de flotte
 
 ---
 

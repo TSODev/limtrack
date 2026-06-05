@@ -5,7 +5,7 @@ Voici un résumé complet pour Claude Code :
 # LimTrack — Résumé projet pour Claude Code
 
 ## Présentation
-Application web full-stack **entièrement en Rust** de gestion de flotte kilométrique. Suivi contrats LOA/assurance, relevés kilométriques, alertes personnalisées.
+Application web full-stack **entièrement en Rust** de gestion de flotte kilométrique. **SaaS ready** (web) et **Mobile ready** (PWA + Tauri iOS). Suivi contrats LOA/assurance, relevés kilométriques, alertes personnalisées, export PDF/CSV.
 
 ## Stack technique
 - **Frontend** : Leptos 0.6 (WASM), Tailwind CSS v4, Trunk
@@ -14,7 +14,8 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Sécurité mots de passe** : `zxcvbn` (score ≥ 3/4) à l'inscription et au changement de mot de passe
 - **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`, délivrance automatique via formulaire
 - **Modèle** : open source AGPL v3, licences gratuites sur demande, dons Ko-fi / GitHub Sponsors
-- **Mobile** : Tauri v2 (iOS configuré, Android à faire)
+- **Mobile** : Tauri v2 (iOS configuré, Android à faire), PWA installable
+- **Export** : PDF (contrats, flotte) et CSV (relevés avec trajectoire idéale, flotte) — génération 100% frontend (WASM, Blob API)
 - **Types partagés** : crate `common` (workspace Cargo)
 - **Déploiement** : Cloudflare Pages (frontend, GitHub Actions) + Railway (backend)
 

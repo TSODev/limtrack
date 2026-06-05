@@ -8,7 +8,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
-Rien en cours.
+### Ajouté
+- **Export PDF contrat** : bouton PDF sur chaque carte LOA et Assurance — rapport stylé (statut, km consommés, restants, projection, dates) ouvert dans un nouvel onglet avec impression automatique.
+- **Export CSV relevés kilométriques** : bouton CSV sur chaque carte contrat — 7 colonnes : Date, Kilométrage, Écart relevé précédent, Trajectoire idéale, Écart vs idéale, Statut trajectoire (En avance / En retard), Source.
+- **Export PDF flotte** : rapport complet de l'entreprise (membres avec rôles, véhicules par organisation) généré côté frontend.
+- **Export CSV flotte** : liste des véhicules de la flotte (marque, modèle, immatriculation, année, organisation).
+- Tous les exports sont générés **100% côté frontend** (WASM) via Blob + URL.createObjectURL — aucun appel backend supplémentaire.
 
 ---
 
