@@ -25,9 +25,9 @@ with socketserver.TCPServer(('',1430),H) as s: s.serve_forever()
 
 Pour les **screenshots App Store** (1284 × 2778 — accepté par App Store Connect) :
 ```bash
-cargo tauri ios dev "8568555E-0543-4BE7-B374-CC934787D57D" --no-dev-server-wait
+cargo tauri ios dev "F50045E7-028E-485C-912C-C35154674374" --no-dev-server-wait
 ```
-Puis **▶ Run** dans Xcode sur **iPhone 14 Pro Max** (1284 × 2778).
+Puis **▶ Run** dans Xcode sur **iPhone 13 Pro Max** (1284 × 2778).
 
 Pour les **tests de développement** (6.1") :
 ```bash
@@ -98,8 +98,8 @@ Puis **▶ Run** dans Xcode sur **iPhone 13 Pro** (1170 × 2532).
 
 | Résolution    | Appareil                  | Obligatoire | UUID Simulator |
 |---------------|---------------------------|-------------|----------------|
-| 1284 × 2778   | **iPhone 14 Pro Max** (6.7") | ✅ Oui | `8568555E-0543-4BE7-B374-CC934787D57D` |
-| 1290 × 2796   | iPhone 15 Plus (6.7")     | ❌ Non accepté par App Store Connect | `78B0BB67-3882-4D31-B9C7-D455DFC505C3` |
+| 1284 × 2778   | **iPhone 13 Pro Max** (6.7") | ✅ Oui | `F50045E7-028E-485C-912C-C35154674374` |
+| 1290 × 2796   | iPhone 14/15 Pro Max, 15 Plus | ❌ Non accepté par App Store Connect | — |
 | 1170 × 2532   | iPhone 13 Pro (6.1")      | ❌ Non accepté | `77F8FC35-195B-4C78-9690-28CF71ECDE54` |
 
 > App Store Connect exige 1284 × 2778 ou 1242 × 2688. Le 1290 × 2796
