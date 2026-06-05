@@ -8,7 +8,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
-Rien en cours.
+### Ajouté
+- **Prix/km dépassement LOA** : champ optionnel `price_per_extra_km` (Float) sur les contrats LOA (migration `006`). Renseignable à la création ou via le bouton "€/km" sur la carte contrat. Accepte virgule et point comme séparateur décimal.
+- **Estimation du coût de dépassement** : affiché en rouge/orange sur le widget dashboard, la liste détaillée et le rapport PDF — coût réel si contrat dépassé, coût projeté si risque détecté. Calcul : km_excess × prix/km.
+- **PATCH /api/vehicles/:id/contracts/loa/:contract_id** : mise à jour du prix/km uniquement (autres champs non modifiables — termes légaux).
+- **App Store iOS — conformité Apple** : section dons Ko-fi/GitHub Sponsors masquée dans la version Tauri (règle 3.1.1). Activation lifetime automatique au premier lancement iOS via `POST /api/ios/activate` (clé `IOS_ACTIVATION_KEY` Infisical). Section Licence masquée sur iOS (accès inclus dans l'achat).
+- **Page `/privacy`** : politique de confidentialité RGPD obligatoire pour l'App Store Apple.
+- **Exception AGPL v3 App Store** : ajoutée dans `licence.md` (Thierry Soulie, détenteur unique, autorise la distribution via App Store).
+
+### Corrigé
+- **CORS** : méthode `PATCH` ajoutée aux méthodes autorisées (manquait dans la config CORS backend).
 
 ---
 

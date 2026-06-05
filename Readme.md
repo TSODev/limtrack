@@ -22,12 +22,12 @@
 **LimTrack** est une application full-stack écrite entièrement en Rust, **SaaS ready** (déployée sur le web) et **Mobile ready** (PWA installable + app iOS via Tauri). Elle permet à des particuliers et à des entreprises de :
 
 - Gérer leurs véhicules et partager leur accès avec d'autres utilisateurs
-- Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique
+- Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique et **estimation du coût de dépassement** (prix/km configurable)
 - Enregistrer leurs relevés kilométriques et visualiser leur trajectoire vs l'idéale
 - Recevoir des **alertes** personnalisées avant de dépasser les limites contractuelles
 - Gérer une **flotte d'entreprise** : organisations, membres, rôles et véhicules assignés
 - **Exporter** les données en PDF (rapport de contrat ou de flotte) et CSV (relevés kilométriques)
-- Utiliser l'application sur **iOS** via Tauri Mobile ou en **PWA** sur tout appareil
+- Utiliser l'application sur **iOS** via Tauri Mobile (App Store, version payante) ou en **PWA** sur tout appareil (gratuite)
 
 ---
 

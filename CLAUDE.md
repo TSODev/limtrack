@@ -113,6 +113,7 @@ fleet_roles            -- user_id, company_id, org_id, role, granted_by
 license_tokens         -- token_hash (SHA-256), duration_days, used_at, used_by
 license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doublon formulaire public
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
+-- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 ```
 
 ## Routes API
@@ -150,7 +151,7 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 ## Licences — système de jetons
 - Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
-- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/admin/*`
+- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/ios/activate`, `/api/admin/*`
 - **Dashboard admin** : routes `/api/admin/*` protégées par `AdminUser` extractor (vérifie `users.is_admin = true`). Activer avec `UPDATE public.users SET is_admin = TRUE WHERE email = '...'`
 - `AppState` contient `resend_api_key: String` (lu au démarrage depuis Infisical via `load_secrets()`)
 - **Mode lecture seule** : licence expirée → `GET` passe (lecture autorisée), `POST/PUT/DELETE/PATCH` → `402 Payment Required`
@@ -158,6 +159,16 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 - Durées disponibles : 30, 90, 180, 365 jours
 - **Page d'inscription** : encadré info "Période d'essai gratuite — 3 mois" affiché avant le bouton de soumission ; message de succès rappelle la durée d'essai
 - **Délivrance automatique** : `POST /api/license/request` (public, sans auth) — email → jeton 365j généré et envoyé via Resend. 1 jeton max par adresse (table `license_requests`). `RESEND_API_KEY` lu au démarrage via `AppState.resend_api_key`.
+
+## iOS App Store — modèle payant
+- **Version web (PWA)** : gratuite, licences sur demande, dons Ko-fi/GitHub Sponsors
+- **Version App Store iOS** : payante (achat unique), accès lifetime inclus
+- **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (Infisical). Idempotent. Stocké `ios_activated` en localStorage.
+- **Détection Tauri** : `crate::config::is_tauri()` via `window.__TAURI__`. Masque : section Licence (profil), boutons Ko-fi/GitHub Sponsors (about, request-license).
+- **Clé iOS** : `IOS_ACTIVATION_KEY` injectée à la compilation (`option_env!`) — à définir en variable d'env lors du build Tauri iOS.
+- **Conformité AGPL v3** : exception App Store ajoutée dans `licence.md` (Thierry Soulie, détenteur unique).
+- **Privacy Policy** : page `/privacy` hébergée sur `limtrack.app/privacy` (obligatoire App Store).
+- **Règle Apple 3.1.1** : liens de dons masqués dans la version Tauri (liens externes vers Ko-fi/GitHub Sponsors interdits sur iOS).
 
 ```bash
 # Générer des jetons (depuis backend/)
