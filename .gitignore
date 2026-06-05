@@ -20,3 +20,6 @@ frontend/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/*.png
 
 # Configuration IDE locale
 .vscode/
+
+# Notes et todos locaux
+TODO.md
