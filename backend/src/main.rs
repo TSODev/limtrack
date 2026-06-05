@@ -38,9 +38,9 @@ use crate::license_handler::{get_license, redeem_token};
 use crate::request_license_handler::request_license;
 use crate::company_handler::{
     add_member, assign_fleet_role, assign_vehicle_to_fleet, create_company, create_organization,
-    delete_company, delete_organization, get_company, list_companies, list_fleet_roles,
-    list_fleet_vehicles, list_members, list_org_vehicles, list_organizations, remove_member,
-    remove_vehicle_from_fleet, revoke_fleet_role,
+    delete_company, delete_organization, fleet_report, get_company, list_companies,
+    list_fleet_roles, list_fleet_vehicles, list_members, list_org_vehicles, list_organizations,
+    remove_member, remove_vehicle_from_fleet, revoke_fleet_role,
 };
 use crate::vehicles_handler::{
     create_vehicle, delete_vehicle, get_vehicle, list_vehicles, update_vehicle,
@@ -172,6 +172,7 @@ async fn main() {
         )
         // Vue flotte
         .route("/api/companies/:id/vehicles", get(list_fleet_vehicles))
+        .route("/api/companies/:id/fleet-report", get(fleet_report))
         .route(
             "/api/companies/:id/organizations/:oid/vehicles",
             get(list_org_vehicles),

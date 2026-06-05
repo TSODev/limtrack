@@ -1,6 +1,7 @@
 // src/pages/fleet.rs — Gestion de flotte
 
-use crate::components::ui::{get_token, input_class};
+use crate::components::ui::{format_km, get_token, input_class};
+use common::{FleetReportContract, FleetReportVehicle};
 use js_sys;
 use leptos::*;
 use leptos_router::*;
@@ -455,7 +456,7 @@ fn FleetVehiclesSection(
 
     // Stocké dans un signal pour être accessible par multiple closures
     let (company_name_sig, _) = create_signal(company_name.clone());
-    // Action PDF : fetche les membres puis génère le rapport
+    // Action PDF : fetche membres + rapport flotte (contrats inclus) en 2 appels
     let cn = company_name.clone();
     let cs = company_siret.clone();
     let pdf_action = create_action(move |_: &()| {
@@ -463,11 +464,13 @@ fn FleetVehiclesSection(
         let cs = cs.clone();
         async move {
             if let Some(token) = get_token() {
-                let members = fetch_json::<Vec<CompanyMember>>(
-                    &format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id),
-                    &token,
-                ).await.unwrap_or_default();
-                export_fleet_pdf(&cn, cs.as_deref(), &vehicles.get_untracked(), &members);
+                let url_members = format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id);
+                let url_report  = format!("{}/api/companies/{}/fleet-report", crate::config::API_BASE, company_id);
+                let (members, report) = futures::join!(
+                    fetch_json::<Vec<CompanyMember>>(&url_members, &token),
+                    fetch_json::<Vec<FleetReportVehicle>>(&url_report, &token)
+                );
+                export_fleet_pdf(&cn, cs.as_deref(), &members.unwrap_or_default(), &report.unwrap_or_default());
             }
         }
     });
@@ -1260,8 +1263,8 @@ fn export_fleet_csv(vehicles: &[FleetVehicle], company_name: &str) {
 fn export_fleet_pdf(
     company_name: &str,
     siret: Option<&str>,
-    vehicles: &[FleetVehicle],
     members: &[CompanyMember],
+    report: &[FleetReportVehicle],
 ) {
     let siret_line = siret
         .map(|s| format!("<tr><td>SIRET</td><td>{}</td></tr>", s))
@@ -1273,32 +1276,47 @@ fn export_fleet_pdf(
             Some("fleet_viewer") => "Observateur",
             _                    => "Membre",
         };
-        format!("<tr><td>{}</td><td>{}</td><td>{}</td></tr>",
-            m.username, m.email, role)
+        format!("<tr><td>{}</td><td>{}</td><td>{}</td></tr>", m.username, m.email, role)
     }).collect::<String>();
 
-    let vehicles_rows = vehicles.iter().map(|v| {
+    // Véhicules avec leurs contrats
+    let vehicles_section = report.iter().map(|v| {
         let year = v.year.map(|y| y.to_string()).unwrap_or_else(|| "—".to_string());
         let org  = v.org_name.as_deref().unwrap_or("—");
-        format!("<tr><td>{} {}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
-            v.make, v.model, v.plate_number, year, org)
+
+        let contracts_html = if v.contracts.is_empty() {
+            "<p style='color:#94a3b8;font-size:12px;margin:4px 0 0 0'>Aucun contrat actif</p>".to_string()
+        } else {
+            v.contracts.iter().map(|c| contract_row_html(c)).collect::<String>()
+        };
+
+        format!(r#"<div style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+<div style="background:#f8fafc;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+  <span style="font-weight:700;color:#1e293b">{make} {model}</span>
+  <span style="font-family:monospace;color:#4f46e5;font-size:13px">{plate}</span>
+  <span style="font-size:12px;color:#64748b">{year} · {org}</span>
+</div>
+<div style="padding:10px 14px">{contracts}</div>
+</div>"#,
+            make=v.make, model=v.model, plate=v.plate_number,
+            year=year, org=org, contracts=contracts_html)
     }).collect::<String>();
 
     let html = format!(r#"<!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8"/>
 <title>Rapport Flotte — {company_name}</title>
 <style>
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:40px auto;color:#1e293b;font-size:14px}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:740px;margin:40px auto;color:#1e293b;font-size:13px}}
 h1{{color:#4f46e5;font-size:22px;margin-bottom:4px}}
 .sub{{color:#94a3b8;font-size:12px;margin-bottom:32px}}
-h2{{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:28px 0 12px}}
+h2{{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:24px 0 10px}}
 table{{width:100%;border-collapse:collapse}}
-th{{text-align:left;padding:8px 12px;background:#f8fafc;font-size:12px;color:#64748b;border-bottom:1px solid #e2e8f0}}
-td{{padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px}}
+th{{text-align:left;padding:7px 10px;background:#f8fafc;font-size:11px;color:#64748b;border-bottom:1px solid #e2e8f0}}
+td{{padding:7px 10px;border-bottom:1px solid #f1f5f9}}
 .info-table td:first-child{{color:#64748b;width:40%}}
 .info-table td:last-child{{font-weight:600}}
-footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:12px}}
-@media print{{@page{{margin:20mm}}}}
+footer{{margin-top:32px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:10px}}
+@media print{{@page{{margin:15mm}}}}
 </style></head>
 <body>
 <script>window.addEventListener('load',function(){{setTimeout(function(){{window.print()}},400)}})</script>
@@ -1313,26 +1331,71 @@ footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f
 </table>
 <h2>Membres</h2>
 <table>
-<thead><tr><th>Nom d'utilisateur</th><th>Email</th><th>Rôle</th></tr></thead>
+<thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th></tr></thead>
 <tbody>{members_rows}</tbody>
 </table>
-<h2>Véhicules</h2>
-<table>
-<thead><tr><th>Véhicule</th><th>Immatriculation</th><th>Année</th><th>Organisation</th></tr></thead>
-<tbody>{vehicles_rows}</tbody>
-</table>
+<h2>Véhicules et contrats actifs</h2>
+{vehicles_section}
 <footer>LimTrack · limtrack.app · Rapport généré automatiquement</footer>
 </body></html>"#,
-        company_name = company_name,
-        date         = chrono::Local::now().format("%d/%m/%Y"),
-        siret_line   = siret_line,
-        nb_vehicles  = vehicles.len(),
-        nb_members   = members.len(),
-        members_rows = members_rows,
-        vehicles_rows = vehicles_rows,
+        company_name   = company_name,
+        date           = chrono::Local::now().format("%d/%m/%Y"),
+        siret_line     = siret_line,
+        nb_vehicles    = report.len(),
+        nb_members     = members.len(),
+        members_rows   = members_rows,
+        vehicles_section = vehicles_section,
     );
 
     fleet_open_print(&html);
+}
+
+fn contract_row_html(c: &FleetReportContract) -> String {
+    let type_label = if c.contract_type == "loa" { "LOA" } else { "Assurance" };
+    let pct = ((c.km_consumed as f64 / c.km_authorized as f64) * 100.0).min(100.0) as u32;
+    let status_color = match c.status.as_str() {
+        "exceeded" => "#dc2626",
+        _ if c.overage_risk => "#d97706",
+        _ => "#4f46e5",
+    };
+    let status_label = match c.status.as_str() {
+        "exceeded" => "Dépassé",
+        _ if c.overage_risk => "Risque",
+        _ => "Actif",
+    };
+
+    let insurer_line = c.insurer.as_deref()
+        .map(|ins| format!(" · {}", ins))
+        .unwrap_or_default();
+
+    let cost_line = c.price_per_extra_km.and_then(|price| {
+        let extra_km = if c.km_consumed > c.km_authorized {
+            c.km_consumed - c.km_authorized
+        } else if c.forecast_km > c.km_authorized {
+            c.forecast_km - c.km_authorized
+        } else { return None; };
+        let cost = extra_km as f64 * price;
+        let label = if c.km_consumed > c.km_authorized { "Coût dépassement" } else { "Coût projeté" };
+        Some(format!("<span style='color:#dc2626;font-weight:700'> · {} : {:.2} €</span>", label, cost))
+    }).unwrap_or_default();
+
+    format!(r#"<div style="margin:6px 0;padding:8px 10px;background:#f8fafc;border-radius:6px;border-left:3px solid {color}">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+    <span style="font-weight:600;font-size:12px">{type_label}{insurer}</span>
+    <span style="font-size:11px;color:{color};font-weight:700">{status}</span>
+  </div>
+  <div style="font-size:11px;color:#64748b">
+    {consumed} / {authorized} km ({pct}%) · Restant : {remaining} km · Projection : {forecast} km{cost}
+  </div>
+  <div style="font-size:11px;color:#94a3b8">Du {start} au {end} · J-{days}</div>
+</div>"#,
+        color=status_color, type_label=type_label, insurer=insurer_line,
+        status=status_label, pct=pct,
+        consumed=format_km(c.km_consumed), authorized=format_km(c.km_authorized),
+        remaining=format_km(c.km_remaining), forecast=format_km(c.forecast_km),
+        cost=cost_line,
+        start=c.start_date, end=c.end_date, days=c.days_remaining,
+    )
 }
 
 fn fleet_open_print(html: &str) {

@@ -318,6 +318,37 @@ pub struct AssignVehicleFleetPayload {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// RAPPORT DE FLOTTE
+// ═══════════════════════════════════════════════════════════════
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FleetReportContract {
+    pub contract_type: String,          // "loa" | "insurance"
+    pub km_authorized: i32,             // km_allowed ou km_annual_limit
+    pub km_consumed: i32,
+    pub km_remaining: i32,
+    pub status: String,                 // active | exceeded | closed
+    pub days_remaining: i64,
+    pub forecast_km: i32,
+    pub overage_risk: bool,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: chrono::NaiveDate,
+    pub price_per_extra_km: Option<f64>, // LOA uniquement
+    pub insurer: Option<String>,         // Insurance uniquement
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FleetReportVehicle {
+    pub id: Uuid,
+    pub make: String,
+    pub model: String,
+    pub plate_number: String,
+    pub year: Option<i16>,
+    pub org_name: Option<String>,
+    pub contracts: Vec<FleetReportContract>,
+}
+
+// ═══════════════════════════════════════════════════════════════
 // LICENCES
 // ═══════════════════════════════════════════════════════════════
 

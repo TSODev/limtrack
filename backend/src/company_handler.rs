@@ -10,9 +10,11 @@ use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
 use crate::state::AppState;
+use chrono::Local;
 use common::{
     AddMemberPayload, AssignFleetRolePayload, AssignVehicleFleetPayload, Company, CompanyMember,
-    CompanyWithStats, CreateCompanyPayload, CreateOrganizationPayload, FleetVehicle, Organization,
+    CompanyWithStats, CreateCompanyPayload, CreateOrganizationPayload, FleetReportContract,
+    FleetReportVehicle, FleetVehicle, Organization,
 };
 
 #[derive(serde::Serialize)]
@@ -1126,4 +1128,154 @@ pub async fn remove_vehicle_from_fleet(
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
     }
+}
+
+// ─── GET /api/companies/:id/fleet-report ─────────────────────────
+
+pub async fn fleet_report(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(company_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    // Vérifier l'accès
+    let is_member = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM public.company_members WHERE user_id = $1 AND company_id = $2",
+        user_id, company_id
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(Some(0))
+    .unwrap_or(0) > 0;
+
+    if !is_member {
+        return err(StatusCode::FORBIDDEN, "Accès refusé").into_response();
+    }
+
+    // 1. Véhicules de la flotte
+    let vehicles = sqlx::query!(
+        r#"SELECT v.id, v.make, v.model, v.plate_number, v.year,
+           o.name AS "org_name?"
+           FROM public.vehicles v
+           LEFT JOIN public.organizations o ON o.id = v.org_id
+           WHERE v.company_id = $1
+           ORDER BY v.make, v.model"#,
+        company_id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    if vehicles.is_empty() {
+        return (StatusCode::OK, Json(Vec::<FleetReportVehicle>::new())).into_response();
+    }
+
+    let vehicle_ids: Vec<Uuid> = vehicles.iter().map(|v| v.id).collect();
+    let today = Local::now().date_naive();
+
+    // 2. Contrats LOA actifs/dépassés pour tous les véhicules en une requête
+    let loa_rows = sqlx::query!(
+        r#"SELECT l.id, l.vehicle_id, l.km_allowed, l.km_start,
+           l.start_date, l.end_date, l.status, l.price_per_extra_km,
+           COALESCE(
+               (SELECT value FROM public.mileage_log m
+                WHERE m.vehicle_id = l.vehicle_id
+                ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+               l.km_start
+           ) AS "km_current!"
+           FROM public.contracts_loa l
+           WHERE l.vehicle_id = ANY($1) AND l.status != 'closed'
+           ORDER BY l.vehicle_id, l.start_date DESC"#,
+        &vehicle_ids
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    // 3. Contrats Assurance actifs/dépassés
+    let ins_rows = sqlx::query!(
+        r#"SELECT i.id, i.vehicle_id, i.km_annual_limit, i.km_start,
+           i.start_date, i.end_date, i.status, i.insurer,
+           COALESCE(
+               (SELECT value FROM public.mileage_log m
+                WHERE m.vehicle_id = i.vehicle_id
+                ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+               i.km_start
+           ) AS "km_current!"
+           FROM public.contracts_insurance i
+           WHERE i.vehicle_id = ANY($1) AND i.status != 'closed'
+           ORDER BY i.vehicle_id, i.start_date DESC"#,
+        &vehicle_ids
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
+    // 4. Assembler
+    let result: Vec<FleetReportVehicle> = vehicles.into_iter().map(|v| {
+        let mut contracts: Vec<FleetReportContract> = Vec::new();
+
+        // LOA de ce véhicule
+        for l in loa_rows.iter().filter(|r| r.vehicle_id == v.id) {
+            let km_consumed  = (l.km_current - l.km_start).max(0);
+            let km_remaining = (l.km_allowed - km_consumed).max(0);
+            let days_total   = (l.end_date - l.start_date).num_days().max(1);
+            let days_elapsed = (today - l.start_date).num_days().max(0);
+            let days_rem     = (l.end_date - today).num_days().max(0);
+            let forecast_km  = if days_elapsed > 0 {
+                (km_consumed as f64 / days_elapsed as f64 * days_total as f64) as i32
+            } else { 0 };
+            contracts.push(FleetReportContract {
+                contract_type:      "loa".to_string(),
+                km_authorized:      l.km_allowed,
+                km_consumed,
+                km_remaining,
+                status:             l.status.clone(),
+                days_remaining:     days_rem,
+                forecast_km,
+                overage_risk:       forecast_km > l.km_allowed,
+                start_date:         l.start_date,
+                end_date:           l.end_date,
+                price_per_extra_km: l.price_per_extra_km,
+                insurer:            None,
+            });
+        }
+
+        // Assurance de ce véhicule
+        for i in ins_rows.iter().filter(|r| r.vehicle_id == v.id) {
+            let km_consumed  = (i.km_current - i.km_start).max(0);
+            let km_remaining = (i.km_annual_limit - km_consumed).max(0);
+            let days_total   = (i.end_date - i.start_date).num_days().max(1);
+            let days_elapsed = (today - i.start_date).num_days().max(0);
+            let days_rem     = (i.end_date - today).num_days().max(0);
+            let forecast_km  = if days_elapsed > 0 {
+                (km_consumed as f64 / days_elapsed as f64 * days_total as f64) as i32
+            } else { 0 };
+            contracts.push(FleetReportContract {
+                contract_type:      "insurance".to_string(),
+                km_authorized:      i.km_annual_limit,
+                km_consumed,
+                km_remaining,
+                status:             i.status.clone(),
+                days_remaining:     days_rem,
+                forecast_km,
+                overage_risk:       forecast_km > i.km_annual_limit,
+                start_date:         i.start_date,
+                end_date:           i.end_date,
+                price_per_extra_km: None,
+                insurer:            i.insurer.clone(),
+            });
+        }
+
+        FleetReportVehicle {
+            id:           v.id,
+            make:         v.make,
+            model:        v.model,
+            plate_number: v.plate_number,
+            year:         v.year,
+            org_name:     v.org_name,
+            contracts,
+        }
+    }).collect();
+
+    (StatusCode::OK, Json(result)).into_response()
 }
