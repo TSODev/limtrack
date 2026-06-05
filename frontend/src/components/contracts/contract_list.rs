@@ -1,9 +1,10 @@
 // src/components/contracts/contract_list.rs
 use crate::components::ui::{format_km, get_token, input_class};
-use common::{ContractInsurance, ContractLoa};
+use common::{ContractInsurance, ContractLoa, MileageLog};
 use leptos::*;
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
+use js_sys;
 
 #[derive(Clone)]
 struct ContractsData {
@@ -187,9 +188,58 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                     "📅 Limite estimée : "{d.to_string()}
                 </p>
             })}
-            <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-50">
-                <span>"Du "{contract.start_date.to_string()}</span>
-                <span>"au "{contract.end_date.to_string()}</span>
+            <div class="flex items-center justify-between pt-1 border-t border-gray-50">
+                <div class="flex text-xs text-gray-400 gap-2">
+                    <span>"Du "{contract.start_date.to_string()}</span>
+                    <span>"→"</span>
+                    <span>{contract.end_date.to_string()}</span>
+                </div>
+                <div class="flex gap-1.5">
+                    {
+                        let c = contract.clone();
+                        view! {
+                            <button
+                                on:click=move |_| export_loa_pdf(&c)
+                                title="Exporter en PDF"
+                                class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                </svg>
+                                "PDF"
+                            </button>
+                        }
+                    }
+                    {
+                        let vid         = contract.vehicle_id;
+                        let km_start    = contract.km_start;
+                        let km_total    = contract.km_allowed;
+                        let start_date  = contract.start_date;
+                        let end_date    = contract.end_date;
+                        let csv_action = create_action(move |_: &()| async move {
+                            if let Some(token) = get_token() {
+                                if let Ok(entries) = fetch_json::<Vec<MileageLog>>(
+                                    &format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid),
+                                    &token,
+                                ).await {
+                                    download_mileage_csv(&entries, km_start, km_total, start_date, end_date, &format!("releves-loa-{}.csv", vid));
+                                }
+                            }
+                        });
+                        view! {
+                            <button
+                                on:click=move |_| { csv_action.dispatch(()); }
+                                title="Exporter les relevés CSV"
+                                class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-green-600 transition duration-150"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                "CSV"
+                            </button>
+                        }
+                    }
+                </div>
             </div>
         </div>
     }
@@ -197,6 +247,7 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
 
 #[component]
 fn ContractInsuranceCard(contract: ContractInsurance) -> impl IntoView {
+    let contract_for_pdf = contract.clone();
     let pct =
         ((contract.km_consumed as f64 / contract.km_annual_limit as f64) * 100.0).min(100.0) as u32;
     let (bar_color, badge_color, badge_label) = match contract.status.as_str() {
@@ -257,9 +308,58 @@ fn ContractInsuranceCard(contract: ContractInsurance) -> impl IntoView {
                     "📅 Limite estimée : "{d.to_string()}
                 </p>
             })}
-            <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-50">
-                <span>"Du "{contract.start_date.to_string()}</span>
-                <span>"au "{contract.end_date.to_string()}</span>
+            <div class="flex items-center justify-between pt-1 border-t border-gray-50">
+                <div class="flex text-xs text-gray-400 gap-2">
+                    <span>"Du "{contract.start_date.to_string()}</span>
+                    <span>"→"</span>
+                    <span>{contract.end_date.to_string()}</span>
+                </div>
+                <div class="flex gap-1.5">
+                    {
+                        let c = contract_for_pdf;
+                        view! {
+                            <button
+                                on:click=move |_| export_insurance_pdf(&c)
+                                title="Exporter en PDF"
+                                class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                </svg>
+                                "PDF"
+                            </button>
+                        }
+                    }
+                    {
+                        let vid        = contract.vehicle_id;
+                        let km_start   = contract.km_start;
+                        let km_total   = contract.km_annual_limit;
+                        let start_date = contract.start_date;
+                        let end_date   = contract.end_date;
+                        let csv_action = create_action(move |_: &()| async move {
+                            if let Some(token) = get_token() {
+                                if let Ok(entries) = fetch_json::<Vec<MileageLog>>(
+                                    &format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid),
+                                    &token,
+                                ).await {
+                                    download_mileage_csv(&entries, km_start, km_total, start_date, end_date, &format!("releves-assurance-{}.csv", vid));
+                                }
+                            }
+                        });
+                        view! {
+                            <button
+                                on:click=move |_| { csv_action.dispatch(()); }
+                                title="Exporter les relevés CSV"
+                                class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-green-600 transition duration-150"
+                            >
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                "CSV"
+                            </button>
+                        }
+                    }
+                </div>
             </div>
         </div>
     }
@@ -518,4 +618,198 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     } else {
         Err(format!("Erreur HTTP : {}", resp.status()))
     }
+}
+
+// ─── Export PDF ───────────────────────────────────────────────────
+
+fn export_loa_pdf(c: &ContractLoa) {
+    let pct = ((c.km_consumed as f64 / c.km_allowed as f64) * 100.0).min(100.0) as u32;
+    let status_label = match c.status.as_str() {
+        "exceeded" => "Dépassé",
+        "closed"   => "Clôturé",
+        _          => if c.overage_risk { "Risque dépassement" } else { "Actif" },
+    };
+    let limit_line = c.estimated_limit_date
+        .map(|d| format!("<tr><td>Limite estimée</td><td>{}</td></tr>", d))
+        .unwrap_or_default();
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/>
+<title>Contrat LOA — LimTrack</title>
+<style>
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:680px;margin:40px auto;color:#1e293b;font-size:14px}}
+h1{{color:#4f46e5;font-size:22px;margin-bottom:4px}}
+.sub{{color:#94a3b8;font-size:12px;margin-bottom:32px}}
+h2{{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:28px 0 12px}}
+table{{width:100%;border-collapse:collapse}}
+td{{padding:8px 12px;border-bottom:1px solid #f1f5f9}}
+td:first-child{{color:#64748b;width:50%}}
+td:last-child{{font-weight:600}}
+.progress-wrap{{background:#e2e8f0;border-radius:6px;height:10px;margin:16px 0}}
+.progress-bar{{background:#4f46e5;border-radius:6px;height:10px}}
+.badge{{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:#e0e7ff;color:#4338ca}}
+footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:12px}}
+@media print{{@page{{margin:20mm}}button{{display:none}}}}
+</style></head>
+<body>
+<script>window.addEventListener('load',function(){{setTimeout(function(){{window.print()}},400)}})</script>
+<h1>Contrat LOA</h1>
+<div class="sub">Généré le {} — LimTrack</div>
+<span class="badge">{}</span>
+<h2>Kilométrage</h2>
+<div class="progress-wrap"><div class="progress-bar" style="width:{}%"></div></div>
+<table>
+<tr><td>Kilométrage autorisé</td><td>{} km</td></tr>
+<tr><td>Kilomètres consommés</td><td>{} km ({}%)</td></tr>
+<tr><td>Kilomètres restants</td><td>{} km</td></tr>
+<tr><td>Projection à échéance</td><td>{} km</td></tr>
+{}
+</table>
+<h2>Période</h2>
+<table>
+<tr><td>Date de début</td><td>{}</td></tr>
+<tr><td>Date de fin</td><td>{}</td></tr>
+<tr><td>Jours restants</td><td>{}</td></tr>
+</table>
+<footer>LimTrack · limtrack.app · Rapport généré automatiquement</footer>
+</body></html>"#,
+        chrono::Local::now().format("%d/%m/%Y"),
+        status_label, pct,
+        format_km(c.km_allowed), format_km(c.km_consumed), pct,
+        format_km(c.km_remaining), format_km(c.forecast_km),
+        limit_line,
+        c.start_date, c.end_date, c.days_remaining,
+    );
+    open_print_window(&html);
+}
+
+fn export_insurance_pdf(c: &ContractInsurance) {
+    let pct = ((c.km_consumed as f64 / c.km_annual_limit as f64) * 100.0).min(100.0) as u32;
+    let status_label = match c.status.as_str() {
+        "exceeded" => "Dépassé",
+        "closed"   => "Clôturé",
+        _          => if c.overage_risk { "Risque dépassement" } else { "Active" },
+    };
+    let insurer_line = c.insurer.as_deref()
+        .map(|ins| format!("<tr><td>Assureur</td><td>{}</td></tr>", ins))
+        .unwrap_or_default();
+    let limit_line = c.estimated_limit_date
+        .map(|d| format!("<tr><td>Limite estimée</td><td>{}</td></tr>", d))
+        .unwrap_or_default();
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/>
+<title>Contrat Assurance — LimTrack</title>
+<style>
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:680px;margin:40px auto;color:#1e293b;font-size:14px}}
+h1{{color:#4f46e5;font-size:22px;margin-bottom:4px}}
+.sub{{color:#94a3b8;font-size:12px;margin-bottom:32px}}
+h2{{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:28px 0 12px}}
+table{{width:100%;border-collapse:collapse}}
+td{{padding:8px 12px;border-bottom:1px solid #f1f5f9}}
+td:first-child{{color:#64748b;width:50%}}
+td:last-child{{font-weight:600}}
+.progress-wrap{{background:#e2e8f0;border-radius:6px;height:10px;margin:16px 0}}
+.progress-bar{{background:#4f46e5;border-radius:6px;height:10px}}
+.badge{{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:#e0e7ff;color:#4338ca}}
+footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:12px}}
+@media print{{@page{{margin:20mm}}button{{display:none}}}}
+</style></head>
+<body>
+<script>window.addEventListener('load',function(){{setTimeout(function(){{window.print()}},400)}})</script>
+<h1>Contrat Assurance</h1>
+<div class="sub">Généré le {} — LimTrack</div>
+<span class="badge">{}</span>
+<h2>Kilométrage</h2>
+<div class="progress-wrap"><div class="progress-bar" style="width:{}%"></div></div>
+<table>
+{}
+<tr><td>Limite annuelle</td><td>{} km</td></tr>
+<tr><td>Kilomètres consommés</td><td>{} km ({}%)</td></tr>
+<tr><td>Kilomètres restants</td><td>{} km</td></tr>
+<tr><td>Projection à échéance</td><td>{} km</td></tr>
+{}
+</table>
+<h2>Période</h2>
+<table>
+<tr><td>Date de début</td><td>{}</td></tr>
+<tr><td>Date de fin</td><td>{}</td></tr>
+<tr><td>Jours restants</td><td>{}</td></tr>
+</table>
+<footer>LimTrack · limtrack.app · Rapport généré automatiquement</footer>
+</body></html>"#,
+        chrono::Local::now().format("%d/%m/%Y"),
+        status_label, pct,
+        insurer_line,
+        format_km(c.km_annual_limit), format_km(c.km_consumed), pct,
+        format_km(c.km_remaining), format_km(c.forecast_km),
+        limit_line,
+        c.start_date, c.end_date, c.days_remaining,
+    );
+    open_print_window(&html);
+}
+
+fn open_print_window(html: &str) {
+    let array = js_sys::Array::new();
+    array.push(&wasm_bindgen::JsValue::from_str(html));
+    let mut opts = web_sys::BlobPropertyBag::new();
+    opts.type_("text/html;charset=utf-8");
+    if let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&array, &opts) {
+        if let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) {
+            leptos::window().open_with_url_and_target(&url, "_blank").ok();
+        }
+    }
+}
+
+// ─── Export CSV ───────────────────────────────────────────────────
+
+fn download_mileage_csv(
+    entries: &[MileageLog],
+    km_start: i32,
+    km_total: i32,
+    start_date: chrono::NaiveDate,
+    end_date: chrono::NaiveDate,
+    filename: &str,
+) {
+    let total_days = (end_date - start_date).num_days().max(1);
+    let mut csv = String::from("Date,Kilométrage (km),Écart relevé précédent (km),Trajectoire idéale (km),Écart vs idéale (km),Source\n");
+
+    for (i, entry) in entries.iter().enumerate() {
+        let ecart_prev = if i + 1 < entries.len() {
+            (entry.value - entries[i + 1].value).to_string()
+        } else {
+            String::new()
+        };
+
+        let days_elapsed = (entry.recorded_at - start_date).num_days().max(0);
+        let ideal = km_start + (km_total as f64 * days_elapsed as f64 / total_days as f64) as i32;
+        let ecart_ideal = entry.value - ideal;
+
+        let source = match entry.source.as_str() {
+            "manual" => "Manuelle",
+            "import" => "Import",
+            "api"    => "API",
+            s        => s,
+        };
+        csv.push_str(&format!("{},{},{},{},{},{}\n",
+            entry.recorded_at, entry.value, ecart_prev, ideal, ecart_ideal, source));
+    }
+    trigger_download(&csv, filename, "text/csv;charset=utf-8");
+}
+
+fn trigger_download(content: &str, filename: &str, mime: &str) {
+    let array = js_sys::Array::new();
+    array.push(&wasm_bindgen::JsValue::from_str(content));
+    let mut opts = web_sys::BlobPropertyBag::new();
+    opts.type_(mime);
+    let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&array, &opts) else { return };
+    let Ok(url) = web_sys::Url::create_object_url_with_blob(&blob) else { return };
+
+    let document = leptos::document();
+    let Ok(el) = document.create_element("a") else { return };
+    let Ok(a) = el.dyn_into::<web_sys::HtmlAnchorElement>() else { return };
+    a.set_href(&url);
+    a.set_download(filename);
+    a.click();
+    web_sys::Url::revoke_object_url(&url).ok();
 }
