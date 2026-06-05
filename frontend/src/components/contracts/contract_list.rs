@@ -295,7 +295,7 @@ fn EditLoaPriceModal(
     let (error, set_error) = create_signal(String::new());
 
     let submit = create_action(move |price_str: &String| {
-        let price_val = price_str.trim().parse::<f64>().ok();
+        let price_val = price_str.trim().replace(',', ".").parse::<f64>().ok();
         async move {
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({"price_per_extra_km": price_val});
