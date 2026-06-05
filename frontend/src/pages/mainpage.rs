@@ -27,6 +27,7 @@ pub fn MainPage() -> impl IntoView {
             set_is_authenticated.set(true);
             let token_fleet = token.clone();
             let token_admin = token.clone();
+            let token_ios   = token.clone();
             spawn_local(async move {
                 match fetch_vehicles(&token).await {
                     Ok(data) => set_vehicles.set(data),
@@ -44,6 +45,42 @@ pub fn MainPage() -> impl IntoView {
                     set_is_admin.set(admin);
                 }
             });
+
+            // Activation lifetime automatique sur iOS (App Store)
+            if crate::config::is_tauri() && !crate::config::IOS_ACTIVATION_KEY.is_empty() {
+                spawn_local(async move {
+                    // Ne tenter qu'une seule fois par installation
+                    let storage = leptos::window().local_storage().ok().flatten();
+                    let already = storage.as_ref()
+                        .and_then(|s| s.get_item("ios_activated").ok())
+                        .flatten()
+                        .is_some();
+                    if already { return; }
+
+                    let url = format!("{}/api/ios/activate", crate::config::API_BASE);
+                    let mut opts = web_sys::RequestInit::new();
+                    opts.method("POST");
+                    let headers = web_sys::Headers::new().expect("headers");
+                    headers.set("Authorization", &format!("Bearer {}", token_ios)).ok();
+                    headers.set("Content-Type", "application/json").ok();
+                    opts.headers(&headers);
+                    let body = serde_json::json!({"key": crate::config::IOS_ACTIVATION_KEY});
+                    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+                    let req = web_sys::Request::new_with_str_and_init(&url, &opts).expect("req");
+                    if let Ok(resp) = wasm_bindgen_futures::JsFuture::from(
+                        leptos::window().fetch_with_request(&req)
+                    ).await {
+                        use wasm_bindgen::JsCast;
+                        if let Ok(r) = resp.dyn_into::<web_sys::Response>() {
+                            if r.ok() {
+                                if let Some(s) = storage {
+                                    s.set_item("ios_activated", "1").ok();
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         } else {
             navigate_effect("/", NavigateOptions::default());
         }

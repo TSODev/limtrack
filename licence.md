@@ -25,6 +25,14 @@ Le texte intégral de la licence est disponible à l'adresse suivante :
 
 ---
 
+## Exception App Store (Apple)
+
+En tant qu'auteur et détenteur unique du copyright, Thierry Soulie accorde à Apple Inc. les droits de distribution nécessaires à la publication de LimTrack sur l'App Store d'Apple, nonobstant les restrictions habituelles de la GNU Affero General Public License v3.0. Cette exception est accordée conformément à la section 7 de la licence AGPL v3 et ne s'applique qu'à la distribution via l'App Store d'Apple.
+
+Le code source reste intégralement disponible sur [github.com/TSODev/limtrack](https://github.com/TSODev/limtrack).
+
+---
+
 ## Contact
 
 Thierry Soulie — [thierry.soulie@tsodev.fr](mailto:thierry.soulie@tsodev.fr)

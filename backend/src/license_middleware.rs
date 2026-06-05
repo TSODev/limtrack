@@ -28,6 +28,7 @@ const EXEMPT_PATHS: &[&str] = &[
     "/api/profile/license",
     "/api/profile/redeem",
     "/api/license/request",
+    "/api/ios/activate",
 ];
 
 const EXEMPT_PREFIXES: &[&str] = &["/api/admin/"];

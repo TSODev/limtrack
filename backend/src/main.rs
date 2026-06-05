@@ -2,6 +2,7 @@
 
 mod admin_handler;
 mod auth;
+mod ios_handler;
 mod company_handler;
 mod contracts_handler;
 mod license_handler;
@@ -32,6 +33,7 @@ use crate::user_handler::{
     delete_account,
 };
 use crate::admin_handler::{generate_token_handler, get_stats, list_companies_admin, list_license_requests, list_users};
+use crate::ios_handler::ios_activate;
 use crate::license_handler::{get_license, redeem_token};
 use crate::request_license_handler::request_license;
 use crate::company_handler::{
@@ -117,6 +119,7 @@ async fn main() {
         .route("/api/profile/license", get(get_license))
         .route("/api/profile/redeem", post(redeem_token))
         .route("/api/license/request", post(request_license))
+        .route("/api/ios/activate", post(ios_activate))
         // Admin
         .route("/api/admin/stats", get(get_stats))
         .route("/api/admin/users", get(list_users))

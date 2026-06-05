@@ -157,7 +157,10 @@ pub fn ProfilePage() -> impl IntoView {
                         <SharesSection shares=s on_change=reload_shares />
                     })}
 
-                    <LicenseSection />
+                    // Section Licence masquée sur iOS — accès inclus dans l'achat App Store
+                    <Show when=move || !crate::config::is_tauri() fallback=|| ()>
+                        <LicenseSection />
+                    </Show>
                     <DeleteAccountSection />
                     <FleetSection />
                 </Show>

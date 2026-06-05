@@ -7,6 +7,7 @@ mod config;
 
 mod pages; // On importe notre nouveau module
 use pages::about::AboutPage;
+use pages::privacy::PrivacyPage;
 use pages::admin::AdminPage;
 use pages::fleet::FleetPage;
 use pages::home::HomePage;
@@ -30,6 +31,7 @@ fn App() -> impl IntoView {
                     <Route path="/fleet" view=FleetPage />
                     <Route path="/about" view=AboutPage />
                     <Route path="/request-license" view=RequestLicensePage />
+                    <Route path="/privacy" view=PrivacyPage />
                     <Route path="/admin" view=AdminPage />
                 </Routes>
             </main>
