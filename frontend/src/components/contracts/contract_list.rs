@@ -133,6 +133,7 @@ pub fn ContractList(
 
 #[component]
 fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
+    let (show_edit, set_show_edit) = create_signal(false);
     let pct =
         ((contract.km_consumed as f64 / contract.km_allowed as f64) * 100.0).min(100.0) as u32;
     let (bar_color, badge_color, badge_label) = match contract.status.as_str() {
@@ -211,6 +212,17 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                     <span>{contract.end_date.to_string()}</span>
                 </div>
                 <div class="flex gap-1.5">
+                    // Bouton édition prix/km
+                    <button
+                        on:click=move |_| set_show_edit.set(true)
+                        title="Modifier le prix/km"
+                        class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                    >
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                        </svg>
+                        "€/km"
+                    </button>
                     {
                         let c = contract.clone();
                         view! {
@@ -255,6 +267,106 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                             </button>
                         }
                     }
+                </div>
+            </div>
+        </div>
+
+        // Modal édition prix/km
+        <Show when=move || show_edit.get() fallback=|| ()>
+            <EditLoaPriceModal
+                contract_id=contract.id
+                vehicle_id=contract.vehicle_id
+                current_price=contract.price_per_extra_km
+                on_close=Callback::new(move |_| set_show_edit.set(false))
+            />
+        </Show>
+    }
+}
+
+#[component]
+fn EditLoaPriceModal(
+    contract_id: uuid::Uuid,
+    vehicle_id: uuid::Uuid,
+    current_price: Option<f64>,
+    on_close: Callback<()>,
+) -> impl IntoView {
+    let initial = current_price.map(|p| format!("{:.2}", p)).unwrap_or_default();
+    let (price, set_price) = create_signal(initial);
+    let (error, set_error) = create_signal(String::new());
+
+    let submit = create_action(move |price_str: &String| {
+        let price_val = price_str.trim().parse::<f64>().ok();
+        async move {
+            let token = get_token().unwrap_or_default();
+            let body = serde_json::json!({"price_per_extra_km": price_val});
+            let url = format!(
+                "{}/api/vehicles/{}/contracts/loa/{}",
+                crate::config::API_BASE, vehicle_id, contract_id
+            );
+            let mut opts = web_sys::RequestInit::new();
+            opts.method("PATCH");
+            let headers = web_sys::Headers::new().unwrap();
+            headers.set("Authorization", &format!("Bearer {}", token)).ok();
+            headers.set("Content-Type", "application/json").ok();
+            opts.headers(&headers);
+            opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+            use wasm_bindgen::JsCast;
+            let req = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
+            match wasm_bindgen_futures::JsFuture::from(
+                leptos::window().fetch_with_request(&req)
+            ).await {
+                Ok(r) => {
+                    let resp: web_sys::Response = r.dyn_into().unwrap();
+                    if resp.ok() || resp.status() == 204 {
+                        on_close.call(());
+                        leptos::window().location().reload().ok();
+                    } else {
+                        set_error.set(format!("Erreur HTTP {}", resp.status()));
+                    }
+                }
+                Err(_) => set_error.set("Erreur réseau".to_string()),
+            }
+        }
+    });
+
+    view! {
+        <button type="button"
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default"
+            on:click=move |_| on_close.call(()) />
+        <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-8 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-gray-900">"Prix/km dépassement"</h2>
+                    <button on:click=move |_| on_close.call(())
+                        class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
+                </div>
+                <p class="text-sm text-gray-500">
+                    "Renseignez le prix par kilomètre supplémentaire prévu dans votre contrat LOA."
+                </p>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-gray-700 block">"Prix (€ / km)"</label>
+                    <input
+                        type="number" min="0" step="0.001"
+                        prop:value=price
+                        on:input=move |ev| set_price.set(event_target_value(&ev))
+                        placeholder="ex: 0.08"
+                        class=input_class()
+                    />
+                </div>
+                <Show when=move || !error.get().is_empty() fallback=|| ()>
+                    <p class="text-sm text-red-600">{move || error.get()}</p>
+                </Show>
+                <div class="flex gap-3">
+                    <button type="button" on:click=move |_| on_close.call(())
+                        class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150">
+                        "Annuler"
+                    </button>
+                    <button
+                        on:click=move |_| submit.dispatch(price.get())
+                        prop:disabled=move || submit.pending().get()
+                        class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition duration-150">
+                        {move || if submit.pending().get() { "Enregistrement..." } else { "Enregistrer" }}
+                    </button>
                 </div>
             </div>
         </div>

@@ -252,6 +252,40 @@ pub async fn list_loa(
     (StatusCode::OK, Json(contracts)).into_response()
 }
 
+// ─── PATCH /vehicles/:vehicle_id/contracts/loa/:contract_id ─────
+
+#[derive(serde::Deserialize)]
+pub struct UpdateLoaPayload {
+    pub price_per_extra_km: Option<f64>,
+}
+
+pub async fn update_loa(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path((vehicle_id, contract_id)): Path<(Uuid, Uuid)>,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateLoaPayload>,
+) -> impl IntoResponse {
+    if let Err(e) = require_owner(&state.db, vehicle_id, user_id).await {
+        return e.into_response();
+    }
+
+    match sqlx::query!(
+        "UPDATE public.contracts_loa SET price_per_extra_km = $1
+         WHERE id = $2 AND vehicle_id = $3",
+        payload.price_per_extra_km,
+        contract_id,
+        vehicle_id,
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(r) if r.rows_affected() == 0 =>
+            err(StatusCode::NOT_FOUND, "Contrat introuvable").into_response(),
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
+}
+
 // ─── POST /vehicles/:vehicle_id/contracts/insurance ──────────────
 
 pub async fn create_insurance(
