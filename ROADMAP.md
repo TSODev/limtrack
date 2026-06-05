@@ -100,32 +100,12 @@ Rien en cours.
 - [x] Section Flottes : entreprises, membres, organisations, véhicules
 - [x] Bouton Admin dans la navbar (admins uniquement)
 
-### Licences avancées
-
-**Quota de véhicules par utilisateur**
-- [ ] Colonne `max_vehicles` dans `users` (défaut 3 ou 5)
-- [ ] Extensible par jeton (`vehicle_slots`)
-- [ ] Vérification au `POST /api/vehicles`
-- [ ] Quota affiché dans le profil
-
-**Licence entreprise**
-- [ ] Table `company_licenses` (`company_id`, `max_vehicles`, `expires_at`)
-- [ ] Jeton couvrant toute la flotte avec quota véhicules
-- [ ] Application automatique aux nouveaux véhicules assignés
-
----
-
-## Application mobile
-
-- [ ] **Tauri Android** — build et tests
-- [ ] **Sideloading iPhone réel** → App Store
-
 ---
 
 ## Fonctionnalités
 
 - [x] **Export PDF/CSV** — contrats (rapport + relevés avec trajectoire idéale), flotte (membres + véhicules)
-- [ ] **Notifications push natives** — mobile Tauri
+- [ ] **Notifications push natives** — PWA / mobile
 
 ---
 
