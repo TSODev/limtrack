@@ -13,6 +13,8 @@ struct UserProfile {
     id: Uuid,
     username: String,
     email: String,
+    #[serde(default)]
+    is_ios: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -100,6 +102,10 @@ pub fn ProfilePage() -> impl IntoView {
         });
     });
 
+    let is_ios_account = create_memo(move |_| {
+        profile.get().map(|p| p.is_ios).unwrap_or(false)
+    });
+
     let reload_shares = move || {
         if let Some(token) = get_token() {
             spawn_local(async move {
@@ -117,7 +123,7 @@ pub fn ProfilePage() -> impl IntoView {
 
     view! {
         <div class="min-h-screen bg-gray-100">
-            <nav class="bg-white shadow-sm border-b border-gray-200">
+            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: env(safe-area-inset-top)">
                 <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                     <A href="/mainpage"
                         class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition duration-150"
@@ -157,12 +163,12 @@ pub fn ProfilePage() -> impl IntoView {
                         <SharesSection shares=s on_change=reload_shares />
                     })}
 
-                    // Section Licence masquée sur iOS — accès inclus dans l'achat App Store
-                    <Show when=move || !crate::config::is_tauri() fallback=|| ()>
+                    // Section Licence masquée pour les comptes iOS (accès lifetime inclus)
+                    <Show when=move || !is_ios_account.get() fallback=|| ()>
                         <LicenseSection />
                     </Show>
-                    // Section Flotte masquée sur iOS Personal
-                    <Show when=move || !crate::config::is_tauri() fallback=|| ()>
+                    // Section Flotte masquée pour les comptes iOS Personal
+                    <Show when=move || !is_ios_account.get() fallback=|| ()>
                         <FleetSection />
                     </Show>
                     <DeleteAccountSection />

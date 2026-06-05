@@ -1,3 +1,5 @@
+use crate::components::ui::get_token;
+use crate::pages::mainpage::fetch_profile_flags;
 use leptos::*;
 use leptos_router::*;
 
@@ -25,6 +27,17 @@ pub fn AboutPage() -> impl IntoView {
     let (subject, set_subject) = create_signal(String::new());
     let (message, set_message) = create_signal(String::new());
     let (sent, set_sent) = create_signal(false);
+    let (is_ios_account, set_is_ios_account) = create_signal(false);
+
+    create_effect(move |_| {
+        if let Some(token) = get_token() {
+            spawn_local(async move {
+                if let Ok((_admin, ios)) = fetch_profile_flags(&token).await {
+                    set_is_ios_account.set(ios);
+                }
+            });
+        }
+    });
 
     let on_send = move |ev: web_sys::MouseEvent| {
         ev.prevent_default();
@@ -42,7 +55,7 @@ pub fn AboutPage() -> impl IntoView {
         <div class="min-h-screen bg-gray-100">
 
             // ─── Navbar ──────────────────────────────────────────────
-            <nav class="bg-white shadow-sm border-b border-gray-200">
+            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: env(safe-area-inset-top)">
                 <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                     <A
                         href="/mainpage"
@@ -89,23 +102,25 @@ pub fn AboutPage() -> impl IntoView {
                     </p>
                 </div>
 
-                // ─── Licence gratuite ─────────────────────────────────
-                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
-                    <h2 class="text-base font-bold text-gray-900">"Licence gratuite"</h2>
-                    <p class="text-sm text-gray-600 leading-relaxed">
-                        "LimTrack est open source et gratuit. Demandez un jeton de licence "
-                        "(365 jours) en renseignant simplement votre adresse email."
-                    </p>
-                    <A
-                        href="/request-license"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
-                    >
-                        "Obtenir ma licence gratuite →"
-                    </A>
-                </div>
+                // ─── Licence gratuite (masquée sur iOS — accès inclus dans l'achat) ───
+                <Show when=move || !is_ios_account.get() fallback=|| ()>
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
+                        <h2 class="text-base font-bold text-gray-900">"Licence gratuite"</h2>
+                        <p class="text-sm text-gray-600 leading-relaxed">
+                            "LimTrack est open source et gratuit. Demandez un jeton de licence "
+                            "(365 jours) en renseignant simplement votre adresse email."
+                        </p>
+                        <A
+                            href="/request-license"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                        >
+                            "Obtenir ma licence gratuite →"
+                        </A>
+                    </div>
+                </Show>
 
-                // ─── Soutenir (masqué sur iOS/Tauri — règles App Store) ───
-                <Show when=move || !crate::config::is_tauri() fallback=|| ()>
+                // ─── Soutenir (masqué sur iOS — règles App Store 3.1.1) ───
+                <Show when=move || !is_ios_account.get() fallback=|| ()>
                     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
                         <h2 class="text-base font-bold text-gray-900">"Soutenir le projet"</h2>
                         <p class="text-sm text-gray-600 leading-relaxed">
