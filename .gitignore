@@ -14,3 +14,6 @@ dist/
 .DS_Store
 # Données et scripts de développement local (seeds, fixtures, etc.)
 dev/
+
+# Icônes Tauri iOS — générées automatiquement par cargo tauri ios init
+frontend/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/*.png
