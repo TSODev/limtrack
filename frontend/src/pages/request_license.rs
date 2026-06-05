@@ -66,7 +66,7 @@ pub fn RequestLicensePage() -> impl IntoView {
         <div class="min-h-screen bg-gray-100">
 
             // ─── Navbar ────────────────────────────────────────────
-            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: env(safe-area-inset-top)">
+            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: var(--nav-top)">
                 <div class="max-w-lg mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                     <A
                         href="/"

@@ -275,15 +275,28 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                     on:click=move |_| set_open.set(false)
                 />
 
-                // Panneau
-                <div class="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 sm:w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
+                // Panneau — top dynamique pour tenir compte du padding safe area
+                <div
+                    class="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden"
+                    style="top: calc(var(--nav-top, 0px) + 3.5rem)"
+                >
                     <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-gray-800">"Notifications"</h3>
-                        <Show when=move || !alerts.get().is_empty() fallback=|| ()>
-                            <span class="text-xs text-gray-400">
-                                {move || format!("{} alerte{}", alert_count.get(), if alert_count.get() > 1 { "s" } else { "" })}
-                            </span>
-                        </Show>
+                        <div class="flex items-center gap-3">
+                            <Show when=move || !alerts.get().is_empty() fallback=|| ()>
+                                <span class="text-xs text-gray-400">
+                                    {move || format!("{} alerte{}", alert_count.get(), if alert_count.get() > 1 { "s" } else { "" })}
+                                </span>
+                            </Show>
+                            <button
+                                on:click=move |_| set_open.set(false)
+                                class="text-gray-400 hover:text-gray-600 p-1 transition duration-150"
+                            >
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="max-h-80 overflow-y-auto">

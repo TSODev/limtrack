@@ -47,6 +47,10 @@ pub fn MainPage() -> impl IntoView {
                 if let Ok((admin, ios)) = fetch_profile_flags(&token_admin).await {
                     set_is_admin.set(admin);
                     set_is_ios_user.set(ios);
+                    // Cache pour les pages secondaires (about, profile) — évite le flash
+                    if let Ok(Some(storage)) = leptos::window().local_storage() {
+                        let _ = storage.set_item("limtrack_is_ios", if ios { "1" } else { "0" });
+                    }
                 }
             });
 
@@ -119,7 +123,7 @@ pub fn MainPage() -> impl IntoView {
             <div class="min-h-screen bg-gray-100 flex flex-col">
 
                 // ─── Navbar ──────────────────────────────────────────
-                <nav class="bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm shrink-0 z-20" style="padding-top: env(safe-area-inset-top)">
+                <nav class="bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm shrink-0 z-20" style="padding-top: var(--nav-top)">
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between">
                         <span class="text-lg md:text-xl font-bold text-indigo-600">"LimTrack"</span>
 

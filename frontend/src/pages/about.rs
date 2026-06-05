@@ -27,7 +27,14 @@ pub fn AboutPage() -> impl IntoView {
     let (subject, set_subject) = create_signal(String::new());
     let (message, set_message) = create_signal(String::new());
     let (sent, set_sent) = create_signal(false);
-    let (is_ios_account, set_is_ios_account) = create_signal(false);
+    // Lit le cache localStorage posé par mainpage au login — valeur immédiate sans fetch
+    let cached_ios = leptos::window()
+        .local_storage().ok().flatten()
+        .and_then(|s| s.get_item("limtrack_is_ios").ok())
+        .flatten()
+        .map(|v| v == "1")
+        .unwrap_or(crate::config::is_tauri());
+    let (is_ios_account, set_is_ios_account) = create_signal(cached_ios);
 
     create_effect(move |_| {
         if let Some(token) = get_token() {
@@ -55,7 +62,7 @@ pub fn AboutPage() -> impl IntoView {
         <div class="min-h-screen bg-gray-100">
 
             // ─── Navbar ──────────────────────────────────────────────
-            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: env(safe-area-inset-top)">
+            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: var(--nav-top)">
                 <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                     <A
                         href="/mainpage"

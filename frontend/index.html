@@ -26,7 +26,17 @@
     <style>
         html { background-color: #ffffff; }
         body { overscroll-behavior-y: none; }
+        /* Par défaut : safe area CSS native */
+        :root { --nav-top: env(safe-area-inset-top); }
+        /* En contexte Tauri iOS : minimum 44px pour couvrir Dynamic Island */
+        .tauri-ios { --nav-top: max(env(safe-area-inset-top), 44px); }
     </style>
+    <script>
+        /* Tauri injecte __TAURI__ de façon synchrone avant le parsing DOM */
+        if (typeof __TAURI__ !== 'undefined') {
+            document.documentElement.classList.add('tauri-ios');
+        }
+    </script>
 
     <!-- Fichiers statiques copiés vers dist/ -->
     <link data-trunk rel="copy-file" href="public/_redirects" />
