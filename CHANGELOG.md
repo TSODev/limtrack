@@ -10,6 +10,29 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.0-appstore] — 2026-06-05
+
+### Soumission App Store iOS
+
+- **App soumise pour vérification** le 2026-06-05 (Apple ID : 6777175237, build 2)
+- **Bundle ID** : `fr.tsodev.limtrack`
+- **Prix** : €3.99 achat unique (lancement recommandé €1.99)
+- **Catégorie** : Utilitaires / Finance
+
+### Ajouté — Préparation technique
+- **`ITSAppUsesNonExemptEncryption = false`** dans Info.plist — déclare l'usage de chiffrement standard exempté (HTTPS/TLS iOS), supprime l'obligation de documentation ANSSI pour la France
+- **`ExportOptions.plist`** : méthode `app-store-connect`, signing automatique, team `9BF83RHWX9`
+- **Icônes sans canal alpha** : toutes les tailles régénérées depuis `LimTrackx1024.png` via conversion JPEG intermédiaire (requis par App Store Connect)
+- **`tauri.conf.json`** : `productName` LimTrack, `version` 1.1.0, `identifier` fr.tsodev.limtrack
+- **`project.yml`** : bundle ID, PRODUCT_NAME et version synchronisés avec tauri.conf.json
+- **Simulateurs créés** : iPhone 13 Pro Max (1284×2778, screenshots App Store) + iPad Pro 13" iOS 18.1 (screenshots iPad requis)
+- **`docs/APPSTORE.md`** : fiche complète App Store Connect (mots-clés, descriptions, screenshots, prix, compte review)
+
+### Corrigé
+- **Build number** incrémenté à `2` après rejet Transporter (signing + alpha)
+
+---
+
 ## [1.1.0] — 2026-06-05
 
 ### Ajouté — Préparation App Store iOS

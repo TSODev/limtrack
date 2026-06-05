@@ -264,16 +264,39 @@ class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 os.chdir('dist')
 with socketserver.TCPServer(('',1430),H) as s: s.serve_forever()
-"
+" &
 
-# Terminal 2 — Tauri
+# Terminal 2 — Tauri (toujours via cargo tauri ios dev, jamais Product→Build dans Xcode)
 # Tests de développement (iPhone 13 Pro, 6.1")
 cargo tauri ios dev "77F8FC35-195B-4C78-9690-28CF71ECDE54" --no-dev-server-wait
 
-# Screenshots App Store (iPhone 15 Plus, 6.7" — taille OBLIGATOIRE App Store)
-cargo tauri ios dev "78B0BB67-3882-4D31-B9C7-D455DFC505C3" --no-dev-server-wait
+# Screenshots iPhone App Store (iPhone 13 Pro Max, 1284×2778 — taille OBLIGATOIRE)
+cargo tauri ios dev "F50045E7-028E-485C-912C-C35154674374" --no-dev-server-wait
+
+# Screenshots iPad App Store (iPad Pro 13" iOS 18.1 — iOS 26 crashe le WASM)
+cargo tauri ios dev "85787740-ADB2-476B-9AA8-AD31B6EF8D21" --no-dev-server-wait
 # Puis ▶ Run dans Xcode — screenshot : Cmd+S dans le Simulator
 ```
+
+## Tauri iOS — build App Store
+```bash
+# IMPORTANT : ne jamais archiver depuis Xcode (Product→Archive) — le pre-build script
+# Xcode doit se connecter au WebSocket démarré par cargo tauri ios build.
+
+cd frontend/src-tauri
+cargo tauri ios build
+# IPA généré : gen/apple/build/arm64/LimTrack.ipa
+
+# Upload via Transporter (app Apple, Mac App Store)
+# Glisser-déposer le .ipa → Deliver
+```
+
+## Tauri iOS — pièges connus
+- **Ne jamais builder depuis Xcode directement** : le pre-build script cherche le WebSocket de `cargo tauri ios build/dev`, sinon "Connection refused" (code 61)
+- **iOS 26 (beta)** : crashe le WKWebView/WASM — utiliser iOS 18.1 pour les simulateurs
+- **Icônes sans alpha** : App Store Connect rejette les PNG avec canal alpha. Supprimer via conversion JPEG intermédiaire : `sips -s format jpeg icon.png --out /tmp/t.jpg && sips -s format png /tmp/t.jpg --out icon_flat.png`
+- **Régénérer les icônes** : `cargo tauri icon /chemin/icone-1024x1024.png`
+- **Chiffrement** : `ITSAppUsesNonExemptEncryption = false` dans `project.yml` → Info.plist — exempte de documentation ANSSI (France) et EAR (USA)
 
 ## Railway — point important
 Railway compile avec `SQLX_OFFLINE=true`. Après toute modification de requête SQL dans le backend, il faut regénérer le cache :
