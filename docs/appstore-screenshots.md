@@ -23,11 +23,11 @@ with socketserver.TCPServer(('',1430),H) as s: s.serve_forever()
 
 **Terminal 2 — Tauri iOS**
 
-Pour les **screenshots App Store** (taille 6.7" obligatoire) :
+Pour les **screenshots App Store** (1284 × 2778 — accepté par App Store Connect) :
 ```bash
-cargo tauri ios dev "78B0BB67-3882-4D31-B9C7-D455DFC505C3" --no-dev-server-wait
+cargo tauri ios dev "8568555E-0543-4BE7-B374-CC934787D57D" --no-dev-server-wait
 ```
-Puis **▶ Run** dans Xcode sur **iPhone 15 Plus** (1290 × 2796).
+Puis **▶ Run** dans Xcode sur **iPhone 14 Pro Max** (1284 × 2778).
 
 Pour les **tests de développement** (6.1") :
 ```bash
@@ -96,13 +96,14 @@ Puis **▶ Run** dans Xcode sur **iPhone 13 Pro** (1170 × 2532).
 
 ## Tailles de screenshots requises par l'App Store
 
-| Résolution    | Appareil          | Obligatoire |
-|---------------|-------------------|-------------|
-| 1290 × 2796   | **iPhone 15 Plus** (6.7") | ✅ Oui |
-| 1170 × 2532   | iPhone 13 Pro (6.1") | ❌ Non accepté |
+| Résolution    | Appareil                  | Obligatoire | UUID Simulator |
+|---------------|---------------------------|-------------|----------------|
+| 1284 × 2778   | **iPhone 14 Pro Max** (6.7") | ✅ Oui | `8568555E-0543-4BE7-B374-CC934787D57D` |
+| 1290 × 2796   | iPhone 15 Plus (6.7")     | ❌ Non accepté par App Store Connect | `78B0BB67-3882-4D31-B9C7-D455DFC505C3` |
+| 1170 × 2532   | iPhone 13 Pro (6.1")      | ❌ Non accepté | `77F8FC35-195B-4C78-9690-28CF71ECDE54` |
 
-> Apple exige au minimum la taille **6.7"**. Les screenshots 6.1" ne sont pas
-> acceptés comme taille principale dans App Store Connect.
+> App Store Connect exige 1284 × 2778 ou 1242 × 2688. Le 1290 × 2796
+> (iPhone 15 Plus) n'est pas dans la liste acceptée.
 
 ---
 
