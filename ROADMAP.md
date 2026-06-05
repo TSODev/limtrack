@@ -14,6 +14,7 @@
 | [0.5.0] | 2026-06-01 | Secrets via Infisical (EU cloud), fallback .env en local |
 | [0.6.0] | 2026-06-04 | Migration AGPL v3, open source public, licences gratuites sur formulaire, Ko-fi / GitHub Sponsors |
 | [0.7.0] | 2026-06-04 | Dashboard administrateur — stats, utilisateurs, licences, flottes, génération de jetons |
+| [1.0.0] | 2026-06-05 | Version stable — export PDF/CSV, SaaS ready, Mobile ready (PWA), open source AGPL v3 |
 
 ---
 
@@ -78,7 +79,7 @@ Rien en cours.
 
 ---
 
-## v1.0.0 — Open Source + Communauté
+## v1.0.0 — Open Source + Communauté ✅ LIVRÉ
 
 > Modèle retenu (2026-06-04) : **open source, licences gratuites sur demande, dons volontaires** (Ko-fi / GitHub Sponsors).  
 > Objectif : partage et communauté, pas de monétisation.

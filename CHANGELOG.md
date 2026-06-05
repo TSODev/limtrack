@@ -8,6 +8,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+Rien en cours.
+
+---
+
+## [1.0.0] — 2026-06-05
+
+> Première version stable. Application complète, open source AGPL v3, SaaS ready et Mobile ready (PWA).
+
 ### Ajouté
 - **Export PDF contrat** : bouton PDF sur chaque carte LOA et Assurance — rapport stylé (statut, km consommés, restants, projection, dates) ouvert dans un nouvel onglet avec impression automatique.
 - **Export CSV relevés kilométriques** : bouton CSV sur chaque carte contrat — 7 colonnes : Date, Kilométrage, Écart relevé précédent, Trajectoire idéale, Écart vs idéale, Statut trajectoire (En avance / En retard), Source.
