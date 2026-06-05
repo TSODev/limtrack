@@ -346,8 +346,9 @@ fn EditLoaPriceModal(
                 <div class="space-y-1">
                     <label class="text-sm font-medium text-gray-700 block">"Prix (€ / km)"</label>
                     <input
-                        type="number" min="0" step="0.001"
-                        prop:value=price
+                        type="text"
+                        inputmode="decimal"
+                        value=move || price.get()
                         on:input=move |ev| set_price.set(event_target_value(&ev))
                         placeholder="ex: 0.08"
                         class=input_class()
