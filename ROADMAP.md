@@ -17,12 +17,13 @@
 | [1.0.0] | 2026-06-05 | Version stable — export PDF/CSV, SaaS ready, Mobile ready (PWA), open source AGPL v3 |
 | [1.1.0] | 2026-06-05 | Prix/km dépassement LOA, rapport flotte enrichi (contrats), App Store iOS ready |
 | [1.1.0-appstore] | 2026-06-05 | Soumission App Store (build 2, Apple ID 6777175237) — en attente review Apple |
+| [1.1.1] | 2026-06-06 | Réinitialisation du mot de passe par email (token SHA-256, expiry 1h, Resend) |
 
 ---
 
 ## En cours — [Unreleased]
 
-- **Réinitialisation du mot de passe** ✅ livré 2026-06-06 — flux "mot de passe oublié" par email (token SHA-256, expiry 1h, Resend), pages `/forgot-password` et `/reset-password`.
+Rien en cours.
 
 **Prochaine étape :** réponse Apple + publication App Store.
 
