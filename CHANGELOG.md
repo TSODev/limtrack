@@ -8,6 +8,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Amélioré
+- **Login** : le champ identifiant accepte désormais le nom d'utilisateur **ou** l'adresse email (recherche insensible à la casse sur `email`).
+
 ---
 
 ## [1.1.1] — 2026-06-06

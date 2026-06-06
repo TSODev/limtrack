@@ -23,7 +23,7 @@
 
 ## En cours — [Unreleased]
 
-Rien en cours.
+- **Login email ou username** ✅ livré 2026-06-06 — le champ identifiant accepte indifféremment le nom d'utilisateur ou l'adresse email.
 
 **Prochaine étape :** réponse Apple + publication App Store.
 
