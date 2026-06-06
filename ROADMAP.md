@@ -16,12 +16,15 @@
 | [0.7.0] | 2026-06-04 | Dashboard administrateur — stats, utilisateurs, licences, flottes, génération de jetons |
 | [1.0.0] | 2026-06-05 | Version stable — export PDF/CSV, SaaS ready, Mobile ready (PWA), open source AGPL v3 |
 | [1.1.0] | 2026-06-05 | Prix/km dépassement LOA, rapport flotte enrichi (contrats), App Store iOS ready |
+| [1.1.0-appstore] | 2026-06-05 | Soumission App Store (build 2, Apple ID 6777175237) — en attente review Apple |
 
 ---
 
 ## En cours — [Unreleased]
 
-Rien en cours. Prochaine étape : soumission App Store iOS (en attente licence Developer Apple).
+- **Réinitialisation du mot de passe** ✅ livré 2026-06-06 — flux "mot de passe oublié" par email (token SHA-256, expiry 1h, Resend), pages `/forgot-password` et `/reset-password`.
+
+**Prochaine étape :** réponse Apple + publication App Store.
 
 ---
 
