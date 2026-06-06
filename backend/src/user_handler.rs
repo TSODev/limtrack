@@ -131,7 +131,7 @@ pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> impl IntoResponse {
     let user = sqlx::query!(
-        "SELECT id, password_hash FROM public.users WHERE username = $1",
+        "SELECT id, password_hash FROM public.users WHERE username = $1 OR LOWER(email) = LOWER($1)",
         payload.username
     )
     .fetch_optional(&state.db)
