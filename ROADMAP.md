@@ -24,6 +24,7 @@
 ## En cours — [Unreleased]
 
 - **Login email ou username** ✅ livré 2026-06-06 — le champ identifiant accepte indifféremment le nom d'utilisateur ou l'adresse email.
+- **Suppression contrats et relevés km** ✅ livré 2026-06-06 — DELETE LOA/assurance (owner) et relevés km (owner/editor) avec confirmation avant suppression.
 
 **Prochaine étape :** réponse Apple + publication App Store.
 

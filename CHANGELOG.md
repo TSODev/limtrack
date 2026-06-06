@@ -8,6 +8,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Ajouté
+- **Suppression de contrats** : bouton poubelle sur chaque carte contrat LOA et assurance (visible owner uniquement). Modale de confirmation "Cette action est irréversible" avant suppression effective.
+  - `DELETE /api/vehicles/:id/contracts/loa/:contract_id` (owner)
+  - `DELETE /api/vehicles/:id/contracts/insurance/:contract_id` (owner)
+- **Suppression de relevés km** : bouton poubelle discret sur chaque ligne de l'historique (visible owner et editor). Confirmation inline dans la ligne (boutons "Non" / "Oui, supprimer") sans bloquer l'écran.
+  - `DELETE /api/vehicles/:id/mileage/:entry_id` (owner ou editor)
+
 ### Amélioré
 - **Login** : le champ identifiant accepte désormais le nom d'utilisateur **ou** l'adresse email (recherche insensible à la casse sur `email`).
 
