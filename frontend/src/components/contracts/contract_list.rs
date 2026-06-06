@@ -86,6 +86,7 @@ pub fn ContractList(
             <Show when=move || !loading.get() && data.get().is_some() fallback=|| ()>
                 {move || data.get().map(|d| {
                     let total = d.loa.len() + d.insurance.len();
+                    let can_manage = can_manage_contracts.get();
                     if total == 0 {
                         return view! {
                             <div class="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
@@ -98,13 +99,19 @@ pub fn ContractList(
                             {if !d.loa.is_empty() { view! {
                                 <div class="flex flex-col gap-3">
                                     <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-widest">"LOA"</h3>
-                                    {d.loa.into_iter().map(|c| view! { <ContractLoaCard contract=c /> }).collect_view()}
+                                    {d.loa.into_iter().map(|c| {
+                                        let on_deleted = Callback::new(move |_| on_created());
+                                        view! { <ContractLoaCard contract=c can_manage=can_manage on_deleted=on_deleted /> }
+                                    }).collect_view()}
                                 </div>
                             }.into_view() } else { view! { <div /> }.into_view() }}
                             {if !d.insurance.is_empty() { view! {
                                 <div class="flex flex-col gap-3">
                                     <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-widest">"Assurance"</h3>
-                                    {d.insurance.into_iter().map(|c| view! { <ContractInsuranceCard contract=c /> }).collect_view()}
+                                    {d.insurance.into_iter().map(|c| {
+                                        let on_deleted = Callback::new(move |_| on_created());
+                                        view! { <ContractInsuranceCard contract=c can_manage=can_manage on_deleted=on_deleted /> }
+                                    }).collect_view()}
                                 </div>
                             }.into_view() } else { view! { <div /> }.into_view() }}
                         </div>
@@ -132,8 +139,33 @@ pub fn ContractList(
 }
 
 #[component]
-fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
+fn ContractLoaCard(contract: ContractLoa, can_manage: bool, on_deleted: Callback<()>) -> impl IntoView {
     let (show_edit, set_show_edit) = create_signal(false);
+    let (show_confirm_delete, set_show_confirm_delete) = create_signal(false);
+    let contract_id = contract.id;
+    let vehicle_id = contract.vehicle_id;
+    let delete_action = create_action(move |_: &()| async move {
+        let token = get_token().unwrap_or_default();
+        let url = format!(
+            "{}/api/vehicles/{}/contracts/loa/{}",
+            crate::config::API_BASE, vehicle_id, contract_id
+        );
+        let mut opts = web_sys::RequestInit::new();
+        opts.method("DELETE");
+        let headers = web_sys::Headers::new().unwrap();
+        headers.set("Authorization", &format!("Bearer {}", token)).ok();
+        opts.headers(&headers);
+        let req = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
+        if let Ok(resp_val) = wasm_bindgen_futures::JsFuture::from(
+            leptos::window().fetch_with_request(&req)
+        ).await {
+            let resp: web_sys::Response = resp_val.dyn_into().unwrap();
+            if resp.ok() || resp.status() == 204 {
+                on_deleted.call(());
+            }
+        }
+        set_show_confirm_delete.set(false);
+    });
     let pct =
         ((contract.km_consumed as f64 / contract.km_allowed as f64) * 100.0).min(100.0) as u32;
     let (bar_color, badge_color, badge_label) = match contract.status.as_str() {
@@ -212,17 +244,19 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                     <span>{contract.end_date.to_string()}</span>
                 </div>
                 <div class="flex gap-1.5">
-                    // Bouton édition prix/km
-                    <button
-                        on:click=move |_| set_show_edit.set(true)
-                        title="Modifier le prix/km"
-                        class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
-                    >
-                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                        </svg>
-                        "€/km"
-                    </button>
+                    // Bouton édition prix/km (owner uniquement)
+                    <Show when=move || can_manage fallback=|| ()>
+                        <button
+                            on:click=move |_| set_show_edit.set(true)
+                            title="Modifier le prix/km"
+                            class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                            </svg>
+                            "€/km"
+                        </button>
+                    </Show>
                     {
                         let c = contract.clone();
                         view! {
@@ -267,9 +301,31 @@ fn ContractLoaCard(contract: ContractLoa) -> impl IntoView {
                             </button>
                         }
                     }
+                    // Bouton suppression (owner uniquement)
+                    <Show when=move || can_manage fallback=|| ()>
+                        <button
+                            on:click=move |_| set_show_confirm_delete.set(true)
+                            title="Supprimer ce contrat"
+                            class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 transition duration-150"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                            </svg>
+                        </button>
+                    </Show>
                 </div>
             </div>
         </div>
+
+        // Modal confirmation suppression LOA
+        <Show when=move || show_confirm_delete.get() fallback=|| ()>
+            <ConfirmDeleteModal
+                label="ce contrat LOA"
+                on_cancel=Callback::new(move |_| set_show_confirm_delete.set(false))
+                on_confirm=Callback::new(move |_| { delete_action.dispatch(()); })
+                pending=delete_action.pending()
+            />
+        </Show>
 
         // Modal édition prix/km
         <Show when=move || show_edit.get() fallback=|| ()>
@@ -375,7 +431,32 @@ fn EditLoaPriceModal(
 }
 
 #[component]
-fn ContractInsuranceCard(contract: ContractInsurance) -> impl IntoView {
+fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_deleted: Callback<()>) -> impl IntoView {
+    let (show_confirm_delete, set_show_confirm_delete) = create_signal(false);
+    let contract_id = contract.id;
+    let vehicle_id = contract.vehicle_id;
+    let delete_action = create_action(move |_: &()| async move {
+        let token = get_token().unwrap_or_default();
+        let url = format!(
+            "{}/api/vehicles/{}/contracts/insurance/{}",
+            crate::config::API_BASE, vehicle_id, contract_id
+        );
+        let mut opts = web_sys::RequestInit::new();
+        opts.method("DELETE");
+        let headers = web_sys::Headers::new().unwrap();
+        headers.set("Authorization", &format!("Bearer {}", token)).ok();
+        opts.headers(&headers);
+        let req = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
+        if let Ok(resp_val) = wasm_bindgen_futures::JsFuture::from(
+            leptos::window().fetch_with_request(&req)
+        ).await {
+            let resp: web_sys::Response = resp_val.dyn_into().unwrap();
+            if resp.ok() || resp.status() == 204 {
+                on_deleted.call(());
+            }
+        }
+        set_show_confirm_delete.set(false);
+    });
     let contract_for_pdf = contract.clone();
     let pct =
         ((contract.km_consumed as f64 / contract.km_annual_limit as f64) * 100.0).min(100.0) as u32;
@@ -488,13 +569,81 @@ fn ContractInsuranceCard(contract: ContractInsurance) -> impl IntoView {
                             </button>
                         }
                     }
+                    // Bouton suppression (owner uniquement)
+                    <Show when=move || can_manage fallback=|| ()>
+                        <button
+                            on:click=move |_| set_show_confirm_delete.set(true)
+                            title="Supprimer ce contrat"
+                            class="flex items-center gap-1 text-xs px-2 py-1 rounded border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 transition duration-150"
+                        >
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                            </svg>
+                        </button>
+                    </Show>
+                </div>
+            </div>
+        </div>
+
+        // Modal confirmation suppression Assurance
+        <Show when=move || show_confirm_delete.get() fallback=|| ()>
+            <ConfirmDeleteModal
+                label="ce contrat d'assurance"
+                on_cancel=Callback::new(move |_| set_show_confirm_delete.set(false))
+                on_confirm=Callback::new(move |_| { delete_action.dispatch(()); })
+                pending=delete_action.pending()
+            />
+        </Show>
+    }
+}
+
+// ─── Modals ──────────────────────────────────────────────────────
+
+#[component]
+fn ConfirmDeleteModal(
+    label: &'static str,
+    on_cancel: Callback<()>,
+    on_confirm: Callback<()>,
+    pending: ReadSignal<bool>,
+) -> impl IntoView {
+    view! {
+        <button type="button"
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default"
+            on:click=move |_| on_cancel.call(()) />
+        <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm p-8 space-y-6">
+                <div class="flex items-center gap-3">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">"Confirmer la suppression"</h2>
+                        <p class="text-sm text-gray-500 mt-0.5">"Cette action est irréversible."</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600">
+                    "Voulez-vous vraiment supprimer "
+                    <span class="font-semibold">{label}</span>
+                    " ?"
+                </p>
+                <div class="flex gap-3">
+                    <button type="button" on:click=move |_| on_cancel.call(())
+                        class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150">
+                        "Annuler"
+                    </button>
+                    <button type="button"
+                        on:click=move |_| on_confirm.call(())
+                        prop:disabled=move || pending.get()
+                        class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition duration-150">
+                        {move || if pending.get() { "Suppression..." } else { "Supprimer" }}
+                    </button>
                 </div>
             </div>
         </div>
     }
 }
-
-// ─── Modals ──────────────────────────────────────────────────────
 
 #[component]
 fn LoaModal(

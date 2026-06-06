@@ -252,6 +252,32 @@ pub async fn list_loa(
     (StatusCode::OK, Json(contracts)).into_response()
 }
 
+// ─── DELETE /vehicles/:vehicle_id/contracts/loa/:contract_id ────
+
+pub async fn delete_loa(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path((vehicle_id, contract_id)): Path<(Uuid, Uuid)>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if let Err(e) = require_owner(&state.db, vehicle_id, user_id).await {
+        return e.into_response();
+    }
+    match sqlx::query!(
+        "DELETE FROM public.contracts_loa WHERE id = $1 AND vehicle_id = $2",
+        contract_id,
+        vehicle_id,
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(r) if r.rows_affected() == 0 => {
+            err(StatusCode::NOT_FOUND, "Contrat introuvable").into_response()
+        }
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
+}
+
 // ─── PATCH /vehicles/:vehicle_id/contracts/loa/:contract_id ─────
 
 #[derive(serde::Deserialize)]
@@ -348,6 +374,32 @@ pub async fn create_insurance(
             format!("Erreur création assurance : {}", e),
         )
         .into_response(),
+    }
+}
+
+// ─── DELETE /vehicles/:vehicle_id/contracts/insurance/:contract_id
+
+pub async fn delete_insurance(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path((vehicle_id, contract_id)): Path<(Uuid, Uuid)>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if let Err(e) = require_owner(&state.db, vehicle_id, user_id).await {
+        return e.into_response();
+    }
+    match sqlx::query!(
+        "DELETE FROM public.contracts_insurance WHERE id = $1 AND vehicle_id = $2",
+        contract_id,
+        vehicle_id,
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(r) if r.rows_affected() == 0 => {
+            err(StatusCode::NOT_FOUND, "Contrat introuvable").into_response()
+        }
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
     }
 }
 

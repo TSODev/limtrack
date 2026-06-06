@@ -202,6 +202,32 @@ pub async fn create_mileage(
     }
 }
 
+// ─── DELETE /vehicles/:vehicle_id/mileage/:entry_id ─────────────
+
+pub async fn delete_mileage(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path((vehicle_id, entry_id)): Path<(Uuid, Uuid)>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if let Err(e) = require_editor(&state.db, vehicle_id, user_id).await {
+        return e.into_response();
+    }
+    match sqlx::query!(
+        "DELETE FROM public.mileage_log WHERE id = $1 AND vehicle_id = $2",
+        entry_id,
+        vehicle_id,
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(r) if r.rows_affected() == 0 => {
+            err(StatusCode::NOT_FOUND, "Relevé introuvable").into_response()
+        }
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
+}
+
 // ─── GET /vehicles/:vehicle_id/mileage ───────────────────────────
 // Retourne l'historique complet des relevés, du plus récent au plus ancien
 

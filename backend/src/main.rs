@@ -16,8 +16,11 @@ mod state;
 mod user_handler;
 mod vehicles_handler;
 
-use crate::contracts_handler::{create_insurance, create_loa, list_insurance, list_loa, update_loa};
-use crate::mileage_handler::{create_mileage, list_mileage};
+use crate::contracts_handler::{
+    create_insurance, create_loa, delete_insurance, delete_loa, list_insurance, list_loa,
+    update_loa,
+};
+use crate::mileage_handler::{create_mileage, delete_mileage, list_mileage};
 use crate::share_handler::{create_share_code, join_with_code};
 use crate::state::AppState;
 use crate::user_handler::{
@@ -103,7 +106,7 @@ async fn main() {
         )
         .route(
             "/api/vehicles/:vehicle_id/contracts/loa/:contract_id",
-            axum::routing::patch(update_loa),
+            axum::routing::patch(update_loa).delete(delete_loa),
         )
         // Contrats Assurance
         .route(
@@ -111,8 +114,16 @@ async fn main() {
             get(list_insurance).post(create_insurance),
         )
         .route(
+            "/api/vehicles/:vehicle_id/contracts/insurance/:contract_id",
+            axum::routing::delete(delete_insurance),
+        )
+        .route(
             "/api/vehicles/:vehicle_id/mileage",
             get(list_mileage).post(create_mileage),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/mileage/:entry_id",
+            axum::routing::delete(delete_mileage),
         )
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))

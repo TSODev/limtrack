@@ -10,6 +10,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
     let (entries, set_entries) = create_signal(Vec::<MileageLog>::new());
     let (loading, set_loading) = create_signal(false);
     let (show_modal, set_show_modal) = create_signal(false);
+    let (confirm_delete_id, set_confirm_delete_id) = create_signal(Option::<Uuid>::None);
 
     let load_mileage = move |id: Uuid| {
         set_loading.set(true);
@@ -35,6 +36,33 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
         if let Some(id) = vehicle_id.get() {
             load_mileage(id);
         }
+    };
+
+    let delete_entry = move |entry_id: Uuid| {
+        let vid = vehicle_id.get();
+        spawn_local(async move {
+            let Some(id) = vid else { return };
+            let Some(token) = get_token() else { return };
+            let url = format!(
+                "{}/api/vehicles/{}/mileage/{}",
+                crate::config::API_BASE, id, entry_id
+            );
+            let mut opts = web_sys::RequestInit::new();
+            opts.method("DELETE");
+            let headers = web_sys::Headers::new().unwrap();
+            headers.set("Authorization", &format!("Bearer {}", token)).ok();
+            opts.headers(&headers);
+            let Ok(req) = web_sys::Request::new_with_str_and_init(&url, &opts) else { return };
+            if let Ok(resp_val) = wasm_bindgen_futures::JsFuture::from(
+                leptos::window().fetch_with_request(&req)
+            ).await {
+                let resp: web_sys::Response = resp_val.dyn_into().unwrap();
+                if resp.ok() || resp.status() == 204 {
+                    load_mileage(id);
+                }
+            }
+            set_confirm_delete_id.set(None);
+        });
     };
 
     view! {
@@ -101,11 +129,15 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                                 <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Compteur"</th>
                                                 <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Écart"</th>
                                                 <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Source"</th>
+                                                <Show when=move || can_edit.get() fallback=|| ()>
+                                                    <th class="w-8" />
+                                                </Show>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {data.iter().enumerate().map(|(i, entry)| {
                                                 let entry = entry.clone();
+                                                let entry_id = entry.id;
                                                 let next = data.get(i + 1).cloned();
                                                 let ecart = next.map(|n| entry.value - n.value);
                                                 let source_label = match entry.source.as_str() {
@@ -114,6 +146,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                                     "api"    => ("API",      "bg-purple-100 text-purple-600"),
                                                     _        => ("—",        "bg-gray-100 text-gray-400"),
                                                 };
+                                                let is_confirming = move || confirm_delete_id.get() == Some(entry_id);
                                                 view! {
                                                     <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-100">
                                                         <td class="px-4 py-3 text-gray-700">{entry.recorded_at.to_string()}</td>
@@ -126,6 +159,32 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                                                 {source_label.0}
                                                             </span>
                                                         </td>
+                                                        <Show when=move || can_edit.get() fallback=|| ()>
+                                                            <td class="px-2 py-2 text-right whitespace-nowrap">
+                                                                <Show when=is_confirming fallback=move || view! {
+                                                                    <button
+                                                                        on:click=move |_| set_confirm_delete_id.set(Some(entry_id))
+                                                                        title="Supprimer ce relevé"
+                                                                        class="text-gray-300 hover:text-red-500 transition-colors duration-100 p-1 rounded"
+                                                                    >
+                                                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                                        </svg>
+                                                                    </button>
+                                                                }>
+                                                                    <div class="flex items-center gap-1 justify-end">
+                                                                        <button
+                                                                            on:click=move |_| set_confirm_delete_id.set(None)
+                                                                            class="text-xs px-1.5 py-0.5 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 transition duration-150"
+                                                                        >"Non"</button>
+                                                                        <button
+                                                                            on:click=move |_| delete_entry(entry_id)
+                                                                            class="text-xs px-1.5 py-0.5 rounded border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 font-medium transition duration-150"
+                                                                        >"Oui, supprimer"</button>
+                                                                    </div>
+                                                                </Show>
+                                                            </td>
+                                                        </Show>
                                                     </tr>
                                                 }
                                             }).collect_view()}
