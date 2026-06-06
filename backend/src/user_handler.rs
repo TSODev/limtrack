@@ -9,7 +9,10 @@ use axum::{
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::auth::{AuthenticatedUser, Claims};
@@ -40,6 +43,17 @@ pub struct RegisterRequest {
 #[derive(Deserialize)]
 pub struct ChangePasswordRequest {
     pub current_password: String,
+    pub new_password: String,
+}
+
+#[derive(Deserialize)]
+pub struct ForgotPasswordRequest {
+    pub email: String,
+}
+
+#[derive(Deserialize)]
+pub struct ResetPasswordRequest {
+    pub token: String,
     pub new_password: String,
 }
 
@@ -724,4 +738,181 @@ pub async fn delete_account(
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response(),
     }
+}
+
+// ─── POST /api/user/forgot-password ──────────────────────────────
+
+pub async fn forgot_password(
+    State(state): State<AppState>,
+    Json(payload): Json<ForgotPasswordRequest>,
+) -> impl IntoResponse {
+    let email = payload.email.trim().to_lowercase();
+
+    let user = sqlx::query!(
+        "SELECT id, username FROM public.users WHERE LOWER(email) = $1",
+        email
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let user = match user {
+        Ok(Some(u)) => u,
+        // Ne pas révéler si l'email existe ou non
+        Ok(None) => return StatusCode::OK.into_response(),
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    };
+
+    let raw_token = Uuid::new_v4().to_string();
+    let token_hash = format!("{:x}", Sha256::digest(raw_token.as_bytes()));
+    let expires_at = Utc::now() + Duration::hours(1);
+
+    let update = sqlx::query!(
+        "UPDATE public.users SET password_reset_token = $1, password_reset_expires_at = $2 WHERE id = $3",
+        token_hash,
+        expires_at,
+        user.id
+    )
+    .execute(&state.db)
+    .await;
+
+    if update.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response();
+    }
+
+    if !state.resend_api_key.is_empty() {
+        let reset_link = format!("https://limtrack.app/reset-password?token={}", raw_token);
+        let html = build_reset_email_html(&user.username, &reset_link);
+        let _ = Client::new()
+            .post("https://api.resend.com/emails")
+            .header("Authorization", format!("Bearer {}", state.resend_api_key))
+            .json(&json!({
+                "from": "LimTrack <noreply@limtrack.app>",
+                "to": [&email],
+                "subject": "Réinitialisation de votre mot de passe LimTrack",
+                "html": html,
+            }))
+            .send()
+            .await;
+    }
+
+    StatusCode::OK.into_response()
+}
+
+// ─── POST /api/user/reset-password ───────────────────────────────
+
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(payload): Json<ResetPasswordRequest>,
+) -> impl IntoResponse {
+    let token_hash = format!("{:x}", Sha256::digest(payload.token.as_bytes()));
+
+    let user = sqlx::query!(
+        r#"
+        SELECT id, username, email
+        FROM public.users
+        WHERE password_reset_token = $1
+          AND password_reset_expires_at > NOW()
+        "#,
+        token_hash
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let user = match user {
+        Ok(Some(u)) => u,
+        Ok(None) => return err(StatusCode::BAD_REQUEST, "Lien invalide ou expiré").into_response(),
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    };
+
+    if let Err(msg) = check_password_strength(
+        &payload.new_password,
+        &[&user.username, &user.email],
+    ) {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, msg).into_response();
+    }
+
+    let hashed = match hash(&payload.new_password, DEFAULT_COST) {
+        Ok(h) => h,
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur de hachage").into_response(),
+    };
+
+    match sqlx::query!(
+        r#"
+        UPDATE public.users
+        SET password_hash = $1,
+            password_reset_token = NULL,
+            password_reset_expires_at = NULL
+        WHERE id = $2
+        "#,
+        hashed,
+        user.id
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur mise à jour").into_response(),
+    }
+}
+
+fn build_reset_email_html(username: &str, reset_link: &str) -> String {
+    format!(r#"<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Réinitialisation — LimTrack</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+        <tr>
+          <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
+            <p style="margin:0;font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">LimTrack</p>
+            <p style="margin:8px 0 0;font-size:13px;color:#c4b5fd;">Gestion de flotte kilométrique</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;padding:40px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#1e293b;">Bonjour {username},</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#64748b;line-height:1.6;">
+              Vous avez demandé la réinitialisation de votre mot de passe LimTrack.<br/>
+              Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.<br/>
+              Ce lien est valable <strong>1 heure</strong>.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+              <tr>
+                <td align="center">
+                  <a href="{reset_link}"
+                     style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:8px;">
+                    Réinitialiser mon mot de passe →
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 16px;font-size:13px;color:#94a3b8;line-height:1.6;">
+              Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.<br/>
+              Votre mot de passe ne sera pas modifié.
+            </p>
+            <p style="margin:0;font-size:12px;color:#cbd5e1;word-break:break-all;">
+              Lien : {reset_link}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f1f5f9;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:20px 40px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#94a3b8;">
+              LimTrack · <a href="https://limtrack.app" style="color:#6366f1;text-decoration:none;">limtrack.app</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"#,
+        username = username,
+        reset_link = reset_link,
+    )
 }

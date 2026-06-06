@@ -25,6 +25,8 @@ struct ApiError {
 const EXEMPT_PATHS: &[&str] = &[
     "/login",
     "/api/user/register",
+    "/api/user/forgot-password",
+    "/api/user/reset-password",
     "/api/profile/license",
     "/api/profile/redeem",
     "/api/license/request",

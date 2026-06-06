@@ -10,11 +10,13 @@ use pages::about::AboutPage;
 use pages::privacy::PrivacyPage;
 use pages::admin::AdminPage;
 use pages::fleet::FleetPage;
+use pages::forgot_password::ForgotPasswordPage;
 use pages::home::HomePage;
 use pages::login::LoginPage;
 use pages::mainpage::MainPage;
 use pages::profile::ProfilePage;
 use pages::register::RegisterPage;
+use pages::reset_password::ResetPasswordPage;
 use pages::request_license::RequestLicensePage;
 
 #[component]
@@ -31,6 +33,8 @@ fn App() -> impl IntoView {
                     <Route path="/fleet" view=FleetPage />
                     <Route path="/about" view=AboutPage />
                     <Route path="/request-license" view=RequestLicensePage />
+                    <Route path="/forgot-password" view=ForgotPasswordPage />
+                    <Route path="/reset-password" view=ResetPasswordPage />
                     <Route path="/privacy" view=PrivacyPage />
                     <Route path="/admin" view=AdminPage />
                 </Routes>

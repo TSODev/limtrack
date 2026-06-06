@@ -111,9 +111,14 @@ pub fn LoginPage() -> impl IntoView {
 
                     // Groupe : Mot de passe
                     <div class="space-y-2">
-                        <label for="password" class="text-sm font-medium text-gray-700 block">
-                            "Mot de passe :"
-                        </label>
+                        <div class="flex items-center justify-between">
+                            <label for="password" class="text-sm font-medium text-gray-700 block">
+                                "Mot de passe :"
+                            </label>
+                            <A href="/forgot-password" class="text-xs text-indigo-600 hover:text-indigo-500 transition duration-150">
+                                "Mot de passe oublié ?"
+                            </A>
+                        </div>
                         <input
                             type="password"
                             id="password"

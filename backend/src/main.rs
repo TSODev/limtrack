@@ -22,15 +22,17 @@ use crate::share_handler::{create_share_code, join_with_code};
 use crate::state::AppState;
 use crate::user_handler::{
     change_password,
+    delete_account,
+    forgot_password,
     get_preferences,
     get_profile,
     get_shares,
     leave_vehicle,
     login,
     register,
+    reset_password,
     revoke_access,
     update_preferences,
-    delete_account,
 };
 use crate::admin_handler::{generate_token_handler, get_stats, list_companies_admin, list_license_requests, list_users};
 use crate::ios_handler::ios_activate;
@@ -89,6 +91,8 @@ async fn main() {
         // Auth (user_handler — State<AppState>)
         .route("/login", post(login))
         .route("/api/user/register", post(register))
+        .route("/api/user/forgot-password", post(forgot_password))
+        .route("/api/user/reset-password", post(reset_password))
         // Vehicles (vehicles_handler — State<AppState>)
         .route("/api/vehicles", get(list_vehicles))
         .route("/api/vehicles", post(create_vehicle))

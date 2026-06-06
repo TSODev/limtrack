@@ -1,10 +1,12 @@
 pub mod about;
 pub mod admin;
 pub mod fleet;
+pub mod forgot_password;
 pub mod home;
 pub mod login;
 pub mod mainpage;
 pub mod profile;
 pub mod register;
+pub mod reset_password;
 pub mod privacy;
 pub mod request_license;
