@@ -120,12 +120,16 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
+-- users.password_reset_token TEXT NULL — migration 008, hash SHA-256 du token de reset
+-- users.password_reset_expires_at TIMESTAMPTZ NULL — migration 008, expiry 1h
 ```
 
 ## Routes API
 ```
 POST   /login
 POST   /api/user/register
+POST   /api/user/forgot-password    ← public, envoie email reset (token SHA-256, expiry 1h)
+POST   /api/user/reset-password     ← public, valide token + met à jour mot de passe
 GET    /api/profile
 DELETE /api/profile              ← suppression compte (nouveau)
 POST   /api/profile/password
@@ -157,7 +161,7 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 ## Licences — système de jetons
 - Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
-- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/ios/activate`, `/api/admin/*`
+- Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/user/forgot-password`, `/api/user/reset-password`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/ios/activate`, `/api/admin/*`
 - **Dashboard admin** : routes `/api/admin/*` protégées par `AdminUser` extractor (vérifie `users.is_admin = true`). Activer avec `UPDATE public.users SET is_admin = TRUE WHERE email = '...'`
 - `AppState` contient `resend_api_key: String` (lu au démarrage depuis Infisical via `load_secrets()`)
 - **Mode lecture seule** : licence expirée → `GET` passe (lecture autorisée), `POST/PUT/DELETE/PATCH` → `402 Payment Required`

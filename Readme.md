@@ -83,6 +83,8 @@ limtrack/
 │   │   ├── profile.rs
 │   │   ├── about.rs                # À propos, Ko-fi, GitHub Sponsors
 │   │   ├── request_license.rs      # /request-license : formulaire licence gratuite
+│   │   ├── forgot_password.rs      # /forgot-password : demande de réinitialisation
+│   │   ├── reset_password.rs       # /reset-password?token= : nouveau mot de passe
 │   │   └── admin.rs                # /admin : dashboard administrateur
 │   └── components/
 │       ├── ui.rs                   # helpers : input_class(), get_token(), format_km()
@@ -101,7 +103,7 @@ limtrack/
 ├── frontend/src-tauri/             # Tauri iOS
 ├── common/src/lib.rs               # Types partagés backend/frontend
 ├── Cargo.toml                      # Workspace (version 0.7.0)
-├── sql/migrations/                 # Migrations SQL (001→005)
+├── sql/migrations/                 # Migrations SQL (001→008)
 ├── .github/workflows/
 │   └── deploy-frontend.yml         # CI/CD Cloudflare Pages
 └── Trunk.toml
@@ -166,9 +168,11 @@ limtrack/
 - ✅ Vérification de la solidité des mots de passe via [`zxcvbn`](https://github.com/shssoichiro/zxcvbn-rs) (score ≥ 3/4) à l'inscription et au changement de mot de passe
 - ✅ Feedback explicite retourné si le mot de passe est trop faible
 - ✅ Détection des mots de passe dérivés du username ou de l'email
+- ✅ **Réinitialisation du mot de passe** par email (token SHA-256, expiry 1h, via Resend)
 
 ### Profil
 - ✅ Modification du mot de passe
+- ✅ **Mot de passe oublié** : lien sur la page de connexion → email de réinitialisation
 - ✅ Préférences de notification (sliders)
 - ✅ Gestion des partages (véhicules possédés et partagés)
 - ✅ Suppression de compte (zone dangereuse)

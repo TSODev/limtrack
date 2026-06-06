@@ -8,6 +8,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Ajouté
+- **Réinitialisation du mot de passe** : flux complet "mot de passe oublié" par email.
+  - `POST /api/user/forgot-password` (public) — cherche l'utilisateur par email, génère un token UUID, stocke son hash SHA-256 en base avec expiry 1h, envoie un email Resend contenant le lien de reset. Répond toujours `200` (ne révèle pas si l'email existe).
+  - `POST /api/user/reset-password` (public) — vérifie le token (hash SHA-256 + expiry), valide la force du nouveau mot de passe (zxcvbn ≥ 3/4), met à jour le hash bcrypt, efface le token.
+  - **Migration `008`** : colonnes `password_reset_token TEXT` et `password_reset_expires_at TIMESTAMPTZ` ajoutées à `users`.
+  - **Frontend** : page `/forgot-password` (formulaire email, message générique) + page `/reset-password` (lit `?token=` depuis l'URL, formulaire double saisie, redirection `/login` après succès).
+  - **Lien** "Mot de passe oublié ?" ajouté à côté du label "Mot de passe" sur la page de connexion.
+  - Les deux routes sont exemptées du middleware 402 (licence).
+
 ---
 
 ## [1.1.0-appstore] — 2026-06-05
