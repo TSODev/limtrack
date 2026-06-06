@@ -8,6 +8,10 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.1.1] — 2026-06-06
+
 ### Ajouté
 - **Réinitialisation du mot de passe** : flux complet "mot de passe oublié" par email.
   - `POST /api/user/forgot-password` (public) — cherche l'utilisateur par email, génère un token UUID, stocke son hash SHA-256 en base avec expiry 1h, envoie un email Resend contenant le lien de reset. Répond toujours `200` (ne révèle pas si l'email existe).
