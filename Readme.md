@@ -403,22 +403,6 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ---
 
-## Roadmap
-
-- ✅ App web responsive mobile-first
-- ✅ App iOS via Tauri Mobile
-- ✅ Gestion de flotte d'entreprise (entreprises, organisations, membres, rôles)
-- ✅ Suppression de compte utilisateur
-- ✅ Système de licences par jetons (trial + personal + fleet + lifetime)
-- ✅ Notifications d'expiration in-app et email (Resend)
-- [ ] Notifications push natives
-- ✅ Formulaire de demande de licence gratuite (envoi automatique par email)
-- ✅ Ko-fi et GitHub Sponsors
-- ✅ Dashboard administrateur (stats, utilisateurs, licences, flottes)
-- ✅ Export PDF / CSV — contrats, relevés kilométriques et données de flotte
-
----
-
 ## Licence gratuite
 
 LimTrack est open source et gratuit. Demandez un jeton de licence (365 jours) sur **[limtrack.app/request-license](https://limtrack.app/request-license)**.
