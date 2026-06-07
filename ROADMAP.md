@@ -25,6 +25,9 @@
 
 ## En cours — [Unreleased]
 
+- [x] Broadcast messages — messages ponctuels admin → utilisateurs (banner, auto-dismiss, exclude_ios)
+- [x] `--help` clap sur tous les CLIs
+
 **Prochaine étape :** réponse Apple + publication App Store.
 
 ---

@@ -40,10 +40,12 @@ limtrack/
 │   ├── license_middleware.rs  ← middleware 402 si licence expirée
 │   ├── request_license_handler.rs ← POST /api/license/request (public, délivrance automatique)
 │   ├── admin_handler.rs           ← /api/admin/* — dashboard admin (AdminUser extractor, is_admin requis)
+│   ├── broadcast_handler.rs       ← GET /api/broadcasts/active — message ponctuel filtré selon is_ios
 │   └── bin/
 │       ├── gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
 │       ├── assign_license.rs  ← CLI assignation jetons manuel/batch CSV
-│       └── notify_expiry.rs   ← CLI déclenchement manuel notifications email
+│       ├── notify_expiry.rs   ← CLI déclenchement manuel notifications email
+│       └── send_broadcast.rs  ← CLI envoi broadcast (--message, --days, --exclude-ios)
 ├── frontend/src/
 │   ├── config.rs              ← API_BASE = "https://api.limtrack.app"
 │   ├── build.rs               ← lit git describe --tags → APP_VERSION (fallback CARGO_PKG_VERSION)
@@ -123,6 +125,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- users.password_reset_token TEXT NULL — migration 008, hash SHA-256 du token de reset
 -- users.password_reset_expires_at TIMESTAMPTZ NULL — migration 008, expiry 1h
 -- vehicles.archived_at TIMESTAMPTZ NULL — migration 009, archivage fin de LOA
+-- broadcasts (id, message, created_at, expires_at, exclude_ios) — migration 010, messages broadcast admin
 ```
 
 ## Routes API
@@ -178,6 +181,9 @@ GET         /api/admin/users
 GET         /api/admin/license-requests
 POST        /api/admin/generate-token
 GET         /api/admin/companies
+
+# Broadcasts
+GET         /api/broadcasts/active                                ← message actif (filtré is_ios si exclude_ios)
 ```
 
 ## Licences — système de jetons
@@ -216,6 +222,17 @@ cargo run --bin assign-license -- --file batch.csv   # CSV: email,token
 
 # Notifications email manuelles
 cargo run --bin notify-expiry
+
+# Broadcast message à tous les utilisateurs
+cargo run --bin send-broadcast -- --message "Texte du message"
+cargo run --bin send-broadcast -- --message "Texte" --days 7          # expire dans 7 jours
+cargo run --bin send-broadcast -- --message "Dons Ko-fi" --exclude-ios  # masqué sur iOS (règle 3.1.1)
+
+# Aide sur n'importe quel CLI
+cargo run --bin gen-tokens -- --help
+cargo run --bin assign-license -- --help
+cargo run --bin notify-expiry -- --help
+cargo run --bin send-broadcast -- --help
 ```
 
 ## Sécurité — vérification des mots de passe

@@ -6,6 +6,18 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Ajouté
+- **Broadcast messages** : système de messages ponctuels envoyés à tous les utilisateurs, affichés une seule fois après connexion (banner bas d'écran, auto-dismiss 10s + bouton ✕). Suivi par ID en localStorage.
+  - `GET /api/broadcasts/active` — retourne le broadcast actif le plus récent, filtré selon `is_ios` si `exclude_ios = true`
+  - Migration `010` : table `broadcasts (id, message, created_at, expires_at, exclude_ios)`
+  - Flag `exclude_ios` : masque le message pour les comptes iOS App Store (conformité règle Apple 3.1.1 — pas de sollicitation de dons)
+  - CLI `send-broadcast` : `--message`, `--days` (optionnel), `--exclude-ios`
+- **`--help` sur tous les CLIs** : intégration de `clap` (derive API) sur `gen-tokens`, `assign-license`, `notify-expiry` et `send-broadcast`. Chaque CLI expose une description courte, une description longue et la liste des options typées.
+
+---
+
 ## [1.1.3] — 2026-06-07
 
 ### Ajouté
