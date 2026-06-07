@@ -1,4 +1,5 @@
 use crate::components::add_vehicle_button::AddVehicleButton;
+use crate::components::broadcast_banner::BroadcastBanner;
 use crate::components::join_vehicle_button::JoinVehicleButton;
 use crate::components::notification_bell::NotificationBell;
 use crate::components::vehicle_dashboard::VehicleDashboard;
@@ -18,6 +19,7 @@ pub fn MainPage() -> impl IntoView {
     let (has_fleet, set_has_fleet) = create_signal(false);
     let (is_admin, set_is_admin) = create_signal(false);
     let (is_ios_user, set_is_ios_user) = create_signal(false);
+    let (broadcast, set_broadcast) = create_signal(Option::<(String, String)>::None); // (id, message)
 
     let navigate_effect = navigate.clone();
     create_effect(move |_| {
@@ -29,10 +31,11 @@ pub fn MainPage() -> impl IntoView {
 
         if let Some(token) = token {
             set_is_authenticated.set(true);
-            let token_fleet = token.clone();
-            let token_admin = token.clone();
-            let token_ios   = token.clone();
-            let token_archived = token.clone();
+            let token_fleet     = token.clone();
+            let token_admin     = token.clone();
+            let token_ios       = token.clone();
+            let token_archived  = token.clone();
+            let token_broadcast = token.clone();
             spawn_local(async move {
                 match fetch_vehicles(&token).await {
                     Ok(data) => set_vehicles.set(data),
@@ -58,6 +61,21 @@ pub fn MainPage() -> impl IntoView {
                     // Cache pour les pages secondaires (about, profile) — évite le flash
                     if let Ok(Some(storage)) = leptos::window().local_storage() {
                         let _ = storage.set_item("limtrack_is_ios", if ios { "1" } else { "0" });
+                    }
+                }
+            });
+
+            // Broadcast message (une seule fois par message, suivi en localStorage)
+            spawn_local(async move {
+                if let Some((id, msg)) = fetch_broadcast(&token_broadcast).await {
+                    let storage = leptos::window().local_storage().ok().flatten();
+                    let key = format!("seen_broadcast_{}", id);
+                    let already_seen = storage.as_ref()
+                        .and_then(|s| s.get_item(&key).ok())
+                        .flatten()
+                        .is_some();
+                    if !already_seen {
+                        set_broadcast.set(Some((id, msg)));
                     }
                 }
             });
@@ -383,6 +401,27 @@ pub fn MainPage() -> impl IntoView {
                 // Footer desktop uniquement
                 <footer class="hidden md:block shrink-0 bg-white border-t border-gray-200 p-4" />
             </div>
+
+            // Broadcast banner (message ponctuel, auto-dismiss 10s)
+            <Show when=move || broadcast.get().is_some() fallback=|| ()>
+                {move || broadcast.get().map(|(id, msg)| {
+                    let id_dismiss = id.clone();
+                    view! {
+                        <BroadcastBanner
+                            message=msg
+                            on_dismiss=Callback::new(move |_| {
+                                if let Ok(Some(storage)) = leptos::window().local_storage() {
+                                    let _ = storage.set_item(
+                                        &format!("seen_broadcast_{}", id_dismiss),
+                                        "1",
+                                    );
+                                }
+                                set_broadcast.set(None);
+                            })
+                        />
+                    }
+                })}
+            </Show>
         </Show>
     }
 }
@@ -412,4 +451,32 @@ pub async fn fetch_profile_flags(token: &str) -> Result<(bool, bool), String> {
         v["is_admin"].as_bool().unwrap_or(false),
         v["is_ios"].as_bool().unwrap_or(false),
     ))
+}
+
+/// Retourne Some((id, message)) si un broadcast actif existe et n'a pas encore été vu.
+async fn fetch_broadcast(token: &str) -> Option<(String, String)> {
+    use wasm_bindgen::JsCast;
+
+    let url = format!("{}/api/broadcasts/active", crate::config::API_BASE);
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("GET");
+    let headers = web_sys::Headers::new().ok()?;
+    headers.set("Authorization", &format!("Bearer {}", token)).ok()?;
+    opts.headers(&headers);
+
+    let req = web_sys::Request::new_with_str_and_init(&url, &opts).ok()?;
+    let resp_value = wasm_bindgen_futures::JsFuture::from(
+        leptos::window().fetch_with_request(&req)
+    ).await.ok()?;
+    let resp: web_sys::Response = resp_value.dyn_into().ok()?;
+
+    if resp.status() == 204 { return None; }
+    if !resp.ok() { return None; }
+
+    let json = wasm_bindgen_futures::JsFuture::from(resp.json().ok()?).await.ok()?;
+    let v: serde_json::Value = serde_wasm_bindgen::from_value(json).ok()?;
+
+    let id  = v["id"].as_str()?.to_string();
+    let msg = v["message"].as_str()?.to_string();
+    Some((id, msg))
 }

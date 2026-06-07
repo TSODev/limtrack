@@ -1,4 +1,5 @@
 pub mod add_vehicle_button;
+pub mod broadcast_banner;
 pub mod contracts;
 pub mod join_vehicle_button;
 pub mod mileage;

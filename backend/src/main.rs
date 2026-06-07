@@ -2,6 +2,7 @@
 
 mod admin_handler;
 mod auth;
+mod broadcast_handler;
 mod ios_handler;
 mod company_handler;
 mod contracts_handler;
@@ -38,6 +39,7 @@ use crate::user_handler::{
     update_preferences,
 };
 use crate::admin_handler::{generate_token_handler, get_stats, list_companies_admin, list_license_requests, list_users};
+use crate::broadcast_handler::get_active_broadcast;
 use crate::ios_handler::ios_activate;
 use crate::license_handler::{get_license, redeem_token};
 use crate::request_license_handler::request_license;
@@ -143,6 +145,7 @@ async fn main() {
         .route("/api/profile/redeem", post(redeem_token))
         .route("/api/license/request", post(request_license))
         .route("/api/ios/activate", post(ios_activate))
+        .route("/api/broadcasts/active", get(get_active_broadcast))
         // Admin
         .route("/api/admin/stats", get(get_stats))
         .route("/api/admin/users", get(list_users))

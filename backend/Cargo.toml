@@ -41,3 +41,7 @@ reqwest = { workspace = true }
 [[bin]]
 name = "notify-expiry"
 path = "src/bin/notify_expiry.rs"
+
+[[bin]]
+name = "send-broadcast"
+path = "src/bin/send_broadcast.rs"
