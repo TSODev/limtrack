@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>odo.io</title>
+    <title>LimTrack</title>
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
@@ -13,7 +13,7 @@
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="odo.io" />
+    <meta name="apple-mobile-web-app-title" content="LimTrack" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
     <!-- Android -->
@@ -22,18 +22,32 @@
     <!-- SEO -->
     <meta name="description" content="Gérez vos contrats LOA et assurance, suivez vos kilométrages et recevez des alertes avant de dépasser vos limites." />
 
-    <link rel="stylesheet" href="/output-b435985f16e143a3.css" integrity="sha384-dJWlS7sX5KpbRsxl3s2ccobt+7PVoIWOaeV1yZIYRKuWUkx0cH0cO685Md1CWTVa"/>
+    <link rel="stylesheet" href="/output-7a12b79a3c80605d.css" integrity="sha384-lwyjQVaTHf3KStIeb7Y9G4TqRkNlidVo0mCO9OLnJ8LRL6WBMNJ2Lp0kPSlkfAq3"/>
+    <style>
+        html { background-color: #ffffff; }
+        body { overscroll-behavior-y: none; }
+        /* Par défaut : safe area CSS native */
+        :root { --nav-top: env(safe-area-inset-top); }
+        /* En contexte Tauri iOS : minimum 44px pour couvrir Dynamic Island */
+        .tauri-ios { --nav-top: max(env(safe-area-inset-top), 44px); }
+    </style>
+    <script>
+        /* Tauri injecte __TAURI__ de façon synchrone avant le parsing DOM */
+        if (typeof __TAURI__ !== 'undefined') {
+            document.documentElement.classList.add('tauri-ios');
+        }
+    </script>
 
     <!-- Fichiers statiques copiés vers dist/ -->
     
     
     
-<link rel="modulepreload" href="/frontend-a4e4663b0b655f17.js" crossorigin="anonymous" integrity="sha384-SEEFEKhS4vAT0Ii0+T5D2zltWA28tJeLeA4dC22JyB1i84JSulvtU5d7AIBckK/E"><link rel="preload" href="/frontend-a4e4663b0b655f17_bg.wasm" crossorigin="anonymous" integrity="sha384-5RHqXw1jPp1lPGdc7yFk7jk4qoB4TCQymbPSYQjvkff96P27zGdGKnEP/BnriMfR" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/frontend-9e05bdc8f16260fc.js" crossorigin="anonymous" integrity="sha384-G1hDoKqlPogo7CD9VdS2aJ2atEb5oggsDFy36/s8GAFDeDZWwX8ZitPgVEjlzzGb"><link rel="preload" href="/frontend-9e05bdc8f16260fc_bg.wasm" crossorigin="anonymous" integrity="sha384-CZr+50CjtIdaxc1svOPj5VRIEq0qobZITA9FvmP54JjtgjZsCupLBaQ8E+WVZsbv" as="fetch" type="application/wasm"></head>
 
 <body>
 <script type="module">
-import init, * as bindings from '/frontend-a4e4663b0b655f17.js';
-const wasm = await init({ module_or_path: '/frontend-a4e4663b0b655f17_bg.wasm' });
+import init, * as bindings from '/frontend-9e05bdc8f16260fc.js';
+const wasm = await init({ module_or_path: '/frontend-9e05bdc8f16260fc_bg.wasm' });
 
 
 window.wasmBindings = bindings;

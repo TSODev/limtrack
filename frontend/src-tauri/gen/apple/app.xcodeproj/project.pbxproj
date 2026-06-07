@@ -39,7 +39,7 @@
 		CE1209BFDECB28E00189B168 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		D8F57162F5CC7AEDD55F173D /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		F3673D372C5ABDD1AD6E7067 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
-		FBC720DFA1D01F55B0A32344 /* odo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = odo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FBC720DFA1D01F55B0A32344 /* LimTrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LimTrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,7 +136,7 @@
 		EE72B6AC647386A11F795E44 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				FBC720DFA1D01F55B0A32344 /* odo.app */,
+				FBC720DFA1D01F55B0A32344 /* LimTrack.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -170,7 +170,7 @@
 			packageProductDependencies = (
 			);
 			productName = app_iOS;
-			productReference = FBC720DFA1D01F55B0A32344 /* odo.app */;
+			productReference = FBC720DFA1D01F55B0A32344 /* LimTrack.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -287,8 +287,8 @@
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = fr.tsodev.odo;
-				PRODUCT_NAME = "odo";
+				PRODUCT_BUNDLE_IDENTIFIER = fr.tsodev.limtrack;
+				PRODUCT_NAME = "LimTrack";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64  x86_64";
@@ -388,8 +388,8 @@
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = fr.tsodev.odo;
-				PRODUCT_NAME = "odo";
+				PRODUCT_BUNDLE_IDENTIFIER = fr.tsodev.limtrack;
+				PRODUCT_NAME = "LimTrack";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64  x86_64";
