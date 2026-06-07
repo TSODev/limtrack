@@ -355,41 +355,66 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ## API — Routes principales
 
-### Véhicules & profil
+### Auth & Profil
 
-| Méthode           | Route                                   | Description                    |
-| ----------------- | --------------------------------------- | ------------------------------ |
-| `POST`            | `/login`                                | Authentification               |
-| `POST`            | `/api/user/register`                    | Inscription                    |
-| `GET/DELETE`      | `/api/profile`                          | Profil / suppression de compte |
-| `POST`            | `/api/profile/password`                 | Changement de mot de passe     |
-| `GET/PUT`         | `/api/profile/preferences`              | Préférences notifications      |
-| `GET`             | `/api/profile/shares`                   | Gestion des partages           |
-| `GET/POST`        | `/api/vehicles`                         | Liste / création véhicules     |
-| `GET/DELETE/PATCH`| `/api/vehicles/:id`                     | Détail / suppression / édition |
-| `POST`            | `/api/vehicles/:id/share`               | Génère un code de partage      |
-| `POST`            | `/api/vehicles/join`                    | Rejoindre via code             |
-| `DELETE`          | `/api/vehicles/:id/access/:user_id`     | Révoquer un accès              |
-| `DELETE`          | `/api/vehicles/:id/leave`               | Quitter un véhicule partagé    |
-| `GET/POST`        | `/api/vehicles/:id/contracts/loa`       | Contrats LOA                   |
-| `GET/POST`        | `/api/vehicles/:id/contracts/insurance` | Contrats Assurance             |
-| `GET/POST`        | `/api/vehicles/:id/mileage`             | Relevés kilométriques          |
+| Méthode      | Route                               | Description                                      |
+| ------------ | ----------------------------------- | ------------------------------------------------ |
+| `POST`       | `/login`                            | Authentification (email ou username)             |
+| `POST`       | `/api/user/register`                | Inscription                                      |
+| `POST`       | `/api/user/forgot-password`         | Demande de réinitialisation du mot de passe      |
+| `POST`       | `/api/user/reset-password`          | Réinitialisation du mot de passe (token SHA-256) |
+| `GET/DELETE` | `/api/profile`                      | Profil / suppression de compte                   |
+| `POST`       | `/api/profile/password`             | Changement de mot de passe                       |
+| `GET/PUT`    | `/api/profile/preferences`          | Préférences notifications                        |
+| `GET`        | `/api/profile/shares`               | Gestion des partages                             |
+| `GET`        | `/api/profile/license`              | Statut de la licence                             |
+| `POST`       | `/api/profile/redeem`               | Activer un jeton de licence                      |
+| `POST`       | `/api/license/request`              | Demander un jeton gratuit 365j (public)          |
+| `POST`       | `/api/ios/activate`                 | Activation iOS App Store (public)                |
+
+### Véhicules
+
+| Méthode        | Route                                              | Description                        |
+| -------------- | -------------------------------------------------- | ---------------------------------- |
+| `GET/POST`     | `/api/vehicles`                                    | Liste / création véhicules         |
+| `GET/DELETE`   | `/api/vehicles/:id`                                | Détail / suppression               |
+| `POST`         | `/api/vehicles/:id/share`                          | Génère un code de partage          |
+| `POST`         | `/api/vehicles/join`                               | Rejoindre via code                 |
+| `DELETE`       | `/api/vehicles/:id/access/:user_id`                | Révoquer un accès                  |
+| `DELETE`       | `/api/vehicles/:id/leave`                          | Quitter un véhicule partagé        |
+| `GET/POST`     | `/api/vehicles/:id/contracts/loa`                  | Liste / création contrats LOA      |
+| `PATCH/DELETE` | `/api/vehicles/:id/contracts/loa/:contract_id`     | Modifier / supprimer contrat LOA   |
+| `GET/POST`     | `/api/vehicles/:id/contracts/insurance`            | Liste / création contrats assurance|
+| `DELETE`       | `/api/vehicles/:id/contracts/insurance/:contract_id` | Supprimer contrat assurance      |
+| `GET/POST`     | `/api/vehicles/:id/mileage`                        | Liste / ajout relevés km           |
+| `DELETE`       | `/api/vehicles/:id/mileage/:entry_id`              | Supprimer un relevé km             |
+| `POST/DELETE`  | `/api/vehicles/:id/fleet`                          | Assigner / retirer d'une flotte    |
 
 ### Gestion de flotte
 
-| Méthode           | Route                                              | Description                        |
-| ----------------- | -------------------------------------------------- | ---------------------------------- |
-| `GET/POST`        | `/api/companies`                                   | Liste / création d'entreprises     |
-| `GET/DELETE`      | `/api/companies/:id`                               | Détail / suppression entreprise    |
-| `GET/POST`        | `/api/companies/:id/organizations`                 | Organisations d'une entreprise     |
-| `DELETE`          | `/api/companies/:id/organizations/:oid`            | Supprimer une organisation         |
-| `GET/POST`        | `/api/companies/:id/members`                       | Membres d'une entreprise           |
-| `DELETE`          | `/api/companies/:id/members/:uid`                  | Retirer un membre                  |
-| `GET/POST`        | `/api/companies/:id/fleet-roles`                   | Rôles fleet (global ou par org)    |
-| `DELETE`          | `/api/companies/:id/fleet-roles/:role_id`          | Révoquer un rôle fleet             |
-| `GET`             | `/api/companies/:id/vehicles`                      | Véhicules de la flotte             |
-| `GET`             | `/api/companies/:id/organizations/:oid/vehicles`   | Véhicules par organisation         |
-| `POST/DELETE`     | `/api/vehicles/:id/fleet`                          | Assigner / retirer d'une flotte    |
+| Méthode      | Route                                            | Description                      |
+| ------------ | ------------------------------------------------ | -------------------------------- |
+| `GET/POST`   | `/api/companies`                                 | Liste / création d'entreprises   |
+| `GET/DELETE` | `/api/companies/:id`                             | Détail / suppression entreprise  |
+| `GET/POST`   | `/api/companies/:id/organizations`               | Organisations d'une entreprise   |
+| `DELETE`     | `/api/companies/:id/organizations/:oid`          | Supprimer une organisation       |
+| `GET/POST`   | `/api/companies/:id/members`                     | Membres d'une entreprise         |
+| `DELETE`     | `/api/companies/:id/members/:uid`                | Retirer un membre                |
+| `GET/POST`   | `/api/companies/:id/fleet-roles`                 | Rôles fleet (global ou par org)  |
+| `DELETE`     | `/api/companies/:id/fleet-roles/:role_id`        | Révoquer un rôle fleet           |
+| `GET`        | `/api/companies/:id/vehicles`                    | Véhicules de la flotte           |
+| `GET`        | `/api/companies/:id/organizations/:oid/vehicles` | Véhicules par organisation       |
+| `GET`        | `/api/companies/:id/fleet-report`                | Rapport flotte complet (PDF/CSV) |
+
+### Administration
+
+| Méthode  | Route                           | Description                              |
+| -------- | ------------------------------- | ---------------------------------------- |
+| `GET`    | `/api/admin/stats`              | Statistiques globales                    |
+| `GET`    | `/api/admin/users`              | Liste des utilisateurs                   |
+| `GET`    | `/api/admin/license-requests`   | Demandes de licences gratuites           |
+| `POST`   | `/api/admin/generate-token`     | Générer un jeton depuis le dashboard     |
+| `GET`    | `/api/admin/companies`          | Liste des entreprises (admin)            |
 
 ---
 

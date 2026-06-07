@@ -126,36 +126,54 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 
 ## Routes API
 ```
-POST   /login
-POST   /api/user/register
-POST   /api/user/forgot-password    ← public, envoie email reset (token SHA-256, expiry 1h)
-POST   /api/user/reset-password     ← public, valide token + met à jour mot de passe
-GET    /api/profile
-DELETE /api/profile              ← suppression compte (nouveau)
-POST   /api/profile/password
-GET    /api/profile/shares
-GET/PUT /api/profile/preferences
-GET/POST /api/vehicles
-GET/DELETE/PATCH /api/vehicles/:id
-POST   /api/vehicles/:id/share
-POST   /api/vehicles/join
-DELETE /api/vehicles/:id/access/:user_id
-DELETE /api/vehicles/:id/leave
-GET/POST /api/vehicles/:id/contracts/loa
-GET/POST /api/vehicles/:id/contracts/insurance
-GET/POST /api/vehicles/:id/mileage
-POST/DELETE /api/vehicles/:id/fleet     ← assigner/retirer un véhicule d'une flotte
+# Auth & Profil (public sauf mention)
+POST        /login                                             ← email ou username
+POST        /api/user/register
+POST        /api/user/forgot-password                         ← public, token SHA-256, expiry 1h
+POST        /api/user/reset-password                          ← public, valide token + maj bcrypt
+GET/DELETE  /api/profile
+POST        /api/profile/password
+GET         /api/profile/shares
+GET/PUT     /api/profile/preferences
+GET         /api/profile/license
+POST        /api/profile/redeem
+POST        /api/license/request                              ← public, jeton 365j gratuit (renouvellement si précédent utilisé)
+POST        /api/ios/activate                                 ← public, activation iOS App Store
 
-GET/POST   /api/companies
-GET/DELETE /api/companies/:id
-GET/POST   /api/companies/:id/organizations
-DELETE     /api/companies/:id/organizations/:oid
-GET/POST   /api/companies/:id/members
-DELETE     /api/companies/:id/members/:uid
-GET/POST   /api/companies/:id/fleet-roles
-DELETE     /api/companies/:id/fleet-roles/:role_id
-GET        /api/companies/:id/vehicles
-GET        /api/companies/:id/organizations/:oid/vehicles
+# Véhicules
+GET/POST    /api/vehicles
+GET/DELETE  /api/vehicles/:id
+POST        /api/vehicles/:id/share
+POST        /api/vehicles/join
+DELETE      /api/vehicles/:id/access/:user_id
+DELETE      /api/vehicles/:id/leave
+GET/POST    /api/vehicles/:id/contracts/loa
+PATCH/DELETE /api/vehicles/:id/contracts/loa/:contract_id
+GET/POST    /api/vehicles/:id/contracts/insurance
+DELETE      /api/vehicles/:id/contracts/insurance/:contract_id
+GET/POST    /api/vehicles/:id/mileage
+DELETE      /api/vehicles/:id/mileage/:entry_id
+POST/DELETE /api/vehicles/:id/fleet                           ← assigner/retirer d'une flotte
+
+# Flotte
+GET/POST    /api/companies
+GET/DELETE  /api/companies/:id
+GET/POST    /api/companies/:id/organizations
+DELETE      /api/companies/:id/organizations/:oid
+GET/POST    /api/companies/:id/members
+DELETE      /api/companies/:id/members/:uid
+GET/POST    /api/companies/:id/fleet-roles
+DELETE      /api/companies/:id/fleet-roles/:role_id
+GET         /api/companies/:id/vehicles
+GET         /api/companies/:id/organizations/:oid/vehicles
+GET         /api/companies/:id/fleet-report                   ← rapport PDF/CSV flotte
+
+# Admin (is_admin = true requis)
+GET         /api/admin/stats
+GET         /api/admin/users
+GET         /api/admin/license-requests
+POST        /api/admin/generate-token
+GET         /api/admin/companies
 ```
 
 ## Licences — système de jetons
