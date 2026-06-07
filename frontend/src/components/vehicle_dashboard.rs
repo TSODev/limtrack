@@ -1,6 +1,7 @@
 use common::{AccessRole, VehicleWithAccess};
 use leptos::*;
 use uuid::Uuid;
+use wasm_bindgen::JsCast;
 
 use crate::components::contracts::contract_list::ContractList;
 use crate::components::contracts::contract_widget::ContractsWidget;
