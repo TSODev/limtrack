@@ -168,7 +168,7 @@ GET        /api/companies/:id/organizations/:oid/vehicles
 - Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
 - Durées disponibles : 30, 90, 180, 365 jours
 - **Page d'inscription** : encadré info "Période d'essai gratuite — 3 mois" affiché avant le bouton de soumission ; message de succès rappelle la durée d'essai
-- **Délivrance automatique** : `POST /api/license/request` (public, sans auth) — email → jeton 365j généré et envoyé via Resend. 1 jeton max par adresse (table `license_requests`). `RESEND_API_KEY` lu au démarrage via `AppState.resend_api_key`.
+- **Délivrance automatique** : `POST /api/license/request` (public, sans auth) — email → jeton 365j généré et envoyé via Resend. Anti-doublon via table `license_requests` : une nouvelle demande est autorisée uniquement si le jeton précédent a déjà été utilisé (permettant le renouvellement annuel pour les LOA 3-4 ans). `RESEND_API_KEY` lu au démarrage via `AppState.resend_api_key`.
 
 ## iOS App Store — modèle payant
 - **Version web (PWA)** : gratuite, licences sur demande, dons Ko-fi/GitHub Sponsors

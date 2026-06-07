@@ -18,6 +18,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ### Amélioré
 - **Login** : le champ identifiant accepte désormais le nom d'utilisateur **ou** l'adresse email (recherche insensible à la casse sur `email`).
 
+### Corrigé
+- **Renouvellement de licence gratuite** : `POST /api/license/request` autorise désormais une nouvelle demande si le jeton précédemment envoyé a déjà été utilisé (activé). Nécessaire pour les utilisateurs ayant des LOA de 3-4 ans dont la licence annuelle arrive à expiration. L'anti-doublon reste actif tant que le jeton en cours n'a pas été consommé.
+
 ---
 
 ## [1.1.1] — 2026-06-06
