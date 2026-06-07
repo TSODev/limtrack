@@ -11,6 +11,7 @@ pub fn VehicleHeader(
 ) -> impl IntoView {
     let (show_share_modal, set_show_share_modal) = create_signal(false);
     let (show_delete_modal, set_show_delete_modal) = create_signal(false);
+    let (show_archive_modal, set_show_archive_modal) = create_signal(false);
     let (archive_error, set_archive_error) = create_signal(String::new());
 
     let is_owner = create_memo(move |_| {
@@ -23,10 +24,11 @@ pub fn VehicleHeader(
     view! {
         <Show when=move || vehicle.get().is_some() fallback=|| ()>
             {move || vehicle.get().map(|v| {
-                let vehicle_name       = format!("{} {}", v.make, v.model);
-                let vehicle_name_share = vehicle_name.clone();
-                let vehicle_name_del   = vehicle_name.clone();
-                let plate              = v.plate_number.clone();
+                let vehicle_name         = format!("{} {}", v.make, v.model);
+                let vehicle_name_share   = vehicle_name.clone();
+                let vehicle_name_del     = vehicle_name.clone();
+                let vehicle_name_archive = vehicle_name.clone();
+                let plate                = v.plate_number.clone();
                 let plate_display      = v.plate_number.clone();
                 let is_archived        = v.archived_at.is_some();
                 let vid                = v.id;
@@ -112,17 +114,7 @@ pub fn VehicleHeader(
                                     } else {
                                         view! {
                                             <button
-                                                on:click=move |_| {
-                                                    set_archive_error.set(String::new());
-                                                    let token = get_token().unwrap_or_default();
-                                                    spawn_local(async move {
-                                                        let url = format!("{}/api/vehicles/{}/archive", crate::config::API_BASE, vid);
-                                                        match patch_json(&url, &token).await {
-                                                            Ok(_) => on_archived.call((vid, true)),
-                                                            Err(e) => set_archive_error.set(e),
-                                                        }
-                                                    });
-                                                }
+                                                on:click=move |_| set_show_archive_modal.set(true)
                                                 class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 hover:bg-amber-50 transition duration-150"
                                             >
                                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -172,6 +164,24 @@ pub fn VehicleHeader(
                             on_deleted=Callback::new(move |id| {
                                 set_show_delete_modal.set(false);
                                 on_deleted.call(id);
+                            })
+                        />
+                    </Show>
+
+                    // Modal de confirmation d'archivage
+                    <Show when=move || show_archive_modal.get() fallback=|| ()>
+                        <ArchiveModal
+                            vehicle_id=v.id
+                            vehicle_name=vehicle_name_archive.clone()
+                            on_close=Callback::new(move |_| set_show_archive_modal.set(false))
+                            on_archived=Callback::new(move |(id, state)| {
+                                set_archive_error.set(String::new());
+                                set_show_archive_modal.set(false);
+                                on_archived.call((id, state));
+                            })
+                            on_error=Callback::new(move |e| {
+                                set_show_archive_modal.set(false);
+                                set_archive_error.set(e);
                             })
                         />
                     </Show>
@@ -448,6 +458,78 @@ fn ShareModal(
                 >
                     "Fermer"
                 </button>
+            </div>
+        </div>
+    }
+}
+
+// ─── Modal d'archivage ───────────────────────────────────────────
+
+#[component]
+fn ArchiveModal(
+    vehicle_id: uuid::Uuid,
+    vehicle_name: String,
+    on_close: Callback<()>,
+    on_archived: Callback<(uuid::Uuid, bool)>,
+    on_error: Callback<String>,
+) -> impl IntoView {
+    let (pending, set_pending) = create_signal(false);
+
+    let confirm = create_action(move |_: &()| async move {
+        set_pending.set(true);
+        let token = get_token().unwrap_or_default();
+        let url = format!("{}/api/vehicles/{}/archive", crate::config::API_BASE, vehicle_id);
+        match patch_json(&url, &token).await {
+            Ok(_) => on_archived.call((vehicle_id, true)),
+            Err(e) => on_error.call(e),
+        }
+        set_pending.set(false);
+    });
+
+    view! {
+        <button
+            type="button"
+            class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default"
+            on:click=move |_| on_close.call(())
+        />
+        <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6">
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">"Archiver le véhicule"</h2>
+                        <p class="text-sm text-gray-500 mt-1">{vehicle_name}</p>
+                    </div>
+                    <button
+                        on:click=move |_| on_close.call(())
+                        class="text-gray-400 hover:text-gray-600 text-xl font-light"
+                    >"✕"</button>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+                    <p class="text-sm font-semibold text-amber-700">"Fin de LOA"</p>
+                    <p class="text-xs text-amber-600">
+                        "Le véhicule sera masqué de votre tableau de bord. Toutes ses données (contrats, relevés) sont conservées et restent consultables depuis la section « Archivés »."
+                    </p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button
+                        type="button"
+                        on:click=move |_| on_close.call(())
+                        class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
+                    >
+                        "Annuler"
+                    </button>
+                    <button
+                        type="button"
+                        on:click=move |_| confirm.dispatch(())
+                        prop:disabled=move || pending.get()
+                        class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150"
+                    >
+                        {move || if pending.get() { "Archivage…" } else { "Archiver" }}
+                    </button>
+                </div>
             </div>
         </div>
     }
