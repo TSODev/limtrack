@@ -15,6 +15,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
   - Flag `exclude_ios` : masque le message pour les comptes iOS App Store (conformité règle Apple 3.1.1 — pas de sollicitation de dons)
   - CLI `send-broadcast` : `--message`, `--days` (optionnel), `--exclude-ios`
 - **`--help` sur tous les CLIs** : intégration de `clap` (derive API) sur `gen-tokens`, `assign-license`, `notify-expiry` et `send-broadcast`. Chaque CLI expose une description courte, une description longue et la liste des options typées.
+- **`backend/src/bin/CLI.md`** : documentation complète des utilitaires — options, variables d'environnement, exemples de commandes et format de sortie.
 
 ---
 

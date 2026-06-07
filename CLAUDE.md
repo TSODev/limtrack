@@ -45,7 +45,8 @@ limtrack/
 │       ├── gen_tokens.rs      ← CLI génération jetons (cargo run --bin gen-tokens)
 │       ├── assign_license.rs  ← CLI assignation jetons manuel/batch CSV
 │       ├── notify_expiry.rs   ← CLI déclenchement manuel notifications email
-│       └── send_broadcast.rs  ← CLI envoi broadcast (--message, --days, --exclude-ios)
+│       ├── send_broadcast.rs  ← CLI envoi broadcast (--message, --days, --exclude-ios)
+│       └── CLI.md             ← documentation complète de tous les utilitaires
 ├── frontend/src/
 │   ├── config.rs              ← API_BASE = "https://api.limtrack.app"
 │   ├── build.rs               ← lit git describe --tags → APP_VERSION (fallback CARGO_PKG_VERSION)
