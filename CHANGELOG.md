@@ -6,7 +6,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [1.1.2] — 2026-06-07
 
 ### Ajouté
 - **Archivage de véhicules** : un véhicule dont la LOA est terminée peut être archivé (owner uniquement) sans perdre l'historique. Il disparaît de la liste principale et apparaît dans une section repliée "Archivés (N)". Le désarchivage remet le véhicule dans la liste active.

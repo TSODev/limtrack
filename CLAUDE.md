@@ -377,6 +377,6 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.1.0`
+`1.1.2`
 
 

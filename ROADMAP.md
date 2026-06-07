@@ -18,15 +18,11 @@
 | [1.1.0] | 2026-06-05 | Prix/km dépassement LOA, rapport flotte enrichi (contrats), App Store iOS ready |
 | [1.1.0-appstore] | 2026-06-05 | Soumission App Store (build 2, Apple ID 6777175237) — en attente review Apple |
 | [1.1.1] | 2026-06-06 | Réinitialisation du mot de passe par email (token SHA-256, expiry 1h, Resend) |
+| [1.1.2] | 2026-06-07 | Archivage véhicules (LOA terminée), renouvellement licence gratuite, suppression contrats/relevés km |
 
 ---
 
 ## En cours — [Unreleased]
-
-- **Login email ou username** ✅ livré 2026-06-06 — le champ identifiant accepte indifféremment le nom d'utilisateur ou l'adresse email.
-- **Suppression contrats et relevés km** ✅ livré 2026-06-06 — DELETE LOA/assurance (owner) et relevés km (owner/editor) avec confirmation avant suppression.
-- **Renouvellement licence gratuite** ✅ livré 2026-06-07 — un utilisateur peut re-demander un jeton gratuit une fois le précédent activé (LOA 3-4 ans).
-- **Archivage de véhicules** ✅ livré 2026-06-07 — archiver/désarchiver un véhicule en fin de LOA sans perdre l'historique ; section "Archivés" repliable dans la liste.
 
 **Prochaine étape :** réponse Apple + publication App Store.
 
