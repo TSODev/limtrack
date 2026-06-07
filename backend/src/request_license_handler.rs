@@ -120,28 +120,42 @@ pub async fn request_license(
             .into_response();
     }
 
-    // 1 jeton max par adresse email
+    // Anti-doublon : autoriser une nouvelle demande seulement si le jeton précédent a été utilisé
     let existing = sqlx::query!(
-        "SELECT id FROM public.license_requests WHERE email = $1",
+        "SELECT token_hash FROM public.license_requests WHERE email = $1",
         email
     )
     .fetch_optional(&state.db)
     .await;
 
     match existing {
-        Ok(Some(_)) => {
-            return (
-                StatusCode::CONFLICT,
-                Json(json!({"error": "Un jeton a déjà été envoyé à cette adresse email"})),
-            )
-                .into_response();
-        }
         Err(_) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": "Erreur base de données"})),
             )
                 .into_response();
+        }
+        Ok(Some(row)) => {
+            let was_used = sqlx::query_scalar!(
+                "SELECT used_at FROM public.license_tokens WHERE token_hash = $1",
+                row.token_hash
+            )
+            .fetch_optional(&state.db)
+            .await
+            .ok()
+            .flatten()
+            .flatten()
+            .is_some();
+
+            if !was_used {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(json!({"error": "Un jeton vous a déjà été envoyé et n'a pas encore été utilisé. Vérifiez vos emails."})),
+                )
+                    .into_response();
+            }
+            // Jeton précédent consommé → autoriser le renouvellement
         }
         Ok(None) => {}
     }
@@ -195,9 +209,10 @@ pub async fn request_license(
         warn!("license/request: RESEND_API_KEY absente — email non envoyé à {}", email);
     }
 
-    // Enregistrer la demande (anti-doublon)
+    // Enregistrer la demande (upsert pour permettre le renouvellement)
     let _ = sqlx::query!(
-        "INSERT INTO public.license_requests (email, token_hash) VALUES ($1, $2)",
+        "INSERT INTO public.license_requests (email, token_hash) VALUES ($1, $2)
+         ON CONFLICT (email) DO UPDATE SET token_hash = EXCLUDED.token_hash",
         email,
         hash
     )

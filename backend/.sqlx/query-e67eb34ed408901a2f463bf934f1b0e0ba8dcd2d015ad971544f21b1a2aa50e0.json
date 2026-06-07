@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO public.license_requests (email, token_hash) VALUES ($1, $2)\n         ON CONFLICT (email) DO UPDATE SET token_hash = EXCLUDED.token_hash",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e67eb34ed408901a2f463bf934f1b0e0ba8dcd2d015ad971544f21b1a2aa50e0"
+}
