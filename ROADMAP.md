@@ -19,6 +19,7 @@
 | [1.1.0-appstore] | 2026-06-05 | Soumission App Store (build 2, Apple ID 6777175237) — en attente review Apple |
 | [1.1.1] | 2026-06-06 | Réinitialisation du mot de passe par email (token SHA-256, expiry 1h, Resend) |
 | [1.1.2] | 2026-06-07 | Archivage véhicules (LOA terminée), renouvellement licence gratuite, suppression contrats/relevés km |
+| [1.1.3] | 2026-06-07 | Confirmation avant archivage, correctifs UX (chevron, bouton amber invisible) |
 
 ---
 

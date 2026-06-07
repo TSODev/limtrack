@@ -6,6 +6,17 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.1.3] — 2026-06-07
+
+### Ajouté
+- **Confirmation avant archivage** : un clic sur "Archiver" ouvre désormais une modale explicative avant de lancer l'opération. L'encadré rappelle que les données sont conservées et restent consultables dans la section "Archivés".
+
+### Corrigé
+- **Chevron section "Archivés"** : la flèche dépliante dans le panneau liste des véhicules était trop grande — réduite de `w-3.5 h-3.5` à `w-2.5 h-2.5`, trait affiné (`stroke-width 2 → 1.5`).
+- **Bouton "Archiver" invisible** : `bg-amber-600` absent du CSS Tailwind compilé causait un texte blanc sur fond blanc. CSS reconstruit.
+
+---
+
 ## [1.1.2] — 2026-06-07
 
 ### Ajouté
