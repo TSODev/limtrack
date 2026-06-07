@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        ORDER BY v.created_at DESC\n        ",
+  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.id = $2\n        ",
   "describe": {
     "columns": [
       {
@@ -45,12 +45,18 @@
       },
       {
         "ordinal": 8,
+        "name": "archived_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
         "name": "role",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Uuid"
       ]
     },
@@ -63,8 +69,9 @@
       true,
       true,
       false,
+      true,
       false
     ]
   },
-  "hash": "4b7c52de9fcf10156537f25c5ee96dacf80b2298330ee674b92da737263a817c"
+  "hash": "900e9f30f4c1ef83ef42afe6d00dd91e235bc796f52e21693ed856de0f5f196d"
 }

@@ -11,8 +11,11 @@ pub fn Vehicle_list(
     vehicles: ReadSignal<Vec<Vehicle>>,
     set_vehicles: WriteSignal<Vec<Vehicle>>,
     set_selected: WriteSignal<Option<uuid::Uuid>>,
+    archived_vehicles: ReadSignal<Vec<Vehicle>>,
     #[prop(optional)] hide_actions: bool,
 ) -> impl IntoView {
+    let (show_archived, set_show_archived) = create_signal(false);
+
     view! {
         <div class="h-full flex flex-col bg-white rounded-xl border border-gray-100">
             // En-tête
@@ -22,6 +25,7 @@ pub fn Vehicle_list(
 
             // Liste scrollable
             <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                // Véhicules actifs
                 <Show
                     when=move || !vehicles.get().is_empty()
                     fallback=|| view! {
@@ -43,6 +47,43 @@ pub fn Vehicle_list(
                         }
                     />
                 </Show>
+
+                // Section véhicules archivés
+                <Show when=move || !archived_vehicles.get().is_empty() fallback=|| ()>
+                    <div class="mt-2">
+                        <button
+                            on:click=move |_| set_show_archived.update(|b| *b = !*b)
+                            class="w-full flex items-center justify-between px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition duration-150"
+                        >
+                            <span>
+                                {move || format!("Archivés ({})", archived_vehicles.get().len())}
+                            </span>
+                            <svg
+                                class=move || format!(
+                                    "w-3.5 h-3.5 transition-transform duration-150 {}",
+                                    if show_archived.get() { "rotate-180" } else { "" }
+                                )
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+
+                        <Show when=move || show_archived.get() fallback=|| ()>
+                            <div class="flex flex-col gap-2 mt-1">
+                                <For
+                                    each=move || archived_vehicles.get()
+                                    key=|v| v.id
+                                    children=move |v| view! {
+                                        <div class="opacity-60">
+                                            <VehicleCard vehicle=v set_selected=set_selected />
+                                        </div>
+                                    }
+                                />
+                            </div>
+                        </Show>
+                    </div>
+                </Show>
             </div>
 
             // Boutons en bas (masqués si hide_actions=true)
@@ -57,8 +98,22 @@ pub fn Vehicle_list(
 }
 
 pub async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
-    let url = format!("{}/api/vehicles", crate::config::API_BASE);
+    fetch_from(
+        &format!("{}/api/vehicles", crate::config::API_BASE),
+        token,
+    )
+    .await
+}
 
+pub async fn fetch_archived_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
+    fetch_from(
+        &format!("{}/api/vehicles/archived", crate::config::API_BASE),
+        token,
+    )
+    .await
+}
+
+async fn fetch_from(url: &str, token: &str) -> Result<Vec<Vehicle>, String> {
     let mut opts = web_sys::RequestInit::new();
     opts.method("GET");
 
@@ -75,7 +130,7 @@ pub async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
     opts.headers(&headers);
 
     let request =
-        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
 
     let window = leptos::window();
     let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))

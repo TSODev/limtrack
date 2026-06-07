@@ -2,7 +2,7 @@ use crate::components::add_vehicle_button::AddVehicleButton;
 use crate::components::join_vehicle_button::JoinVehicleButton;
 use crate::components::notification_bell::NotificationBell;
 use crate::components::vehicle_dashboard::VehicleDashboard;
-use crate::components::vehicle_list::{fetch_vehicles, Vehicle_list};
+use crate::components::vehicle_list::{fetch_archived_vehicles, fetch_vehicles, Vehicle_list};
 use crate::pages::fleet::fetch_companies_count;
 use leptos::*;
 use leptos_router::*;
@@ -10,6 +10,7 @@ use leptos_router::*;
 #[component]
 pub fn MainPage() -> impl IntoView {
     let (vehicles, set_vehicles) = create_signal(vec![]);
+    let (archived_vehicles, set_archived_vehicles) = create_signal(vec![]);
     let navigate = use_navigate();
     let (is_authenticated, set_is_authenticated) = create_signal(false);
     let (selected_vehicle_id, set_selected_vehicle_id) = create_signal(Option::<uuid::Uuid>::None);
@@ -31,10 +32,17 @@ pub fn MainPage() -> impl IntoView {
             let token_fleet = token.clone();
             let token_admin = token.clone();
             let token_ios   = token.clone();
+            let token_archived = token.clone();
             spawn_local(async move {
                 match fetch_vehicles(&token).await {
                     Ok(data) => set_vehicles.set(data),
                     Err(e) => leptos::logging::error!("Erreur fetch véhicules : {:?}", e),
+                }
+            });
+            spawn_local(async move {
+                match fetch_archived_vehicles(&token_archived).await {
+                    Ok(data) => set_archived_vehicles.set(data),
+                    Err(e) => leptos::logging::error!("Erreur fetch archivés : {:?}", e),
                 }
             });
             // Vérification silencieuse — pas d'impact si 0 entreprises
@@ -253,6 +261,7 @@ pub fn MainPage() -> impl IntoView {
                             vehicles=vehicles
                             set_vehicles=set_vehicles
                             set_selected=set_selected_vehicle_id
+                            archived_vehicles=archived_vehicles
                         />
                     </aside>
                     <main class="flex-1 flex flex-col min-h-0 py-4 pr-4">
@@ -260,6 +269,7 @@ pub fn MainPage() -> impl IntoView {
                             selected_id=selected_vehicle_id
                             set_selected_id=set_selected_vehicle_id
                             set_vehicles=set_vehicles
+                            set_archived_vehicles=set_archived_vehicles
                         />
                     </main>
                 </div>
@@ -273,6 +283,7 @@ pub fn MainPage() -> impl IntoView {
                             selected_id=selected_vehicle_id
                             set_selected_id=set_selected_vehicle_id
                             set_vehicles=set_vehicles
+                            set_archived_vehicles=set_archived_vehicles
                         />
                     </main>
 
@@ -354,6 +365,7 @@ pub fn MainPage() -> impl IntoView {
                                     vehicles=vehicles
                                     set_vehicles=set_vehicles
                                     set_selected=set_selected_vehicle_id
+                                    archived_vehicles=archived_vehicles
                                     hide_actions=true
                                 />
                             </div>

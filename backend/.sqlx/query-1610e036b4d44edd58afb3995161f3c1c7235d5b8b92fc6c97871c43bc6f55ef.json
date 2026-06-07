@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO public.vehicles (owner_id, make, model, plate_number, year, vin)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        RETURNING\n            id,\n            owner_id,\n            make,\n            model,\n            plate_number,\n            year,\n            vin,\n            created_at,\n            'owner' AS role\n        ",
+  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.archived_at IS NULL\n        ORDER BY v.created_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -45,18 +45,18 @@
       },
       {
         "ordinal": 8,
+        "name": "archived_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
         "name": "role",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
-        "Text",
-        "Text",
-        "Text",
-        "Int2",
-        "Text"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -68,8 +68,9 @@
       true,
       true,
       false,
-      null
+      true,
+      false
     ]
   },
-  "hash": "9d901bf5ad4e37a63c7174843d1dad40fd2236f83011852bd359b372195c0ba8"
+  "hash": "1610e036b4d44edd58afb3995161f3c1c7235d5b8b92fc6c97871c43bc6f55ef"
 }

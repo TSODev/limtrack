@@ -48,7 +48,8 @@ use crate::company_handler::{
     remove_member, remove_vehicle_from_fleet, revoke_fleet_role,
 };
 use crate::vehicles_handler::{
-    create_vehicle, delete_vehicle, get_vehicle, list_vehicles, update_vehicle,
+    archive_vehicle, create_vehicle, delete_vehicle, get_vehicle, list_archived_vehicles,
+    list_vehicles, unarchive_vehicle, update_vehicle,
 };
 
 use axum::{
@@ -99,6 +100,7 @@ async fn main() {
         // Vehicles (vehicles_handler — State<AppState>)
         .route("/api/vehicles", get(list_vehicles))
         .route("/api/vehicles", post(create_vehicle))
+        .route("/api/vehicles/archived", get(list_archived_vehicles))
         // Contrats LOA
         .route(
             "/api/vehicles/:vehicle_id/contracts/loa",
@@ -128,6 +130,8 @@ async fn main() {
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))
         .route("/api/vehicles/:id", get(get_vehicle).delete(delete_vehicle))
+        .route("/api/vehicles/:id/archive", axum::routing::patch(archive_vehicle))
+        .route("/api/vehicles/:id/unarchive", axum::routing::patch(unarchive_vehicle))
         .route("/api/profile", get(get_profile).delete(delete_account))
         .route("/api/profile/password", post(change_password))
         .route("/api/profile/shares", get(get_shares))

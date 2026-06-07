@@ -1,13 +1,13 @@
 use common::{AccessRole, VehicleWithAccess};
 use leptos::*;
 use uuid::Uuid;
-use wasm_bindgen::JsCast;
 
 use crate::components::contracts::contract_list::ContractList;
 use crate::components::contracts::contract_widget::ContractsWidget;
 use crate::components::mileage::mileage_list::MileageList;
 use crate::components::mileage::mileage_widget::MileageWidget;
 use crate::components::vehicle_header::VehicleHeader;
+use crate::components::vehicle_list::{fetch_archived_vehicles, fetch_vehicles};
 
 #[derive(Clone, PartialEq)]
 pub enum DashboardTab {
@@ -21,6 +21,7 @@ pub fn VehicleDashboard(
     selected_id: ReadSignal<Option<Uuid>>,
     set_selected_id: WriteSignal<Option<Uuid>>,
     set_vehicles: WriteSignal<Vec<common::Vehicle>>,
+    set_archived_vehicles: WriteSignal<Vec<common::Vehicle>>,
 ) -> impl IntoView {
     let (tab, set_tab) = create_signal(DashboardTab::Overview);
     let (vehicle, set_vehicle) = create_signal(Option::<VehicleWithAccess>::None);
@@ -74,8 +75,39 @@ pub fn VehicleDashboard(
 
     let on_deleted = Callback::new(move |deleted_id: Uuid| {
         set_vehicles.update(|list| list.retain(|v| v.id != deleted_id));
+        set_archived_vehicles.update(|list| list.retain(|v| v.id != deleted_id));
         set_selected_id.set(None);
         set_vehicle.set(None);
+    });
+
+    let on_archived = Callback::new(move |(vid, is_now_archived): (Uuid, bool)| {
+        let token = leptos::window()
+            .local_storage()
+            .ok()
+            .flatten()
+            .and_then(|s| s.get_item("jwt_token").ok())
+            .flatten()
+            .unwrap_or_default();
+        spawn_local(async move {
+            if let Ok(vs) = fetch_vehicles(&token).await {
+                set_vehicles.set(vs);
+            }
+            if let Ok(avs) = fetch_archived_vehicles(&token).await {
+                set_archived_vehicles.set(avs);
+            }
+        });
+        // Mettre à jour le véhicule affiché pour refléter le nouvel état
+        set_vehicle.update(|v| {
+            if let Some(ref mut vehicle) = v {
+                if vehicle.id == vid {
+                    vehicle.archived_at = if is_now_archived {
+                        Some(chrono::Utc::now())
+                    } else {
+                        None
+                    };
+                }
+            }
+        });
     });
 
     view! {
@@ -99,7 +131,7 @@ pub fn VehicleDashboard(
                 }
             >
                 // Bandeau véhicule
-                <VehicleHeader vehicle=vehicle on_deleted=on_deleted />
+                <VehicleHeader vehicle=vehicle on_deleted=on_deleted on_archived=on_archived />
 
                 // Chargement / erreur
                 <Show when=move || loading.get() fallback=|| ()>

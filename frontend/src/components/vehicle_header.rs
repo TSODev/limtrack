@@ -7,9 +7,11 @@ use wasm_bindgen::JsCast;
 pub fn VehicleHeader(
     vehicle: ReadSignal<Option<VehicleWithAccess>>,
     on_deleted: Callback<uuid::Uuid>,
+    on_archived: Callback<(uuid::Uuid, bool)>,
 ) -> impl IntoView {
     let (show_share_modal, set_show_share_modal) = create_signal(false);
     let (show_delete_modal, set_show_delete_modal) = create_signal(false);
+    let (archive_error, set_archive_error) = create_signal(String::new());
 
     let is_owner = create_memo(move |_| {
         vehicle
@@ -26,6 +28,8 @@ pub fn VehicleHeader(
                 let vehicle_name_del   = vehicle_name.clone();
                 let plate              = v.plate_number.clone();
                 let plate_display      = v.plate_number.clone();
+                let is_archived        = v.archived_at.is_some();
+                let vid                = v.id;
 
                 let role_label = match v.my_role {
                     AccessRole::Owner  => ("Propriétaire", "bg-indigo-100 text-indigo-700"),
@@ -65,30 +69,86 @@ pub fn VehicleHeader(
 
                         // Boutons — owner uniquement
                         <Show when=move || is_owner.get() fallback=|| ()>
-                            <div class="flex items-center gap-2">
-                                // Bouton partage
-                                <button
-                                    on:click=move |_| set_show_share_modal.set(true)
-                                    class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
-                                >
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" />
-                                    </svg>
-                                    <span class="hidden md:inline">"Partager"</span>
-                                </button>
+                            <div class="flex flex-col items-end gap-1">
+                                <div class="flex items-center gap-2">
+                                    // Bouton partage (masqué si archivé)
+                                    <Show when=move || !is_archived fallback=|| ()>
+                                        <button
+                                            on:click=move |_| set_show_share_modal.set(true)
+                                            class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600 transition duration-150"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185z" />
+                                            </svg>
+                                            <span class="hidden md:inline">"Partager"</span>
+                                        </button>
+                                    </Show>
 
-                                // Bouton supprimer
-                                <button
-                                    on:click=move |_| set_show_delete_modal.set(true)
-                                    class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
-                                >
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    <span class="hidden md:inline">"Supprimer"</span>
-                                </button>
+                                    // Bouton archiver / désarchiver
+                                    {if is_archived {
+                                        view! {
+                                            <button
+                                                on:click=move |_| {
+                                                    set_archive_error.set(String::new());
+                                                    let token = get_token().unwrap_or_default();
+                                                    spawn_local(async move {
+                                                        let url = format!("{}/api/vehicles/{}/unarchive", crate::config::API_BASE, vid);
+                                                        match patch_json(&url, &token).await {
+                                                            Ok(_) => on_archived.call((vid, false)),
+                                                            Err(e) => set_archive_error.set(e),
+                                                        }
+                                                    });
+                                                }
+                                                class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-green-200 text-sm font-medium text-green-700 hover:bg-green-50 transition duration-150"
+                                            >
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                                                </svg>
+                                                <span class="hidden md:inline">"Désarchiver"</span>
+                                            </button>
+                                        }.into_view()
+                                    } else {
+                                        view! {
+                                            <button
+                                                on:click=move |_| {
+                                                    set_archive_error.set(String::new());
+                                                    let token = get_token().unwrap_or_default();
+                                                    spawn_local(async move {
+                                                        let url = format!("{}/api/vehicles/{}/archive", crate::config::API_BASE, vid);
+                                                        match patch_json(&url, &token).await {
+                                                            Ok(_) => on_archived.call((vid, true)),
+                                                            Err(e) => set_archive_error.set(e),
+                                                        }
+                                                    });
+                                                }
+                                                class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-amber-200 text-sm font-medium text-amber-700 hover:bg-amber-50 transition duration-150"
+                                            >
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                                                </svg>
+                                                <span class="hidden md:inline">"Archiver"</span>
+                                            </button>
+                                        }.into_view()
+                                    }}
+
+                                    // Bouton supprimer
+                                    <button
+                                        on:click=move |_| set_show_delete_modal.set(true)
+                                        class="flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition duration-150"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                        </svg>
+                                        <span class="hidden md:inline">"Supprimer"</span>
+                                    </button>
+                                </div>
+                                <Show when=move || !archive_error.get().is_empty() fallback=|| ()>
+                                    <p class="text-xs text-red-500">{move || archive_error.get()}</p>
+                                </Show>
                             </div>
                         </Show>
                     </div>
@@ -426,6 +486,41 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<S
                 .await
                 .map_err(|e| format!("{:?}", e))?;
         serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
+    } else {
+        let json =
+            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
+                .await
+                .ok();
+        let msg = json
+            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
+            .and_then(|v| {
+                v.get("error")
+                    .and_then(|e| e.as_str())
+                    .map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
+        Err(msg)
+    }
+}
+
+async fn patch_json(url: &str, token: &str) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("PATCH");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers
+        .set("Authorization", &format!("Bearer {}", token))
+        .ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() || resp.status() == 204 {
+        Ok(())
     } else {
         let json =
             wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)

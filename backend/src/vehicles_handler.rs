@@ -67,11 +67,13 @@ pub async fn list_vehicles(
             v.year,
             v.vin,
             v.created_at,
+            v.archived_at,
             va.role
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id
          AND va.user_id = $1
+        WHERE v.archived_at IS NULL
         ORDER BY v.created_at DESC
         "#,
         user_id
@@ -104,6 +106,7 @@ pub async fn get_vehicle(
             v.year,
             v.vin,
             v.created_at,
+            v.archived_at,
             va.role
         FROM public.vehicles v
         JOIN public.vehicle_access va
@@ -163,6 +166,7 @@ pub async fn create_vehicle(
             year,
             vin,
             created_at,
+            archived_at,
             'owner' AS role
         "#,
         user_id,
@@ -248,6 +252,7 @@ pub async fn update_vehicle(
             year,
             vin,
             created_at,
+            archived_at,
             $7 AS role
         "#,
         payload.make.as_deref().map(str::trim),
@@ -333,6 +338,140 @@ pub async fn delete_vehicle(
     match sqlx::query!("DELETE FROM public.vehicles WHERE id = $1", vehicle_id)
         .execute(&state.db)
         .await
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+    }
+}
+
+// ─── GET /vehicles/archived ──────────────────────────────────────
+
+pub async fn list_archived_vehicles(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let rows = sqlx::query_as!(
+        Vehicle,
+        r#"
+        SELECT
+            v.id,
+            v.owner_id,
+            v.make,
+            v.model,
+            v.plate_number,
+            v.year,
+            v.vin,
+            v.created_at,
+            v.archived_at,
+            va.role
+        FROM public.vehicles v
+        JOIN public.vehicle_access va
+          ON va.vehicle_id = v.id
+         AND va.user_id = $1
+        WHERE v.archived_at IS NOT NULL
+        ORDER BY v.archived_at DESC
+        "#,
+        user_id
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    match rows {
+        Ok(vehicles) => (StatusCode::OK, Json(vehicles)).into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+    }
+}
+
+// ─── PATCH /vehicles/:id/archive ─────────────────────────────────
+
+pub async fn archive_vehicle(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let role = sqlx::query_scalar!(
+        "SELECT role FROM public.vehicle_access WHERE vehicle_id = $1 AND user_id = $2",
+        vehicle_id,
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    match role {
+        Ok(Some(r)) if r == "owner" => {}
+        Ok(Some(_)) => {
+            return err(
+                StatusCode::FORBIDDEN,
+                "seul le propriétaire peut archiver ce véhicule",
+            )
+            .into_response()
+        }
+        Ok(None) => {
+            return err(
+                StatusCode::NOT_FOUND,
+                "véhicule introuvable ou accès refusé",
+            )
+            .into_response()
+        }
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response()
+        }
+    }
+
+    match sqlx::query!(
+        "UPDATE public.vehicles SET archived_at = NOW() WHERE id = $1",
+        vehicle_id
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+    }
+}
+
+// ─── PATCH /vehicles/:id/unarchive ───────────────────────────────
+
+pub async fn unarchive_vehicle(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let role = sqlx::query_scalar!(
+        "SELECT role FROM public.vehicle_access WHERE vehicle_id = $1 AND user_id = $2",
+        vehicle_id,
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    match role {
+        Ok(Some(r)) if r == "owner" => {}
+        Ok(Some(_)) => {
+            return err(
+                StatusCode::FORBIDDEN,
+                "seul le propriétaire peut désarchiver ce véhicule",
+            )
+            .into_response()
+        }
+        Ok(None) => {
+            return err(
+                StatusCode::NOT_FOUND,
+                "véhicule introuvable ou accès refusé",
+            )
+            .into_response()
+        }
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response()
+        }
+    }
+
+    match sqlx::query!(
+        "UPDATE public.vehicles SET archived_at = NULL WHERE id = $1",
+        vehicle_id
+    )
+    .execute(&state.db)
+    .await
     {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),

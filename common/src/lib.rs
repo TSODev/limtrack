@@ -21,6 +21,7 @@ pub struct Vehicle {
     pub year: Option<i16>,
     pub vin: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub archived_at: Option<DateTime<Utc>>,
     pub role: Option<String>,
 }
 
@@ -60,12 +61,14 @@ pub enum AccessRole {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
 pub struct VehicleWithAccess {
-    pub id: Uuid, // L'id qui manquait selon l'erreur
+    pub id: Uuid,
     pub make: String,
     pub model: String,
     pub plate_number: String,
     pub owner_id: Uuid,
-    #[serde(rename = "my_role", alias = "role")] // accepte les deux
+    #[serde(default)]
+    pub archived_at: Option<DateTime<Utc>>,
+    #[serde(rename = "my_role", alias = "role")]
     pub my_role: AccessRole,
 }
 

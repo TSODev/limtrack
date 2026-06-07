@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.id = $2\n        ",
+  "query": "\n        UPDATE public.vehicles SET\n            make         = COALESCE($1, make),\n            model        = COALESCE($2, model),\n            plate_number = COALESCE($3, plate_number),\n            year         = COALESCE($4, year),\n            vin          = COALESCE($5, vin)\n        WHERE id = $6\n        RETURNING\n            id,\n            owner_id,\n            make,\n            model,\n            plate_number,\n            year,\n            vin,\n            created_at,\n            archived_at,\n            $7 AS role\n        ",
   "describe": {
     "columns": [
       {
@@ -45,14 +45,24 @@
       },
       {
         "ordinal": 8,
+        "name": "archived_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
         "name": "role",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int2",
+        "Text",
         "Uuid",
-        "Uuid"
+        "Text"
       ]
     },
     "nullable": [
@@ -64,8 +74,9 @@
       true,
       true,
       false,
-      false
+      true,
+      null
     ]
   },
-  "hash": "f08c1ccca745cfbbc94966841395f00a37cf5e59c3d3acf5c17d2c904e170698"
+  "hash": "f2fd6c5e70aff3c3a3f035b447f220455231f8890b290cf4d883f2baecbbeb4e"
 }
