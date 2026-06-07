@@ -36,6 +36,7 @@ chrono = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
 csv = "1"
+clap = { version = "4", features = ["derive"] }
 reqwest = { workspace = true }
 
 [[bin]]

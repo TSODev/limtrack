@@ -1,42 +1,57 @@
-// gen-tokens — Outil CLI de génération de jetons de licence
-//
-// Usage :
-//   cargo run --bin gen-tokens -- --count 10 --days 30
-//   cargo run --bin gen-tokens -- --count 1 --days 365 --fleet
-//   cargo run --bin gen-tokens -- --count 1 --lifetime --fleet
-//
-// Les jetons sont insérés en base (token_hash) et affichés en clair UNE SEULE FOIS.
+// gen-tokens — Génération de jetons de licence LimTrack
 
 use backend::secrets::load_secrets;
+use clap::Parser;
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use std::env;
 
+#[derive(Parser)]
+#[command(
+    name = "gen-tokens",
+    about = "Génère des jetons de licence LimTrack et les insère en base",
+    long_about = "Génère un ou plusieurs jetons de licence (format XXXX-XXXX-XXXX-XXXX),\n\
+                  les insère en base (token_hash SHA-256) et les affiche en clair UNE SEULE FOIS."
+)]
+struct Args {
+    /// Nombre de jetons à générer
+    #[arg(long, default_value_t = 1)]
+    count: usize,
+
+    /// Durée en jours — valeurs autorisées : 30, 90, 180, 365 (ignoré si --lifetime)
+    #[arg(long, default_value_t = 30)]
+    days: i32,
+
+    /// Jeton illimité (≈ 100 ans). Remplace --days
+    #[arg(long)]
+    lifetime: bool,
+
+    /// Type fleet (gestion de flotte). Par défaut : personal
+    #[arg(long)]
+    fleet: bool,
+}
+
 #[tokio::main]
 async fn main() {
     load_secrets().await;
 
-    let args: Vec<String> = env::args().collect();
-    let count = parse_arg(&args, "--count").unwrap_or(1usize);
-    let lifetime = args.contains(&"--lifetime".to_string());
-    let fleet = args.contains(&"--fleet".to_string());
-    let license_type = if fleet { "fleet" } else { "personal" };
+    let args = Args::parse();
 
-    // 36 500 jours ≈ 100 ans : sentinelle "illimité"
-    let days: i32 = if lifetime {
+    let license_type = if args.fleet { "fleet" } else { "personal" };
+
+    let days: i32 = if args.lifetime {
         36500
     } else {
-        let d = parse_arg::<i32>(&args, "--days").unwrap_or(30);
-        let valid_durations = [30, 90, 180, 365];
-        if !valid_durations.contains(&d) {
+        let valid = [30, 90, 180, 365];
+        if !valid.contains(&args.days) {
             eprintln!(
                 "Durée invalide : {}. Valeurs autorisées : {:?}",
-                d, valid_durations
+                args.days, valid
             );
             std::process::exit(1);
         }
-        d
+        args.days
     };
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL manquante");
@@ -44,12 +59,23 @@ async fn main() {
         .await
         .expect("Connexion NeonDB impossible");
 
-    let dur_label = if lifetime { "∞ lifetime".to_string() } else { format!("{} j", days) };
-    println!("Génération de {} jeton(s) {} [{}]...\n", count, dur_label, license_type);
-    println!("{:<30}  {:>14}  {:>10}  {}", "Jeton (en clair)", "Durée", "Type", "Statut");
+    let dur_label = if args.lifetime {
+        "∞ lifetime".to_string()
+    } else {
+        format!("{} j", days)
+    };
+
+    println!(
+        "Génération de {} jeton(s) {} [{}]...\n",
+        args.count, dur_label, license_type
+    );
+    println!(
+        "{:<30}  {:>14}  {:>10}  {}",
+        "Jeton (en clair)", "Durée", "Type", "Statut"
+    );
     println!("{}", "-".repeat(72));
 
-    for _ in 0..count {
+    for _ in 0..args.count {
         let token = generate_token();
         let hash = hash_token(&token);
 
@@ -64,14 +90,16 @@ async fn main() {
 
         match result {
             Ok(_) => println!("{:<30}  {:>14}  {:>10}  OK", token, dur_label, license_type),
-            Err(e) => println!("{:<30}  {:>14}  {:>10}  ERREUR: {}", token, dur_label, license_type, e),
+            Err(e) => println!(
+                "{:<30}  {:>14}  {:>10}  ERREUR: {}",
+                token, dur_label, license_type, e
+            ),
         }
     }
 
     println!("\nConservez ces jetons en lieu sûr. Ils ne peuvent pas être récupérés depuis la base.");
 }
 
-/// Génère un jeton format XXXX-XXXX-XXXX-XXXX (lettres majuscules + chiffres)
 fn generate_token() -> String {
     let mut rng = rand::thread_rng();
     let charset: Vec<char> = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".chars().collect();
@@ -85,14 +113,7 @@ fn generate_token() -> String {
         .join("-")
 }
 
-/// SHA-256 du jeton normalisé (sans tirets, majuscules)
 fn hash_token(token: &str) -> String {
     let normalized = token.replace('-', "").to_uppercase();
     format!("{:x}", Sha256::digest(normalized.as_bytes()))
-}
-
-fn parse_arg<T: std::str::FromStr>(args: &[String], flag: &str) -> Option<T> {
-    args.windows(2)
-        .find(|w| w[0] == flag)
-        .and_then(|w| w[1].parse().ok())
 }
