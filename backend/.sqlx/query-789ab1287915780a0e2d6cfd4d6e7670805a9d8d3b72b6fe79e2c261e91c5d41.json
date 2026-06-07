@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, message\n        FROM public.broadcasts\n        WHERE (expires_at IS NULL OR expires_at > NOW())\n          AND (NOT exclude_ios OR NOT $1)\n        ORDER BY created_at DESC\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "message",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "789ab1287915780a0e2d6cfd4d6e7670805a9d8d3b72b6fe79e2c261e91c5d41"
+}
