@@ -9,6 +9,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [Unreleased]
 
 ### Ajouté
+- **Archivage de véhicules** : un véhicule dont la LOA est terminée peut être archivé (owner uniquement) sans perdre l'historique. Il disparaît de la liste principale et apparaît dans une section repliée "Archivés (N)". Le désarchivage remet le véhicule dans la liste active.
+  - `GET /api/vehicles/archived` — liste des véhicules archivés
+  - `PATCH /api/vehicles/:id/archive` — archiver (owner)
+  - `PATCH /api/vehicles/:id/unarchive` — désarchiver (owner)
+  - Migration `009` : colonne `archived_at TIMESTAMPTZ NULL` sur `vehicles`
+  - `GET /api/vehicles` filtre désormais `archived_at IS NULL`
+  - Bouton Partager masqué sur un véhicule archivé
 - **Suppression de contrats** : bouton poubelle sur chaque carte contrat LOA et assurance (visible owner uniquement). Modale de confirmation "Cette action est irréversible" avant suppression effective.
   - `DELETE /api/vehicles/:id/contracts/loa/:contract_id` (owner)
   - `DELETE /api/vehicles/:id/contracts/insurance/:contract_id` (owner)

@@ -376,8 +376,11 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 | Méthode        | Route                                              | Description                        |
 | -------------- | -------------------------------------------------- | ---------------------------------- |
-| `GET/POST`     | `/api/vehicles`                                    | Liste / création véhicules         |
+| `GET/POST`     | `/api/vehicles`                                    | Liste / création (actifs seulement)|
+| `GET`          | `/api/vehicles/archived`                           | Véhicules archivés                 |
 | `GET/DELETE`   | `/api/vehicles/:id`                                | Détail / suppression               |
+| `PATCH`        | `/api/vehicles/:id/archive`                        | Archiver (owner)                   |
+| `PATCH`        | `/api/vehicles/:id/unarchive`                      | Désarchiver (owner)                |
 | `POST`         | `/api/vehicles/:id/share`                          | Génère un code de partage          |
 | `POST`         | `/api/vehicles/join`                               | Rejoindre via code                 |
 | `DELETE`       | `/api/vehicles/:id/access/:user_id`                | Révoquer un accès                  |

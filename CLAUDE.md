@@ -122,6 +122,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
 -- users.password_reset_token TEXT NULL — migration 008, hash SHA-256 du token de reset
 -- users.password_reset_expires_at TIMESTAMPTZ NULL — migration 008, expiry 1h
+-- vehicles.archived_at TIMESTAMPTZ NULL — migration 009, archivage fin de LOA
 ```
 
 ## Routes API
@@ -141,8 +142,11 @@ POST        /api/license/request                              ← public, jeton 
 POST        /api/ios/activate                                 ← public, activation iOS App Store
 
 # Véhicules
-GET/POST    /api/vehicles
+GET/POST    /api/vehicles                                         ← filtre archived_at IS NULL
+GET         /api/vehicles/archived
 GET/DELETE  /api/vehicles/:id
+PATCH       /api/vehicles/:id/archive                            ← owner uniquement
+PATCH       /api/vehicles/:id/unarchive                         ← owner uniquement
 POST        /api/vehicles/:id/share
 POST        /api/vehicles/join
 DELETE      /api/vehicles/:id/access/:user_id
