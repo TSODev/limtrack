@@ -57,10 +57,11 @@
 
 ---
 
-## Phase 6 — Mise en production
+## Phase 6 — Mise en production ✅
 
-- [ ] Basculer le DNS `api.limtrack.app` → `164.132.40.109` (Cloudflare, DNS only)
-- [ ] Vérifier que Caddy obtient le certificat Let's Encrypt
+- [x] Basculer le DNS `api.limtrack.app` → `164.132.40.109` (Cloudflare, DNS only, TTL 300)
+- [x] Caddy a obtenu le certificat Let's Encrypt (tls-alpn-01)
+- [x] `curl https://api.limtrack.app/api/user/register` → HTTP 405 ✅
 - [ ] Tester toutes les routes critiques (auth, vehicles, license)
 - [ ] Activer les backups automatiques OVH (snapshot daily)
 
