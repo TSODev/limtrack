@@ -42,6 +42,11 @@ pub struct DeleteVehiclePayload {
 
 const MAX_VEHICLES_PER_USER: i64 = 10;
 
+const MAX_LEN_MAKE: usize = 100;
+const MAX_LEN_MODEL: usize = 100;
+const MAX_LEN_PLATE: usize = 20;
+const MAX_LEN_VIN: usize = 17;
+
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
 #[derive(serde::Serialize)]
@@ -151,6 +156,18 @@ pub async fn create_vehicle(
             "make, model et plate_number sont requis",
         )
         .into_response();
+    }
+    if payload.make.len() > MAX_LEN_MAKE {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("make : {MAX_LEN_MAKE} caractères max")).into_response();
+    }
+    if payload.model.len() > MAX_LEN_MODEL {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("model : {MAX_LEN_MODEL} caractères max")).into_response();
+    }
+    if payload.plate_number.len() > MAX_LEN_PLATE {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("plate_number : {MAX_LEN_PLATE} caractères max")).into_response();
+    }
+    if payload.vin.as_deref().map(|v| v.len()).unwrap_or(0) > MAX_LEN_VIN {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("vin : {MAX_LEN_VIN} caractères max")).into_response();
     }
 
     // Limite : MAX_VEHICLES_PER_USER véhicules actifs par propriétaire

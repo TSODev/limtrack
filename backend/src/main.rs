@@ -55,14 +55,16 @@ use crate::vehicles_handler::{
 };
 
 use axum::{
+    extract::DefaultBodyLimit,
     middleware,
     routing::{delete, get, post},
     Router,
 };
 use sqlx::PgPool;
-use std::net::SocketAddr;
+use std::sync::Arc;
 
 use axum::http::Method;
+use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -93,12 +95,28 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::PATCH])
         .allow_headers(Any);
 
-    let app = Router::new()
-        // Auth (user_handler — State<AppState>)
+    // Rate limiting strict sur routes publiques sensibles : 1 req/s, burst 5 par IP
+    // SmartIpKeyExtractor lit X-Forwarded-For (Cloudflare) en priorité
+    let strict_governor = Arc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
+            .per_second(1)
+            .burst_size(5)
+            .finish()
+            .unwrap(),
+    );
+
+    let sensitive_public = Router::new()
         .route("/login", post(login))
         .route("/api/user/register", post(register))
         .route("/api/user/forgot-password", post(forgot_password))
         .route("/api/user/reset-password", post(reset_password))
+        .route("/api/license/request", post(request_license))
+        .layer(GovernorLayer { config: strict_governor })
+        .with_state(state.clone());
+
+    let app = Router::new()
+        .merge(sensitive_public)
         // Vehicles (vehicles_handler — State<AppState>)
         .route("/api/vehicles", get(list_vehicles))
         .route("/api/vehicles", post(create_vehicle))
@@ -147,7 +165,6 @@ async fn main() {
         )
         .route("/api/profile/license", get(get_license))
         .route("/api/profile/redeem", post(redeem_token))
-        .route("/api/license/request", post(request_license))
         .route("/api/ios/activate", post(ios_activate))
         .route("/api/broadcasts/active", get(get_active_broadcast))
         // Admin
@@ -207,6 +224,7 @@ async fn main() {
             state.clone(),
             license_middleware::check_license,
         ))
+        .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
                 tracing::info_span!(

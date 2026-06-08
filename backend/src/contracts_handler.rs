@@ -19,6 +19,7 @@ use common::{ContractInsurance, ContractLoa, CreateInsurancePayload, CreateLoaPa
 
 const MAX_LOA_PER_VEHICLE: i64 = 5;
 const MAX_INSURANCE_PER_VEHICLE: i64 = 5;
+const MAX_LEN_INSURER: usize = 200;
 
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
@@ -410,6 +411,9 @@ pub async fn create_insurance(
             "km_start ne peut pas être négatif",
         )
         .into_response();
+    }
+    if payload.insurer.as_deref().map(|s| s.len()).unwrap_or(0) > MAX_LEN_INSURER {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("insurer : {MAX_LEN_INSURER} caractères max")).into_response();
     }
 
     // Un seul contrat assurance actif par période — vérifie les chevauchements de dates

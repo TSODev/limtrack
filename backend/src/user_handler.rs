@@ -110,6 +110,10 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ApiError
     (status, Json(ApiError { error: msg.into() }))
 }
 
+const MAX_LEN_USERNAME: usize = 50;
+const MAX_LEN_EMAIL: usize = 254;
+const MAX_LEN_PASSWORD: usize = 1000; // évite le bcrypt DoS sur entrées géantes
+
 fn check_password_strength(password: &str, user_inputs: &[&str]) -> Result<(), String> {
     let estimate = zxcvbn(password, user_inputs);
     if u8::from(estimate.score()) < 3 {
@@ -201,6 +205,15 @@ pub async fn register(
             "username, email et password sont requis",
         )
         .into_response();
+    }
+    if payload.username.len() > MAX_LEN_USERNAME {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("username : {MAX_LEN_USERNAME} caractères max")).into_response();
+    }
+    if payload.email.len() > MAX_LEN_EMAIL {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("email : {MAX_LEN_EMAIL} caractères max")).into_response();
+    }
+    if payload.password.len() > MAX_LEN_PASSWORD {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, "Mot de passe trop long").into_response();
     }
 
     if let Err(msg) = check_password_strength(
