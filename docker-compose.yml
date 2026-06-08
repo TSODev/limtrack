@@ -26,6 +26,15 @@ services:
     environment:
       DATABASE_URL: postgresql://limtrack:${POSTGRES_PASSWORD}@postgres:5432/limtrack
 
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
