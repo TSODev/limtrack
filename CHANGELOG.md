@@ -12,6 +12,32 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Page `/support`** : page publique de support (sans authentification) avec FAQ, contact email et lien GitHub Issues. Répond à l'exigence Apple Guideline 1.5 (Support URL fonctionnelle).
 - **Plaques multi-pays** : le formulaire d'ajout de véhicule supporte désormais les formats France, Belgique, Luxembourg et Suisse via un sélecteur de pays (🇫🇷🇧🇪🇱🇺🇨🇭) à gauche du champ. Formatage automatique adapté au pays choisi (`AA-000-AA` / `0-AAA-000` / `AA 0000` / `AA 000000`), placeholder, pattern HTML5 et texte d'aide réactifs.
 
+### Sécurité — protections anti-flood
+- **Rate limiting** : crate `tower_governor` (0.4), `SmartIpKeyExtractor` lit `X-Forwarded-For`/Cloudflare. Sous-routeur dédié sur les 5 routes publiques sensibles : **1 req/s, burst 5** — `/login`, `/register`, `/forgot-password`, `/reset-password`, `/license/request`.
+- **Limite taille du corps** : `DefaultBodyLimit::max(64 Ko)` sur toutes les routes — bloque les requêtes surdimensionnées.
+- **Validation longueur** : make/model (100 car.), plaque (20 car.), VIN (17 car.), username (50 car.), email (254 car.), mot de passe (1 000 car. max — protection DoS bcrypt), assureur (200 car.).
+- **Limites métier** :
+  - Max **10 véhicules actifs** par propriétaire (archivage pour libérer un slot)
+  - Max **5 contrats LOA** et **5 contrats Assurance** par véhicule
+  - Max **5 relevés kilométriques par jour** par véhicule
+  - Max **1 500 km/jour de taux** entre deux relevés consécutifs (ex. 3 000 km sur 2 jours est accepté)
+  - **Unicité des périodes LOA** : chevauchement interdit → `409 Conflict`
+  - **Unicité des périodes Assurance** : chevauchement interdit → `409 Conflict`
+
+### Ajouté — Renouvellement automatique des contrats Assurance
+- **Champ `auto_renew`** sur `contracts_insurance` — migration `011` (`BOOLEAN NOT NULL DEFAULT FALSE`).
+- **Tâche de fond** (8h UTC, quotidienne) : renouvelle automatiquement les contrats `auto_renew = true` dont l'échéance est dans ≤ 7 jours et qui n'ont pas encore de successeur (anti-doublon sur `start_date = old.end_date`).
+  - Durée du nouveau contrat = durée de l'ancien (`signed_duration_since`)
+  - `km_start` du nouveau contrat = dernier relevé kilométrique du véhicule
+- **`POST /api/vehicles/:id/contracts/insurance/:contract_id/renew`** : déclenchement manuel immédiat. Renvoie `409` si un successeur existe déjà.
+- **`PATCH /api/vehicles/:id/contracts/insurance/:contract_id`** : mise à jour du champ `auto_renew` uniquement.
+- **Frontend** :
+  - Toggle "Renouvellement automatique (J-7)" sur chaque carte assurance (visible owner/editor)
+  - Badge ↻ dans le titre de la carte quand activé
+  - Bouton "Renouveler maintenant →" avec affichage du message d'erreur JSON (ex. "Un contrat de renouvellement existe déjà")
+  - Checkbox `auto_renew` dans la modale de création d'un contrat assurance
+  - `patch_json` helper + `parse_error_response` dans `contract_widget.rs`
+
 ### Infrastructure
 - **Migration OVH VPS** : backend et PostgreSQL migrés de Railway + NeonDB vers un VPS OVH auto-hébergé (Debian 12, 4 vCores / 8 Go RAM / 75 Go SSD, Roubaix — RGPD France).
   - Stack : Docker Compose + Caddy (TLS Let's Encrypt automatique) + GitHub Actions (CI/CD push-to-deploy)

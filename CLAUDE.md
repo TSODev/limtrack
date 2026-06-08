@@ -81,7 +81,7 @@ limtrack/
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "1.1.0"
+├── Cargo.toml                 ← version = "1.1.3"
 ├── docs/
 │   └── appstore-screenshots.md  ← guide screenshots App Store (credentials, checklist, tailles)
 ├── sql/
@@ -127,6 +127,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- users.password_reset_expires_at TIMESTAMPTZ NULL — migration 008, expiry 1h
 -- vehicles.archived_at TIMESTAMPTZ NULL — migration 009, archivage fin de LOA
 -- broadcasts (id, message, created_at, expires_at, exclude_ios) — migration 010, messages broadcast admin
+-- contracts_insurance.auto_renew BOOLEAN NOT NULL DEFAULT FALSE — migration 011, renouvellement automatique J-7
 ```
 
 ## Routes API
@@ -158,7 +159,8 @@ DELETE      /api/vehicles/:id/leave
 GET/POST    /api/vehicles/:id/contracts/loa
 PATCH/DELETE /api/vehicles/:id/contracts/loa/:contract_id
 GET/POST    /api/vehicles/:id/contracts/insurance
-DELETE      /api/vehicles/:id/contracts/insurance/:contract_id
+PATCH/DELETE /api/vehicles/:id/contracts/insurance/:contract_id   ← PATCH : auto_renew uniquement
+POST        /api/vehicles/:id/contracts/insurance/:contract_id/renew ← crée le contrat successeur
 GET/POST    /api/vehicles/:id/mileage
 DELETE      /api/vehicles/:id/mileage/:entry_id
 POST/DELETE /api/vehicles/:id/fleet                           ← assigner/retirer d'une flotte
@@ -236,6 +238,35 @@ cargo run --bin notify-expiry -- --help
 cargo run --bin send-broadcast -- --help
 ```
 
+## Sécurité — protections anti-flood et limites métier
+
+### Rate limiting — `tower_governor`
+Crate `tower_governor = { version = "0.4", features = ["axum"] }`, `SmartIpKeyExtractor` (lit `X-Forwarded-For` / Cloudflare en priorité). Sous-routeur `sensitive_public` limité à **1 req/s, burst 5** :
+`/login`, `/api/user/register`, `/api/user/forgot-password`, `/api/user/reset-password`, `/api/license/request`
+
+### Taille du corps
+`DefaultBodyLimit::max(64 * 1024)` sur toutes les routes — bloque les requêtes > 64 Ko.
+
+### Validation longueur des champs
+| Champ | Limite | Raison |
+|-------|--------|--------|
+| make, model | 100 car. | champs libres véhicule |
+| plate_number | 20 car. | format plaque |
+| vin | 17 car. | norme ISO 3779 |
+| username | 50 car. | identifiant utilisateur |
+| email | 254 car. | RFC 5321 |
+| password | 1 000 car. | protection DoS bcrypt (hachage coûteux) |
+| insurer | 200 car. | nom assureur libre |
+
+### Limites métier
+- Max **10 véhicules actifs** par propriétaire (archivage pour libérer un slot)
+- Max **5 contrats LOA** par véhicule
+- Max **5 contrats Assurance** par véhicule
+- Max **5 relevés kilométriques par jour** par véhicule
+- Max **1 500 km/jour de taux** entre deux relevés consécutifs (`km_diff / jours_entre ≤ 1500`)
+- **Unicité des périodes LOA** : `start < new_end AND end > new_start` → 409 Conflict
+- **Unicité des périodes Assurance** : même logique
+
 ## Sécurité — vérification des mots de passe
 Crate `zxcvbn` utilisée dans `user_handler.rs`. Score minimum **3/4** requis.
 ```rust
@@ -254,6 +285,35 @@ fn check_password_strength(password: &str, user_inputs: &[&str]) -> Result<(), S
 }
 ```
 Appelé dans `register` avec `&[username, email]` et dans `change_password` avec les données récupérées en BDD.
+
+## Contrats Assurance — renouvellement automatique
+
+### Champ `auto_renew`
+Migration `011` : `ALTER TABLE public.contracts_insurance ADD COLUMN auto_renew BOOLEAN NOT NULL DEFAULT FALSE`.
+Dans `common/src/lib.rs` : `ContractInsurance { pub auto_renew: bool }` et `CreateInsurancePayload { #[serde(default)] pub auto_renew: Option<bool> }`.
+
+### Tâche de fond (`main.rs`)
+Lancée dans `tokio::spawn` au démarrage, se déclenche chaque jour à 8h UTC. Appelle `contracts_handler::run_insurance_renewals(&db)` qui cherche les contrats avec `auto_renew = true AND end_date <= today + 7 jours AND pas de successeur` et crée le contrat suivant via `do_renew()`.
+
+### `do_renew` (interne à `contracts_handler.rs`)
+```rust
+// new_start = old.end_date
+// new_end   = old_end + signed_duration_since(old_start)  ← même durée
+// km_start  = dernier relevé kilométrique (ou 0)
+// auto_renew = true sur le nouveau contrat
+```
+
+### Routes
+- `PATCH /api/vehicles/:id/contracts/insurance/:cid` — payload `{ "auto_renew": bool }`, `COALESCE` en SQL
+- `POST  /api/vehicles/:id/contracts/insurance/:cid/renew` — crée immédiatement le successeur ; renvoie `409` si un contrat avec `start_date = old.end_date` existe déjà
+
+### Frontend (`contract_widget.rs`)
+- `ContractInsuranceSummary` reçoit `vehicle_id: Uuid`, `can_manage: bool`, `on_updated: Callback<()>`
+- Toggle CSS peer/checked (Tailwind) — mise à jour optimiste du signal local + PATCH
+- Bouton "Renouveler maintenant →" — POST /renew + affiche le message d'erreur du body JSON (ex. 409)
+- Badge ↻ dans le titre quand `auto_renew = true`
+- `InsuranceModal` : checkbox auto_renew à la création
+- `patch_json` helper + `parse_error_response` (lit `{"error": "..."}` avant de retomber sur "Erreur HTTP : N")
 
 ## Points importants Leptos
 ```rust
@@ -396,6 +456,6 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.1.3`
+`1.1.3` — déployé en production (Cloudflare Pages + OVH VPS)
 
 
