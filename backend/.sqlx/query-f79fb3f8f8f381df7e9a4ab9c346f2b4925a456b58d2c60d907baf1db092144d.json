@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT c.id, c.vehicle_id, c.km_annual_limit, c.insurer, c.start_date, c.end_date\n        FROM public.contracts_insurance c\n        WHERE c.auto_renew = true\n          AND c.end_date <= $1\n          AND NOT EXISTS (\n              SELECT 1 FROM public.contracts_insurance s\n              WHERE s.vehicle_id = c.vehicle_id\n                AND s.start_date = c.end_date\n          )\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "vehicle_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "km_annual_limit",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "insurer",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "start_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 5,
+        "name": "end_date",
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "f79fb3f8f8f381df7e9a4ab9c346f2b4925a456b58d2c60d907baf1db092144d"
+}

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS(\n            SELECT 1 FROM public.contracts_loa\n            WHERE vehicle_id = $1\n              AND start_date < $3\n              AND end_date   > $2\n        )",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1958fd9cab554c7c75dde6e81287fe96a7f8bbefd73e4948eca840c68b104302"
+}

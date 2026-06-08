@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT value FROM public.mileage_log\n         WHERE vehicle_id = $1\n         ORDER BY recorded_at DESC, created_at DESC\n         LIMIT 1",
+  "query": "SELECT value FROM public.mileage_log WHERE vehicle_id = $1\n         ORDER BY recorded_at DESC, created_at DESC LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       false
     ]
   },
-  "hash": "0e01a28dedbdc691ec78b1935721ca224fd2312bc6bba181ca2f8d5eab3da829"
+  "hash": "d9bfb12e487d6d73334f1a77c89c07f9de7003c63225ea82e51a4446e027ca68"
 }

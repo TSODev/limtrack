@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT km_annual_limit, insurer, start_date, end_date\n         FROM public.contracts_insurance\n         WHERE id = $1 AND vehicle_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "km_annual_limit",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "insurer",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "start_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 3,
+        "name": "end_date",
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "0303f06cc72f262c15344665607e743081fd3ea5a2e5b150647dd0aa97e4617f"
+}

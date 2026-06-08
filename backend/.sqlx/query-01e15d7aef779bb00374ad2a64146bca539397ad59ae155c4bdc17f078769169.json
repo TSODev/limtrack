@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO public.contracts_insurance\n            (vehicle_id, km_annual_limit, km_start, start_date, end_date, insurer)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        RETURNING id\n        ",
+  "query": "INSERT INTO public.contracts_insurance\n           (vehicle_id, km_annual_limit, km_start, start_date, end_date, insurer, auto_renew)\n           VALUES ($1, $2, $3, $4, $5, $6, true)\n           RETURNING id",
   "describe": {
     "columns": [
       {
@@ -23,5 +23,5 @@
       false
     ]
   },
-  "hash": "8db5d5a25b84d8f1d3f1cf631562dd5fcc2bcf9c9ebaec9b1cd2873f41a325f0"
+  "hash": "01e15d7aef779bb00374ad2a64146bca539397ad59ae155c4bdc17f078769169"
 }

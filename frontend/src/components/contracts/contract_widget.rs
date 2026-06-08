@@ -107,13 +107,23 @@ pub fn ContractsWidget(
                             </p>
                         }.into_view();
                     }
+                    let vid    = vehicle_id.get().unwrap_or_default();
+                    let manage = can_manage_contracts.get();
                     view! {
                         <div class="flex flex-col gap-4">
                             {d.loa.into_iter().map(|c| view! {
                                 <ContractLoaSummary contract=c />
                             }).collect_view()}
-                            {d.insurance.into_iter().map(|c| view! {
-                                <ContractInsuranceSummary contract=c />
+                            {d.insurance.into_iter().map(move |c| {
+                                let on_upd = Callback::new(move |_: ()| on_created());
+                                view! {
+                                    <ContractInsuranceSummary
+                                        contract=c
+                                        vehicle_id=vid
+                                        can_manage=manage
+                                        on_updated=on_upd
+                                    />
+                                }
                             }).collect_view()}
                         </div>
                     }.into_view()
@@ -259,7 +269,13 @@ fn ContractLoaSummary(contract: ContractLoa) -> impl IntoView {
 }
 
 #[component]
-fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
+fn ContractInsuranceSummary(
+    contract: ContractInsurance,
+    vehicle_id: Uuid,
+    can_manage: bool,
+    on_updated: Callback<()>,
+) -> impl IntoView {
+    let cid = contract.id;
     let pct =
         ((contract.km_consumed as f64 / contract.km_annual_limit as f64) * 100.0).min(100.0) as u32;
     let colors = status_colors(&contract.status, contract.overage_risk);
@@ -276,6 +292,42 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
         }
     });
 
+    let (auto_renew, set_auto_renew) = create_signal(contract.auto_renew);
+
+    let on_updated_toggle = on_updated.clone();
+    let toggle_action = create_action(move |(vid, cid, val): &(Uuid, Uuid, bool)| {
+        let (vid, cid, val) = (*vid, *cid, *val);
+        let on_upd = on_updated_toggle.clone();
+        async move {
+            let token = get_token().unwrap_or_default();
+            let result = patch_json(
+                &format!("{}/api/vehicles/{}/contracts/insurance/{}", crate::config::API_BASE, vid, cid),
+                &token,
+                &serde_json::json!({ "auto_renew": val }),
+            ).await;
+            if result.is_ok() { on_upd.call(()); }
+            result
+        }
+    });
+
+    let renew_action = create_action(move |(vid, cid): &(Uuid, Uuid)| {
+        let (vid, cid) = (*vid, *cid);
+        let on_upd = on_updated.clone();
+        async move {
+            let token = get_token().unwrap_or_default();
+            let result = post_json(
+                &format!("{}/api/vehicles/{}/contracts/insurance/{}/renew", crate::config::API_BASE, vid, cid),
+                &token,
+                &serde_json::json!({}),
+            ).await;
+            if result.is_ok() { on_upd.call(()); }
+            result
+        }
+    });
+
+    let is_toggle_pending = create_memo(move |_| toggle_action.pending().get());
+    let is_renew_pending  = create_memo(move |_| renew_action.pending().get());
+
     view! {
         <div class=format!("rounded-xl border p-4 space-y-3 {}", colors.card_bg)>
             <div class="flex items-center justify-between">
@@ -283,6 +335,9 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
                     <span class="text-xs font-bold text-gray-700">"Assurance"</span>
                     {contract.insurer.map(|ins| view! {
                         <span class="text-xs text-gray-400">"("{ins}")"</span>
+                    })}
+                    {move || auto_renew.get().then(|| view! {
+                        <span class="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">"↻"</span>
                     })}
                 </div>
                 <span class=format!("text-xs font-medium px-2 py-0.5 rounded-full {} {}", colors.badge_bg, colors.badge_text)>
@@ -312,6 +367,47 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
                     <span>{contract.days_remaining}" j jusqu'à l'échéance"</span>
                 </div>
             </div>
+            {if can_manage {
+                view! {
+                    <div class="pt-2 border-t border-gray-100 space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                class="sr-only peer"
+                                prop:checked=move || auto_renew.get()
+                                disabled=move || is_toggle_pending.get()
+                                on:change=move |_| {
+                                    let new_val = !auto_renew.get();
+                                    set_auto_renew.set(new_val);
+                                    toggle_action.dispatch((vehicle_id, cid, new_val));
+                                }
+                            />
+                            <div class="relative w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-indigo-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+                            <span class=move || format!(
+                                "text-xs {}",
+                                if is_toggle_pending.get() { "text-gray-400 animate-pulse" } else { "text-gray-600" }
+                            )>
+                                "Renouvellement automatique (J-7)"
+                            </span>
+                        </label>
+                        <button
+                            type="button"
+                            disabled=move || is_renew_pending.get()
+                            on:click=move |_| renew_action.dispatch((vehicle_id, cid))
+                            class="w-full text-xs py-1.5 px-3 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+                        >
+                            {move || if is_renew_pending.get() { "Renouvellement en cours..." } else { "Renouveler maintenant →" }}
+                        </button>
+                        {move || {
+                            renew_action.value().get()
+                                .and_then(|r| r.err())
+                                .map(|e| view! { <p class="text-xs text-center text-red-600">{e}</p> })
+                        }}
+                    </div>
+                }.into_view()
+            } else {
+                view! { <></> }.into_view()
+            }}
         </div>
     }
 }
@@ -407,22 +503,24 @@ fn InsuranceModal(
     on_close: Callback<()>,
     on_created: Callback<()>,
 ) -> impl IntoView {
-    let (km_limit, set_km_limit) = create_signal(String::new());
-    let (km_start, set_km_start) = create_signal(String::new());
+    let (km_limit, set_km_limit)     = create_signal(String::new());
+    let (km_start, set_km_start)     = create_signal(String::new());
     let (start_date, set_start_date) = create_signal(String::new());
-    let (end_date, set_end_date) = create_signal(String::new());
-    let (insurer, set_insurer) = create_signal(String::new());
-    let (error, set_error) = create_signal(String::new());
+    let (end_date, set_end_date)     = create_signal(String::new());
+    let (insurer, set_insurer)       = create_signal(String::new());
+    let (auto_renew, set_auto_renew) = create_signal(false);
+    let (error, set_error)           = create_signal(String::new());
 
     let submit = create_action(
-        move |(vid, km_l, km_s, sd, ed, ins): &(Uuid, String, String, String, String, String)| {
-            let (vid, km_l, km_s, sd, ed, ins) = (
+        move |(vid, km_l, km_s, sd, ed, ins, ar): &(Uuid, String, String, String, String, String, bool)| {
+            let (vid, km_l, km_s, sd, ed, ins, ar) = (
                 *vid,
                 km_l.clone(),
                 km_s.clone(),
                 sd.clone(),
                 ed.clone(),
                 ins.clone(),
+                *ar,
             );
             async move {
                 let token = get_token().unwrap_or_default();
@@ -431,6 +529,7 @@ fn InsuranceModal(
                     "km_start": km_s.parse::<i32>().unwrap_or(0),
                     "start_date": sd, "end_date": ed,
                     "insurer": if ins.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(ins) },
+                    "auto_renew": ar,
                 });
                 match post_json(
                     &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, vid),
@@ -460,6 +559,7 @@ fn InsuranceModal(
             start_date.get(),
             end_date.get(),
             insurer.get(),
+            auto_renew.get(),
         ));
     };
 
@@ -493,6 +593,16 @@ fn InsuranceModal(
                             class=input_class() />
                     </Field>
                 </div>
+                <label class="flex items-center gap-3 cursor-pointer select-none py-1">
+                    <input
+                        type="checkbox"
+                        class="sr-only peer"
+                        prop:checked=move || auto_renew.get()
+                        on:change=move |ev| set_auto_renew.set(event_target_checked(&ev))
+                    />
+                    <div class="relative w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-indigo-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+                    <span class="text-sm text-gray-700">"Renouvellement automatique (J-7)"</span>
+                </label>
                 <ModalActions pending=submit.pending() on_cancel=Callback::new(move |_| on_close.call(())) label_submit="Créer le contrat" error=error />
             </form>
         </Modal>
@@ -591,22 +701,56 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     let mut opts = web_sys::RequestInit::new();
     opts.method("POST");
     let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
+    headers.set("Authorization", &format!("Bearer {}", token)).ok();
     headers.set("Content-Type", "application/json").ok();
     opts.headers(&headers);
     opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
     let req =
-        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
     let resp_value =
         wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
             .await
             .map_err(|e| format!("{:?}", e))?;
     let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 201 {
+    if resp.ok() {
         Ok(())
     } else {
-        Err(format!("Erreur HTTP : {}", resp.status()))
+        Err(parse_error_response(resp).await)
     }
+}
+
+async fn patch_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("PATCH");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers.set("Authorization", &format!("Bearer {}", token)).ok();
+    headers.set("Content-Type", "application/json").ok();
+    opts.headers(&headers);
+    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
+    let req =
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value =
+        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
+            .await
+            .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if resp.ok() {
+        Ok(())
+    } else {
+        Err(parse_error_response(resp).await)
+    }
+}
+
+async fn parse_error_response(resp: web_sys::Response) -> String {
+    let status = resp.status();
+    if let Ok(promise) = resp.json() {
+        if let Ok(val) = wasm_bindgen_futures::JsFuture::from(promise).await {
+            if let Ok(obj) = serde_wasm_bindgen::from_value::<serde_json::Value>(val) {
+                if let Some(msg) = obj.get("error").and_then(|v| v.as_str()) {
+                    return msg.to_string();
+                }
+            }
+        }
+    }
+    format!("Erreur HTTP : {}", status)
 }

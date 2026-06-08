@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM public.vehicles v\n           JOIN public.vehicle_access va ON va.vehicle_id = v.id\n           WHERE va.user_id = $1 AND va.role = 'owner' AND v.archived_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9cc28b974cecfd689b5afdc4aa04a10442c0f84593b5623e4facc8bb4ab593df"
+}
