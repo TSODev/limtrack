@@ -2,69 +2,65 @@
 
 **Objectif :** Migrer le backend (Railway) + BDD (NeonDB) vers un VPS OVH auto-hébergé.  
 **Stack retenue :** Debian 12 + Docker Compose + Caddy + GitHub Actions (niveau Minimal)  
-**Frontend :** Cloudflare Pages — inchangé.
+**Frontend :** Cloudflare Pages — inchangé.  
+**VPS :** `164.132.40.109` — OVH Debian 12, user `limtrack`
 
 ---
 
-## Phase 1 — Provisionner le VPS
+## Phase 1 — Provisionner le VPS ✅
 
-- [ ] Commander VPS OVH (4 vCores / 8 Go RAM / 75 Go SSD, image **Debian 12**)
-- [ ] Accès SSH root → créer un user dédié `limtrack` avec `sudo`
-- [ ] Installer Docker CE (`curl -fsSL https://get.docker.com | sh`)
-- [ ] Ajouter `limtrack` au groupe `docker`
-- [ ] Configurer `ufw` : ports 22, 80, 443 ouverts uniquement
-- [ ] Pointer `api.limtrack.app` → IP du VPS (DNS Cloudflare)
-
----
-
-## Phase 2 — Dockeriser le backend
-
-- [ ] Créer `backend/Dockerfile` multi-stage :
-  - Stage 1 : `rust:slim` → `cargo build --release` avec `SQLX_OFFLINE=true`
-  - Stage 2 : `debian:bookworm-slim` → copier le binaire seul (~10 Mo)
-- [ ] Vérifier que les 4 binaires CLI sont inclus (ou image séparée)
-- [ ] Tester le build local
+- [x] Commander VPS OVH (4 vCores / 8 Go RAM / 75 Go SSD, image **Debian 12**)
+- [x] Accès SSH root → créer un user dédié `limtrack` avec `sudo` (`scripts/setup-vps.sh`)
+- [x] Installer Docker CE (`curl -fsSL https://get.docker.com | sh`)
+- [x] Ajouter `limtrack` au groupe `docker`
+- [x] Configurer `ufw` : ports 22, 80, 443 ouverts uniquement
+- [ ] Pointer `api.limtrack.app` → IP du VPS (DNS Cloudflare) ← **à faire**
 
 ---
 
-## Phase 3 — Docker Compose + Caddy
+## Phase 2 — Dockeriser le backend ✅
 
-- [ ] Créer `docker-compose.yml` avec 3 services :
-  - `postgres` (image officielle, volume persistant)
-  - `backend` (image buildée, variables via `.env`)
-  - `caddy` (image officielle, TLS automatique Let's Encrypt)
-- [ ] Créer `Caddyfile` : reverse proxy `api.limtrack.app → backend:3000`
-- [ ] Variables d'env : injectées via Infisical au démarrage (comportement existant)
-- [ ] Tester `docker compose up -d` en local
+- [x] Créer `Dockerfile.vps` multi-stage (`rust:slim` + `debian:bookworm-slim`)
+- [x] `SQLX_OFFLINE=true` au build, port 3000
+- [x] Build validé via GitHub Actions
 
 ---
 
-## Phase 4 — GitHub Actions → SSH deploy
+## Phase 3 — Docker Compose + Caddy ✅
 
-- [ ] Créer `.github/workflows/deploy-backend.yml`
-- [ ] Trigger : push sur `main` (ou tag `v*`)
-- [ ] Pipeline :
-  1. Build image Docker → push sur GitHub Container Registry (`ghcr.io`)
-  2. SSH sur VPS → `docker compose pull && docker compose up -d`
-- [ ] Secrets GitHub à configurer : `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+- [x] `docker-compose.yml` : postgres + backend + caddy + adminer + uptime-kuma
+- [x] `Caddyfile` : reverse proxy `api.limtrack.app → backend:3000`, TLS auto
+- [x] Variables d'env via `.env` sur le VPS (sans Infisical)
+- [x] Adminer accessible via tunnel SSH (`ssh -L 8080:localhost:8080 limtrack@164.132.40.109`)
+- [x] Uptime Kuma accessible via tunnel SSH (`ssh -L 3001:localhost:3001 limtrack@164.132.40.109`)
+
+> **Note :** `POSTGRES_PASSWORD` doit être URL-safe — utiliser `openssl rand -hex 32` (pas base64).
 
 ---
 
-## Phase 5 — Migration BDD
+## Phase 4 — GitHub Actions → SSH deploy ✅
 
-- [ ] `pg_dump` NeonDB → fichier SQL
-- [ ] Copier sur VPS (`scp`)
-- [ ] `psql` → importer dans PostgreSQL local
-- [ ] Vérifier intégrité (tables, migrations, users)
-- [ ] Mettre à jour `DATABASE_URL` dans Infisical → pointer sur `localhost:5432`
+- [x] `.github/workflows/deploy-backend.yml` créé
+- [x] Build image → `ghcr.io/tsodev/limtrack-backend:latest`
+- [x] SSH deploy : `docker compose pull backend && docker compose up -d --no-deps backend`
+- [x] Secrets GitHub configurés : `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+- [x] VPS authentifié sur ghcr.io (PAT `read:packages`, no expiration)
+
+---
+
+## Phase 5 — Migration BDD ✅
+
+- [x] `pg_dump` NeonDB → `limtrack_dump.sql`
+- [x] Copié sur VPS via `scp`
+- [x] Importé dans PostgreSQL local (`docker compose exec postgres psql`)
+- [ ] Vérifier intégrité complète (tables, migrations, users) ← **à valider en prod**
 
 ---
 
 ## Phase 6 — Mise en production
 
-- [ ] Régénérer le cache SQLx si nécessaire (`cargo sqlx prepare`)
-- [ ] Basculer le DNS `api.limtrack.app` → IP VPS
-- [ ] Vérifier que Caddy obtient bien le certificat Let's Encrypt
+- [ ] Basculer le DNS `api.limtrack.app` → `164.132.40.109` (Cloudflare, DNS only)
+- [ ] Vérifier que Caddy obtient le certificat Let's Encrypt
 - [ ] Tester toutes les routes critiques (auth, vehicles, license)
 - [ ] Activer les backups automatiques OVH (snapshot daily)
 
@@ -72,27 +68,32 @@
 
 ## Phase 7 — Monitoring + cleanup
 
-- [ ] Installer **Uptime Kuma** (Docker) → alertes email si backend down
-- [ ] Configurer `pg_dump` cron → backup BDD quotidien (ex. `/var/backups/limtrack/`)
+- [x] Uptime Kuma déployé (port 3001, tunnel SSH)
+- [x] Monitors configurés : Backend API, PostgreSQL TCP, Caddy TLS
+- [ ] Configurer alertes email dans Uptime Kuma
+- [ ] Configurer `pg_dump` cron → backup BDD quotidien
 - [ ] Valider 48h en prod
 - [ ] Résilier Railway + NeonDB
 
 ---
 
-## Livrables à créer dans le repo
+## Fichiers créés
 
 ```
-backend/Dockerfile
+Dockerfile.vps
 docker-compose.yml
 Caddyfile
+scripts/setup-vps.sh
 .github/workflows/deploy-backend.yml
+docs/PLAN_DEPLOIEMENT_VPS.md
 ```
 
 ---
 
-## Notes
+## Notes opérationnelles
 
-- PostgreSQL sur VPS : `shared_buffers = 2GB`, `effective_cache_size = 6GB`
-- `SQLX_OFFLINE=true` requis au build (inchangé vs Railway)
-- Infisical : ajouter `VPS` comme environnement ou réutiliser `production`
-- Uptime Kuma peut tourner sur le même VPS (port 3001, derrière Caddy)
+- **POSTGRES_PASSWORD** : utiliser `openssl rand -hex 32` — la base64 contient `/` qui casse l'URL PostgreSQL
+- **ghcr.io** : le VPS doit être authentifié avec un PAT GitHub (`read:packages`) via `docker login ghcr.io`
+- **Adminer** : `ssh -L 8080:localhost:8080 limtrack@164.132.40.109` → http://localhost:8080
+- **Uptime Kuma** : `ssh -L 3001:localhost:3001 limtrack@164.132.40.109` → http://localhost:3001
+- **Deploy automatique** : tout push sur `main` touchant `backend/**` ou `Dockerfile.vps` déclenche le CI/CD
