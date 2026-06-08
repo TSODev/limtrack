@@ -1,7 +1,65 @@
-//use crate::models::Vehicle;
 use common::Vehicle;
 use leptos::*;
 use wasm_bindgen::JsCast;
+
+fn format_plate(raw: &str, country: &str) -> String {
+    match country {
+        "BE" => {
+            // 0-AAA-000 : 1 chiffre + 3 lettres + 3 chiffres
+            let cleaned: String = raw
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .map(|c| c.to_ascii_uppercase())
+                .take(7)
+                .collect();
+            match cleaned.len() {
+                0..=1 => cleaned,
+                2..=4 => format!("{}-{}", &cleaned[..1], &cleaned[1..]),
+                _ => format!("{}-{}-{}", &cleaned[..1], &cleaned[1..4], &cleaned[4..]),
+            }
+        }
+        "LU" => {
+            // AA 0000 : 2 lettres + 4 chiffres
+            let cleaned: String = raw
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .map(|c| c.to_ascii_uppercase())
+                .take(6)
+                .collect();
+            match cleaned.len() {
+                0..=2 => cleaned,
+                _ => format!("{} {}", &cleaned[..2], &cleaned[2..]),
+            }
+        }
+        "CH" => {
+            // AA 000000 : 2 lettres canton + 1-6 chiffres
+            let cleaned: String = raw
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .map(|c| c.to_ascii_uppercase())
+                .take(8)
+                .collect();
+            match cleaned.len() {
+                0..=2 => cleaned,
+                _ => format!("{} {}", &cleaned[..2], &cleaned[2..]),
+            }
+        }
+        _ => {
+            // FR (défaut) : AA-000-AA
+            let cleaned: String = raw
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .map(|c| c.to_ascii_uppercase())
+                .take(7)
+                .collect();
+            match cleaned.len() {
+                0..=2 => cleaned,
+                3..=5 => format!("{}-{}", &cleaned[..2], &cleaned[2..]),
+                _ => format!("{}-{}-{}", &cleaned[..2], &cleaned[2..5], &cleaned[5..]),
+            }
+        }
+    }
+}
 
 #[component]
 pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoView {
@@ -9,7 +67,34 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
     let (make, set_make) = create_signal(String::new());
     let (model, set_model) = create_signal(String::new());
     let (plate_number, set_plate_number) = create_signal(String::new());
+    let (country, set_country) = create_signal("FR".to_string());
     let (status, set_status) = create_signal(String::new());
+
+    let plate_placeholder = create_memo(move |_| match country.get().as_str() {
+        "BE" => "1-ABC-234",
+        "LU" => "AB 1234",
+        "CH" => "GE 123456",
+        _ => "AB-123-CD",
+    });
+
+    let plate_hint = create_memo(move |_| match country.get().as_str() {
+        "BE" => "Format : 0-AAA-000 (ex: 1-ABC-234)",
+        "LU" => "Format : AA 0000 (ex: AB 1234)",
+        "CH" => "Format : AA 000000 (ex: GE 123456)",
+        _ => "Format : AA-000-AA (ex: AB-123-CD)",
+    });
+
+    let plate_maxlength = create_memo(move |_| match country.get().as_str() {
+        "LU" => "7",
+        _ => "9",
+    });
+
+    let plate_pattern = create_memo(move |_| match country.get().as_str() {
+        "BE" => r"[0-9]-[A-Z]{3}-[0-9]{3}",
+        "LU" => r"[A-Z]{2} [0-9]{4}",
+        "CH" => r"[A-Z]{2} [0-9]{1,6}",
+        _ => r"[A-Z]{2}-[0-9]{3}-[A-Z]{2}",
+    });
 
     let create_action = create_action(move |(mk, mo, plate): &(String, String, String)| {
         let mk = mk.clone();
@@ -89,25 +174,9 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
 
     let on_plate_input = move |ev: web_sys::Event| {
         let raw = event_target_value(&ev.clone().dyn_into::<web_sys::InputEvent>().unwrap());
-
-        // Ne garde que lettres et chiffres, met en majuscules
-        let cleaned: String = raw
-            .chars()
-            .filter(|c| c.is_alphanumeric())
-            .map(|c| c.to_ascii_uppercase())
-            .take(7) // AA + 3 chiffres + AA = 7 caractères utiles
-            .collect();
-
-        // Formate en AA-111-AA
-        let formatted = match cleaned.len() {
-            0..=2 => cleaned.clone(),
-            3..=5 => format!("{}-{}", &cleaned[..2], &cleaned[2..]),
-            _ => format!("{}-{}-{}", &cleaned[..2], &cleaned[2..5], &cleaned[5..]),
-        };
-
+        let formatted = format_plate(&raw, &country.get());
         set_plate_number.set(formatted.clone());
 
-        // Met à jour la valeur affichée dans l'input
         let input = ev
             .target()
             .unwrap()
@@ -183,18 +252,32 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
 
                         <div class="space-y-1">
                             <label class="text-sm font-medium text-gray-700 block">"Immatriculation"</label>
-                            <input
-                                type="text"
-                                placeholder="ex: AB-123-CD"
-                                prop:value=plate_number
-                                on:input=on_plate_input
-                                required
-                                maxlength="10" // AA-111-AA + marge
-                                pattern="[A-Z]{2}-[0-9]{3}-[A-Z]{2}"
-                                title="Format attendu : AA-111-AA (ex: AB-123-CD)"
-                                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
-                            />
-                            <p class="text-xs text-gray-400">"Format : AA-111-AA (ex: AB-123-CD)"</p>
+                            <div class="flex gap-2">
+                                <select
+                                    on:change=move |ev| {
+                                        set_country.set(event_target_value(&ev));
+                                        set_plate_number.set(String::new());
+                                    }
+                                    class="px-2 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                >
+                                    <option value="FR">"🇫🇷 FR"</option>
+                                    <option value="BE">"🇧🇪 BE"</option>
+                                    <option value="LU">"🇱🇺 LU"</option>
+                                    <option value="CH">"🇨🇭 CH"</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    attr:placeholder=move || plate_placeholder.get()
+                                    prop:value=plate_number
+                                    on:input=on_plate_input
+                                    required
+                                    attr:maxlength=move || plate_maxlength.get()
+                                    attr:pattern=move || plate_pattern.get()
+                                    attr:title=move || plate_hint.get()
+                                    class="appearance-none block flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono tracking-widest transition duration-150"
+                                />
+                            </div>
+                            <p class="text-xs text-gray-400">{move || plate_hint.get()}</p>
                         </div>
 
                         // Message d'erreur
