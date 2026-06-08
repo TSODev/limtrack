@@ -81,7 +81,7 @@ limtrack/
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "1.1.3"
+├── Cargo.toml                 ← version = "1.2.0"
 ├── docs/
 │   └── appstore-screenshots.md  ← guide screenshots App Store (credentials, checklist, tailles)
 ├── sql/
@@ -456,6 +456,6 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.1.3` — déployé en production (Cloudflare Pages + OVH VPS)
+`1.2.0` — déployé en production (Cloudflare Pages + OVH VPS)
 
 
