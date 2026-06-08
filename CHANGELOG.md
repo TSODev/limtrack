@@ -8,6 +8,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Ajouté
+- **Plaques multi-pays** : le formulaire d'ajout de véhicule supporte désormais les formats France, Belgique, Luxembourg et Suisse via un sélecteur de pays (🇫🇷🇧🇪🇱🇺🇨🇭) à gauche du champ. Formatage automatique adapté au pays choisi (`AA-000-AA` / `0-AAA-000` / `AA 0000` / `AA 000000`), placeholder, pattern HTML5 et texte d'aide réactifs.
+
 ### Infrastructure
 - **Migration OVH VPS** : backend et PostgreSQL migrés de Railway + NeonDB vers un VPS OVH auto-hébergé (Debian 12, 4 vCores / 8 Go RAM / 75 Go SSD, Roubaix — RGPD France).
   - Stack : Docker Compose + Caddy (TLS Let's Encrypt automatique) + GitHub Actions (CI/CD push-to-deploy)
