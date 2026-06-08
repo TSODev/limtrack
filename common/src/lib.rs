@@ -142,6 +142,7 @@ pub struct ContractInsurance {
     pub start_date: chrono::NaiveDate,
     pub end_date: chrono::NaiveDate,
     pub insurer: Option<String>,
+    pub auto_renew: bool,
     // Calculé à la lecture
     pub km_current: i32,
     pub km_consumed: i32,  // depuis début de l'année d'assurance
@@ -160,6 +161,8 @@ pub struct CreateInsurancePayload {
     pub start_date: chrono::NaiveDate,
     pub end_date: chrono::NaiveDate,
     pub insurer: Option<String>,
+    #[serde(default)]
+    pub auto_renew: Option<bool>,
 }
 
 // ─── Modèles ─────────────────────────────────────────────────────

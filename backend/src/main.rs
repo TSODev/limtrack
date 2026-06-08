@@ -19,7 +19,7 @@ mod vehicles_handler;
 
 use crate::contracts_handler::{
     create_insurance, create_loa, delete_insurance, delete_loa, list_insurance, list_loa,
-    update_loa,
+    renew_insurance, run_insurance_renewals, update_insurance, update_loa,
 };
 use crate::mileage_handler::{create_mileage, delete_mileage, list_mileage};
 use crate::share_handler::{create_share_code, join_with_code};
@@ -119,7 +119,11 @@ async fn main() {
         )
         .route(
             "/api/vehicles/:vehicle_id/contracts/insurance/:contract_id",
-            axum::routing::delete(delete_insurance),
+            axum::routing::patch(update_insurance).delete(delete_insurance),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/contracts/insurance/:contract_id/renew",
+            post(renew_insurance),
         )
         .route(
             "/api/vehicles/:vehicle_id/mileage",
@@ -220,18 +224,17 @@ async fn main() {
     println!("🚀 Backend LimTrack lancé sur http://{}", addr);
     info!("Connexion à NeonDB réussie !");
 
-    // Tâche de fond : notifications email d'expiration, une fois par jour à ~8h
+    // Tâche de fond : notifications email d'expiration + renouvellements assurance, à 8h UTC
     let notif_api_key = resend_api_key;
+    let renewal_pool = notif_pool.clone();
     if notif_api_key.is_empty() {
         info!("RESEND_API_KEY absente — notifications email désactivées");
     } else {
         tokio::spawn(async move {
             loop {
-                // Calcule le délai jusqu'au prochain 8h00 UTC
                 let now = chrono::Utc::now();
                 let next_8h = {
-                    let today_8h = now.date_naive().and_hms_opt(8, 0, 0).unwrap()
-                        .and_utc();
+                    let today_8h = now.date_naive().and_hms_opt(8, 0, 0).unwrap().and_utc();
                     if now < today_8h { today_8h } else { today_8h + chrono::Duration::days(1) }
                 };
                 let delay_secs = (next_8h - now).num_seconds().max(0) as u64;
@@ -240,6 +243,20 @@ async fn main() {
             }
         });
     }
+
+    // Tâche de fond : renouvellements automatiques des contrats assurance à 8h UTC
+    tokio::spawn(async move {
+        loop {
+            let now = chrono::Utc::now();
+            let next_8h = {
+                let today_8h = now.date_naive().and_hms_opt(8, 0, 0).unwrap().and_utc();
+                if now < today_8h { today_8h } else { today_8h + chrono::Duration::days(1) }
+            };
+            let delay_secs = (next_8h - now).num_seconds().max(0) as u64;
+            tokio::time::sleep(tokio::time::Duration::from_secs(delay_secs)).await;
+            run_insurance_renewals(&renewal_pool).await;
+        }
+    });
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

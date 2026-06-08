@@ -38,6 +38,10 @@ pub struct UpdateVehiclePayload {
 pub struct DeleteVehiclePayload {
     pub plate_number: String,
 }
+// ─── Limites métier ──────────────────────────────────────────────
+
+const MAX_VEHICLES_PER_USER: i64 = 10;
+
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
 #[derive(serde::Serialize)]
@@ -145,6 +149,26 @@ pub async fn create_vehicle(
         return err(
             StatusCode::UNPROCESSABLE_ENTITY,
             "make, model et plate_number sont requis",
+        )
+        .into_response();
+    }
+
+    // Limite : MAX_VEHICLES_PER_USER véhicules actifs par propriétaire
+    let owned_count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) FROM public.vehicles v
+           JOIN public.vehicle_access va ON va.vehicle_id = v.id
+           WHERE va.user_id = $1 AND va.role = 'owner' AND v.archived_at IS NULL"#,
+        user_id
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(Some(0))
+    .unwrap_or(0);
+
+    if owned_count >= MAX_VEHICLES_PER_USER {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            format!("Limite de {} véhicules actifs atteinte. Archivez un véhicule pour en ajouter un nouveau.", MAX_VEHICLES_PER_USER),
         )
         .into_response();
     }

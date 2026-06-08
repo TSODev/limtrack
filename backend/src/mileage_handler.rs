@@ -16,6 +16,11 @@ use crate::state::AppState;
 use common::MileageEntry;
 use common::{CreateMileagePayload, MileageLog};
 
+// ─── Limites métier ──────────────────────────────────────────────
+
+const MAX_MILEAGE_ENTRIES_PER_DAY: i64 = 5;
+const MAX_KM_PER_DAY: i32 = 1500;
+
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -79,9 +84,33 @@ pub async fn create_mileage(
         .into_response();
     }
 
-    // 3. Vérifie que la valeur est supérieure au dernier relevé connu
-    let last_value = sqlx::query_scalar!(
-        "SELECT value FROM public.mileage_log
+    // 2b. Maximum MAX_MILEAGE_ENTRIES_PER_DAY relevés par date
+    let recorded_at_check = payload.recorded_at.unwrap_or_else(|| Local::now().date_naive());
+    let entries_this_day = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM public.mileage_log
+         WHERE vehicle_id = $1 AND recorded_at = $2",
+        vehicle_id,
+        recorded_at_check
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(Some(0))
+    .unwrap_or(0);
+
+    if entries_this_day >= MAX_MILEAGE_ENTRIES_PER_DAY {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            format!(
+                "Maximum {} relevés par jour atteint pour cette date",
+                MAX_MILEAGE_ENTRIES_PER_DAY
+            ),
+        )
+        .into_response();
+    }
+
+    // 3. Vérifie cohérence vs le dernier relevé connu (valeur croissante + taux km/jour)
+    let last_entry = sqlx::query!(
+        "SELECT value, recorded_at FROM public.mileage_log
          WHERE vehicle_id = $1
          ORDER BY recorded_at DESC, created_at DESC
          LIMIT 1",
@@ -91,19 +120,35 @@ pub async fn create_mileage(
     .await
     .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données"));
 
-    match last_value {
-        Ok(Some(last)) if payload.value < last => {
-            return err(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                format!(
-                    "La valeur ({} km) est inférieure au dernier relevé ({} km)",
-                    payload.value, last
-                ),
-            )
-            .into_response();
+    match last_entry {
+        Ok(Some(last)) => {
+            if payload.value < last.value {
+                return err(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    format!(
+                        "La valeur ({} km) est inférieure au dernier relevé ({} km)",
+                        payload.value, last.value
+                    ),
+                )
+                .into_response();
+            }
+            let days_between = (recorded_at_check - last.recorded_at).num_days().max(1);
+            let km_diff = payload.value - last.value;
+            if km_diff / days_between as i32 > MAX_KM_PER_DAY {
+                return err(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    format!(
+                        "Taux journalier trop élevé : {} km/j sur {} jour(s) (max {} km/jour)",
+                        km_diff / days_between as i32,
+                        days_between,
+                        MAX_KM_PER_DAY
+                    ),
+                )
+                .into_response();
+            }
         }
+        Ok(None) => {}
         Err(e) => return e.into_response(),
-        _ => {}
     }
 
     // 4. Validation de la source
@@ -158,10 +203,6 @@ pub async fn create_mileage(
     }
 
     // 6. Insertion
-    let recorded_at = payload
-        .recorded_at
-        .unwrap_or_else(|| Local::now().date_naive());
-
     let result = sqlx::query!(
         r#"
         INSERT INTO public.mileage_log
@@ -173,7 +214,7 @@ pub async fn create_mileage(
         payload.contract_loa_id,
         payload.contract_insurance_id,
         payload.value,
-        recorded_at,
+        recorded_at_check,
         source,
     )
     .fetch_one(&state.db)
