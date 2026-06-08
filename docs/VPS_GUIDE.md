@@ -217,16 +217,36 @@ docker compose reload caddy # ou : docker compose restart caddy
 
 ---
 
-## Backup manuel de la base de données
+## Backup de la base de données
+
+### Backup automatique (cron)
+
+Un backup compressé est généré chaque jour à **2h du matin** dans `/opt/limtrack/backups/`.  
+Les fichiers de plus de 30 jours sont supprimés automatiquement.
+
+```bash
+# Voir les backups existants
+ls -lh /opt/limtrack/backups/
+```
+
+### Backup manuel
 
 ```bash
 ssh limtrack@164.132.40.109
 cd /opt/limtrack
-docker compose exec postgres pg_dump -U limtrack limtrack > /tmp/backup_$(date +%Y%m%d).sql
+docker compose exec -T postgres pg_dump -U limtrack limtrack | gzip > /opt/limtrack/backups/limtrack_$(date +%Y%m%d)_manual.sql.gz
 ```
 
-Récupérer le backup sur ton Mac :
+### Récupérer un backup sur ton Mac
 
 ```bash
-scp limtrack@164.132.40.109:/tmp/backup_*.sql ~/Desktop/
+scp limtrack@164.132.40.109:/opt/limtrack/backups/limtrack_20260608.sql.gz ~/Desktop/
+```
+
+### Restaurer un backup
+
+```bash
+ssh limtrack@164.132.40.109
+cd /opt/limtrack
+gunzip -c /opt/limtrack/backups/limtrack_20260608.sql.gz | docker compose exec -T postgres psql -U limtrack -d limtrack
 ```

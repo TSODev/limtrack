@@ -70,9 +70,9 @@
 ## Phase 7 — Monitoring + cleanup
 
 - [x] Uptime Kuma déployé (port 3001, tunnel SSH)
-- [x] Monitors configurés : Backend API, PostgreSQL TCP, Caddy TLS
-- [ ] Configurer alertes email dans Uptime Kuma
-- [ ] Configurer `pg_dump` cron → backup BDD quotidien
+- [x] Monitors configurés : Backend (`http://backend:3000`), PostgreSQL TCP (`postgres:5432`)
+- [x] Alertes email configurées via SMTP Resend (`noreply@limtrack.app` → `thierry.soulie@tsodev.fr`)
+- [x] `pg_dump` cron configuré — backup quotidien à 2h dans `/opt/limtrack/backups/`, rétention 30 jours
 - [ ] Valider 48h en prod
 - [ ] Résilier Railway + NeonDB
 
