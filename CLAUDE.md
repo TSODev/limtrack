@@ -307,13 +307,14 @@ Lancée dans `tokio::spawn` au démarrage, se déclenche chaque jour à 8h UTC. 
 - `PATCH /api/vehicles/:id/contracts/insurance/:cid` — payload `{ "auto_renew": bool }`, `COALESCE` en SQL
 - `POST  /api/vehicles/:id/contracts/insurance/:cid/renew` — crée immédiatement le successeur ; renvoie `409` si un contrat avec `start_date = old.end_date` existe déjà
 
-### Frontend (`contract_widget.rs`)
-- `ContractInsuranceSummary` reçoit `vehicle_id: Uuid`, `can_manage: bool`, `on_updated: Callback<()>`
-- Toggle CSS peer/checked (Tailwind) — mise à jour optimiste du signal local + PATCH
-- Bouton "Renouveler maintenant →" — POST /renew + affiche le message d'erreur du body JSON (ex. 409)
-- Badge ↻ dans le titre quand `auto_renew = true`
-- `InsuranceModal` : checkbox auto_renew à la création
-- `patch_json` helper + `parse_error_response` (lit `{"error": "..."}` avant de retomber sur "Erreur HTTP : N")
+### Frontend
+- **Onglet Contrats (`contract_list.rs`)** : toggle + bouton "Renouveler maintenant →" dans `ContractInsuranceCard` (owner/editor uniquement)
+  - `on_updated: Callback<()>` déclenche un rechargement de la liste après toggle ou renouvellement
+  - Mise à jour optimiste du signal `auto_renew` local + PATCH
+  - Bouton renouvellement POST /renew + message d'erreur JSON (ex. 409)
+  - `patch_json` helper + `parse_error_response` (lit `{"error": "..."}` avant "Erreur HTTP : N")
+  - `InsuranceModal` : checkbox auto_renew à la création
+- **Dashboard (`contract_widget.rs`)** : `ContractInsuranceSummary` en lecture seule — badge ↻ statique si `auto_renew = true`, aucune action
 
 ## Points importants Leptos
 ```rust

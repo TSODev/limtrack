@@ -36,11 +36,10 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **`POST /api/vehicles/:id/contracts/insurance/:contract_id/renew`** : déclenchement manuel immédiat. Renvoie `409` si un successeur existe déjà.
 - **`PATCH /api/vehicles/:id/contracts/insurance/:contract_id`** : mise à jour du champ `auto_renew` uniquement.
 - **Frontend** :
-  - Toggle "Renouvellement automatique (J-7)" sur chaque carte assurance (visible owner/editor)
-  - Badge ↻ dans le titre de la carte quand activé
-  - Bouton "Renouveler maintenant →" avec affichage du message d'erreur JSON (ex. "Un contrat de renouvellement existe déjà")
+  - **Onglet Contrats** : toggle "Renouvellement automatique (J-7)" + bouton "Renouveler maintenant →" intégrés dans la carte contrat assurance (owner/editor uniquement) ; message d'erreur JSON affiché (ex. "Un contrat de renouvellement existe déjà")
+  - **Dashboard** : badge ↻ en lecture seule (indicateur visuel discret, aucune action)
   - Checkbox `auto_renew` dans la modale de création d'un contrat assurance
-  - `patch_json` helper + `parse_error_response` dans `contract_widget.rs`
+  - `patch_json` helper + `parse_error_response` dans `contract_list.rs`
 
 ### Infrastructure
 - **Migration OVH VPS** : backend et PostgreSQL migrés de Railway + NeonDB vers un VPS OVH auto-hébergé (Debian 12, 4 vCores / 8 Go RAM / 75 Go SSD, Roubaix — RGPD France).
