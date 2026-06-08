@@ -6,7 +6,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-1.1.2-indigo)
+![Version](https://img.shields.io/badge/version-1.1.3-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
@@ -37,7 +37,7 @@
 | --------------- | ------------------------------------------------------------------- |
 | Frontend        | [Leptos](https://leptos.dev/) 0.6 (WASM)                            |
 | Backend         | [Axum](https://github.com/tokio-rs/axum) 0.7                        |
-| Base de données | PostgreSQL (NeonDB) via [SQLx](https://github.com/launchbadge/sqlx) |
+| Base de données | PostgreSQL (auto-hébergé, VPS OVH) via [SQLx](https://github.com/launchbadge/sqlx) |
 | Styles          | [Tailwind CSS](https://tailwindcss.com/)                            |
 | Auth            | JWT (jsonwebtoken) + bcrypt                                         |
 | Secrets         | [Infisical](https://infisical.com) (EU cloud)                       |
@@ -198,7 +198,7 @@ limtrack/
 - [Rust](https://rustup.rs/) (nightly — requis par Leptos)
 - [Trunk](https://trunkrs.dev/) (`cargo install trunk`)
 - [Node.js](https://nodejs.org/) (pour Tailwind CSS via npx)
-- PostgreSQL ou compte [NeonDB](https://neon.tech/)
+- PostgreSQL (local ou auto-hébergé)
 
 ### iOS (Tauri Mobile)
 - macOS avec [Xcode](https://developer.apple.com/xcode/) 15+
@@ -230,15 +230,7 @@ JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
 RESEND_API_KEY=re_...   # Notifications email (Resend) — désactivé si absent
 ```
 
-> **Production (Railway)** : les secrets sont gérés via [Infisical](https://infisical.com). Le backend charge automatiquement `DATABASE_URL`, `JWT_SECRET` et `RESEND_API_KEY` depuis Infisical au démarrage si `INFISICAL_TOKEN` est présent, sinon il utilise le `.env` local.
->
-> Variables Railway requises en production :
-> ```
-> INFISICAL_TOKEN        # Service Token Infisical
-> INFISICAL_PROJECT_ID   # ID du projet Infisical
-> INFISICAL_ENVIRONMENT  # prod
-> INFISICAL_URL          # https://eu.infisical.com
-> ```
+> **Production (VPS OVH)** : les secrets sont définis dans `/opt/limtrack/.env` sur le serveur. Le backend les charge via les variables d'environnement Docker. Si `INFISICAL_TOKEN` est présent, les secrets sont chargés depuis [Infisical](https://infisical.com) à la place.
 
 ### 4. Base de données
 
@@ -423,11 +415,13 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ## Déploiement production
 
-| Service  | URL                        | Plateforme        |
-| -------- | -------------------------- | ----------------- |
-| Frontend | https://limtrack.app       | Cloudflare Pages  |
-| Backend  | https://api.limtrack.app   | Railway           |
-| BDD      | NeonDB (PostgreSQL)        | Neon              |
+| Service  | URL                        | Plateforme                        |
+| -------- | -------------------------- | --------------------------------- |
+| Frontend | https://limtrack.app       | Cloudflare Pages (GitHub Actions) |
+| Backend  | https://api.limtrack.app   | OVH VPS — Docker + Caddy         |
+| BDD      | PostgreSQL auto-hébergé    | OVH VPS — Docker (volume persistant) |
+
+Le déploiement backend est automatisé via GitHub Actions : tout push sur `main` touchant le backend déclenche un build Docker et un déploiement SSH sur le VPS.
 
 ---
 
