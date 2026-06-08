@@ -8,6 +8,18 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Infrastructure
+- **Migration OVH VPS** : backend et PostgreSQL migrés de Railway + NeonDB vers un VPS OVH auto-hébergé (Debian 12, 4 vCores / 8 Go RAM / 75 Go SSD, Roubaix — RGPD France).
+  - Stack : Docker Compose + Caddy (TLS Let's Encrypt automatique) + GitHub Actions (CI/CD push-to-deploy)
+  - `Dockerfile.vps` : image multi-stage `rust:slim` → `debian:bookworm-slim`, `SQLX_OFFLINE=true`
+  - `docker-compose.yml` : postgres + backend + caddy + adminer + uptime-kuma
+  - `scripts/setup-vps.sh` : provisionnement automatisé Debian 12
+  - Adminer : accès BDD via tunnel SSH (`ssh -L 8080:localhost:8080 limtrack@164.132.40.109`)
+  - Uptime Kuma : monitoring + alertes email Resend, accès via tunnel SSH (port 3001)
+  - Backup BDD : `pg_dump` quotidien à 2h (cron), rétention 30 jours, `/opt/limtrack/backups/`
+  - Secrets : `.env` sur VPS (sans Infisical), `DATABASE_URL` pointe sur postgres local
+  - Frontend Cloudflare Pages : inchangé
+
 ### Ajouté
 - **Broadcast messages** : système de messages ponctuels envoyés à tous les utilisateurs, affichés une seule fois après connexion (banner bas d'écran, auto-dismiss 10s + bouton ✕). Suivi par ID en localStorage.
   - `GET /api/broadcasts/active` — retourne le broadcast actif le plus récent, filtré selon `is_ios` si `exclude_ios = true`

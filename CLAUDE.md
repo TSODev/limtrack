@@ -9,7 +9,7 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 
 ## Stack technique
 - **Frontend** : Leptos 0.6 (WASM), Tailwind CSS v4, Trunk
-- **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (NeonDB)
+- **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (auto-hébergé sur VPS OVH)
 - **Auth** : JWT (jsonwebtoken) + bcrypt
 - **Sécurité mots de passe** : `zxcvbn` (score ≥ 3/4) à l'inscription et au changement de mot de passe
 - **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`, délivrance automatique via formulaire
@@ -17,7 +17,7 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Mobile** : Tauri v2 (iOS configuré, Android à faire), PWA installable
 - **Export** : PDF (contrats, flotte) et CSV (relevés avec trajectoire idéale, flotte) — génération 100% frontend (WASM, Blob API)
 - **Types partagés** : crate `common` (workspace Cargo)
-- **Déploiement** : Cloudflare Pages (frontend, GitHub Actions) + Railway (backend)
+- **Déploiement** : Cloudflare Pages (frontend, GitHub Actions) + OVH VPS (backend + PostgreSQL)
 
 ## Architecture workspace
 ```
@@ -101,8 +101,8 @@ limtrack/
 
 ## URLs production
 - Frontend : `https://limtrack.app` (Cloudflare Pages)
-- Backend : `https://api.limtrack.app` (Railway)
-- BDD : NeonDB PostgreSQL
+- Backend : `https://api.limtrack.app` (OVH VPS `164.132.40.109`)
+- BDD : PostgreSQL auto-hébergé sur VPS (Docker, volume persistant)
 
 ## Base de données
 ```sql
@@ -342,8 +342,8 @@ cargo tauri ios build
 - **Régénérer les icônes** : `cargo tauri icon /chemin/icone-1024x1024.png`
 - **Chiffrement** : `ITSAppUsesNonExemptEncryption = false` dans `project.yml` → Info.plist — exempte de documentation ANSSI (France) et EAR (USA)
 
-## Railway — point important
-Railway compile avec `SQLX_OFFLINE=true`. Après toute modification de requête SQL dans le backend, il faut regénérer le cache :
+## Déploiement backend — point important
+Le build Docker utilise `SQLX_OFFLINE=true`. Après toute modification de requête SQL dans le backend, il faut regénérer le cache SQLx avant de pousser :
 ```bash
 cd backend
 cargo sqlx prepare
@@ -351,11 +351,12 @@ git add .sqlx/
 git commit -m "fix: sqlx cache"
 git push
 ```
+Le push déclenche automatiquement GitHub Actions → build image → SSH deploy sur VPS.
 
 ## Infisical — gestion des secrets
 `backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v3/secrets/raw` et injection dans l'env. Sinon → fallback `dotenvy` (dev local).
 - Instance : EU cloud `https://eu.infisical.com` — **Service Token** (pas Machine Identity, incompatible E2EE)
-- Railway : `INFISICAL_TOKEN`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT`, `INFISICAL_URL`
+- **VPS** : secrets dans `/opt/limtrack/.env` (pas d'Infisical sur VPS — fallback dotenvy via variables Docker)
 - Les noms des secrets dans Infisical = noms des variables d'env (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`)
 
 ## Pièges SQLx connus
