@@ -623,50 +623,49 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
                     </Show>
                 </div>
             </div>
+            // Section renouvellement automatique (owner/editor)
+            {if can_manage {
+                view! {
+                    <div class="pt-3 border-t border-gray-100 space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                class="sr-only peer"
+                                prop:checked=move || auto_renew.get()
+                                disabled=move || is_toggle_pending.get()
+                                on:change=move |_| {
+                                    let new_val = !auto_renew.get();
+                                    set_auto_renew.set(new_val);
+                                    toggle_action.dispatch((vehicle_id, contract_id, new_val));
+                                }
+                            />
+                            <div class="relative w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-indigo-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+                            <span class=move || format!(
+                                "text-sm {}",
+                                if is_toggle_pending.get() { "text-gray-400 animate-pulse" } else { "text-gray-600" }
+                            )>
+                                "Renouvellement automatique (J-7)"
+                            </span>
+                        </label>
+                        <button
+                            type="button"
+                            disabled=move || is_renew_pending.get()
+                            on:click=move |_| renew_action.dispatch((vehicle_id, contract_id))
+                            class="w-full text-sm py-2 px-4 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+                        >
+                            {move || if is_renew_pending.get() { "Renouvellement en cours..." } else { "Renouveler maintenant →" }}
+                        </button>
+                        {move || {
+                            renew_action.value().get()
+                                .and_then(|r| r.err())
+                                .map(|e| view! { <p class="text-sm text-center text-red-600">{e}</p> })
+                        }}
+                    </div>
+                }.into_view()
+            } else {
+                view! { <></> }.into_view()
+            }}
         </div>
-
-        // Section renouvellement automatique (owner/editor)
-        {if can_manage {
-            view! {
-                <div class="pt-3 border-t border-gray-100 space-y-2">
-                    <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            class="sr-only peer"
-                            prop:checked=move || auto_renew.get()
-                            disabled=move || is_toggle_pending.get()
-                            on:change=move |_| {
-                                let new_val = !auto_renew.get();
-                                set_auto_renew.set(new_val);
-                                toggle_action.dispatch((vehicle_id, contract_id, new_val));
-                            }
-                        />
-                        <div class="relative w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-indigo-500 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
-                        <span class=move || format!(
-                            "text-sm {}",
-                            if is_toggle_pending.get() { "text-gray-400 animate-pulse" } else { "text-gray-600" }
-                        )>
-                            "Renouvellement automatique (J-7)"
-                        </span>
-                    </label>
-                    <button
-                        type="button"
-                        disabled=move || is_renew_pending.get()
-                        on:click=move |_| renew_action.dispatch((vehicle_id, contract_id))
-                        class="w-full text-sm py-2 px-4 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
-                    >
-                        {move || if is_renew_pending.get() { "Renouvellement en cours..." } else { "Renouveler maintenant →" }}
-                    </button>
-                    {move || {
-                        renew_action.value().get()
-                            .and_then(|r| r.err())
-                            .map(|e| view! { <p class="text-sm text-center text-red-600">{e}</p> })
-                    }}
-                </div>
-            }.into_view()
-        } else {
-            view! { <></> }.into_view()
-        }}
 
         // Modal confirmation suppression Assurance
         <Show when=move || show_confirm_delete.get() fallback=|| ()>
