@@ -23,3 +23,9 @@ frontend/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/*.png
 
 # Notes et todos locaux
 TODO.md
+
+# Docker — secrets et données locales
+.env.vps
+caddy_data/
+caddy_config/
+postgres_data/
