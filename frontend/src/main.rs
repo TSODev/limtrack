@@ -18,6 +18,7 @@ use pages::profile::ProfilePage;
 use pages::register::RegisterPage;
 use pages::reset_password::ResetPasswordPage;
 use pages::request_license::RequestLicensePage;
+use pages::support::SupportPage;
 
 #[component]
 fn App() -> impl IntoView {
@@ -37,6 +38,7 @@ fn App() -> impl IntoView {
                     <Route path="/reset-password" view=ResetPasswordPage />
                     <Route path="/privacy" view=PrivacyPage />
                     <Route path="/admin" view=AdminPage />
+                    <Route path="/support" view=SupportPage />
                 </Routes>
             </main>
         </Router>

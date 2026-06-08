@@ -10,3 +10,4 @@ pub mod register;
 pub mod reset_password;
 pub mod privacy;
 pub mod request_license;
+pub mod support;
