@@ -9,6 +9,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [Unreleased]
 
 ### Ajouté
+- **Page `/support`** : page publique de support (sans authentification) avec FAQ, contact email et lien GitHub Issues. Répond à l'exigence Apple Guideline 1.5 (Support URL fonctionnelle).
 - **Plaques multi-pays** : le formulaire d'ajout de véhicule supporte désormais les formats France, Belgique, Luxembourg et Suisse via un sélecteur de pays (🇫🇷🇧🇪🇱🇺🇨🇭) à gauche du champ. Formatage automatique adapté au pays choisi (`AA-000-AA` / `0-AAA-000` / `AA 0000` / `AA 000000`), placeholder, pattern HTML5 et texte d'aide réactifs.
 
 ### Infrastructure
