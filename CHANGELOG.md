@@ -8,6 +8,17 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.0] iOS — 2026-06-09 (build 3)
+
+### Inclus depuis 1.1.0 (build 2)
+- `GET /health` : endpoint monitoring avec check DB
+- Notification bell : alerte licence masquée pour comptes iOS
+- Inscription : notice "3 mois d'essai" masquée sur iOS
+- Messages d'erreur formulaires : messages métier lisibles (parse_error_response centralisé)
+- Page `/privacy` : hébergement mis à jour (VPS OVH, Gravelines)
+
+---
+
 ### Ajouté
 - **`GET /health`** : endpoint de monitoring hors middleware (pas d'auth, pas de check licence). Vérifie la connectivité DB (`SELECT 1`) — retourne `200 ok` si DB joignable, `503 db_error` sinon. Utilisé par Uptime Kuma (`http://backend:3000/health` en interne Docker).
 
