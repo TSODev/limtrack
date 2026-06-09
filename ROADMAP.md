@@ -118,6 +118,20 @@
 
 ---
 
+## Qualité du code — refactoring
+
+### Client HTTP partagé (frontend)
+Chaque composant Leptos définit ses propres `fetch_json` / `post_json` / `patch_json` / `delete_json`. La centralisation de `parse_error_response` dans `ui.rs` est un premier pas — l'étape suivante est un vrai module `api_client.rs` avec des helpers génériques réutilisables partout.
+- [ ] Créer `frontend/src/api_client.rs` — `get<T>`, `post<T>`, `patch<T>`, `delete` avec headers, token et `parse_error_response` intégrés
+- [ ] Migrer les composants progressivement (contracts, mileage, vehicle_header, profile…)
+
+### Calculs métier dupliqués SQL / Rust
+Le statut des contrats (`exceeded` / `active` / `closed`) et le calcul `overage_risk` existent à la fois en Rust (`contracts_handler.rs`) et reconstitués en SQL (`vehicles_handler.rs`). Une divergence a déjà causé un bug (badge toujours vert). Pistes :
+- [ ] Extraire la logique de calcul de statut dans des fonctions Rust partagées (crate `common` ou module dédié)
+- [ ] Ou créer une vue SQL `v_contract_status` recalculée à la volée, référencée partout
+
+---
+
 ## Documentation technique
 
 - [ ] **Documentation API Swagger/OpenAPI** — intégration `utoipa` + `utoipa-swagger-ui`, endpoint `/api-docs` avec Swagger UI interactif. Utile pour les contributeurs open source.
