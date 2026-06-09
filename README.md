@@ -347,6 +347,12 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 
 ## API — Routes principales
 
+### Monitoring
+
+| Méthode | Route     | Description                                  |
+| ------- | --------- | -------------------------------------------- |
+| `GET`   | `/health` | Health check (public, hors middleware) → `ok` |
+
 ### Auth & Profil
 
 | Méthode      | Route                               | Description                                      |
@@ -379,8 +385,9 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 | `DELETE`       | `/api/vehicles/:id/leave`                          | Quitter un véhicule partagé        |
 | `GET/POST`     | `/api/vehicles/:id/contracts/loa`                  | Liste / création contrats LOA      |
 | `PATCH/DELETE` | `/api/vehicles/:id/contracts/loa/:contract_id`     | Modifier / supprimer contrat LOA   |
-| `GET/POST`     | `/api/vehicles/:id/contracts/insurance`            | Liste / création contrats assurance|
-| `DELETE`       | `/api/vehicles/:id/contracts/insurance/:contract_id` | Supprimer contrat assurance      |
+| `GET/POST`     | `/api/vehicles/:id/contracts/insurance`                      | Liste / création contrats assurance         |
+| `PATCH/DELETE` | `/api/vehicles/:id/contracts/insurance/:contract_id`         | Modifier `auto_renew` / supprimer           |
+| `POST`         | `/api/vehicles/:id/contracts/insurance/:contract_id/renew`   | Renouveler immédiatement (crée successeur)  |
 | `GET/POST`     | `/api/vehicles/:id/mileage`                        | Liste / ajout relevés km           |
 | `DELETE`       | `/api/vehicles/:id/mileage/:entry_id`              | Supprimer un relevé km             |
 | `POST/DELETE`  | `/api/vehicles/:id/fleet`                          | Assigner / retirer d'une flotte    |

@@ -132,6 +132,9 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 
 ## Routes API
 ```
+# Monitoring (public, hors middleware)
+GET         /health                                                ← 200 "ok" — pour Uptime Kuma
+
 # Auth & Profil (public sauf mention)
 POST        /login                                             ← email ou username
 POST        /api/user/register

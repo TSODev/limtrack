@@ -8,6 +8,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Ajouté
+- **`GET /health`** : endpoint de monitoring hors middleware (pas d'auth, pas de check licence). Retourne `ok` (200). Utilisé par Uptime Kuma sur `https://api.limtrack.app/health`.
+
+### Corrigé
+- **Page `/privacy`** : hébergement mis à jour — Railway + NeonDB remplacés par VPS OVH, datacenter de Gravelines (France).
+
 ---
 
 ## [1.2.0] — 2026-06-08
@@ -42,7 +48,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
   - `patch_json` helper + `parse_error_response` dans `contract_list.rs`
 
 ### Infrastructure
-- **Migration OVH VPS** : backend et PostgreSQL migrés de Railway + NeonDB vers un VPS OVH auto-hébergé (Debian 12, 4 vCores / 8 Go RAM / 75 Go SSD, Roubaix — RGPD France).
+- **Migration OVH VPS** : backend et PostgreSQL migrés de Railway + NeonDB vers un VPS OVH auto-hébergé (Debian 12, 4 vCores / 8 Go RAM / 75 Go SSD, Gravelines — RGPD France).
   - Stack : Docker Compose + Caddy (TLS Let's Encrypt automatique) + GitHub Actions (CI/CD push-to-deploy)
   - `Dockerfile.vps` : image multi-stage `rust:slim` → `debian:bookworm-slim`, `SQLX_OFFLINE=true`
   - `docker-compose.yml` : postgres + backend + caddy + adminer + uptime-kuma
