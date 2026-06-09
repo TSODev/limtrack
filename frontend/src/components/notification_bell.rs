@@ -66,32 +66,40 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
             let Some(token) = get_token() else { return };
             let mut new_alerts: Vec<Alert> = Vec::new();
 
-            // Alerte expiration de licence
-            if let Ok(license) = fetch_json::<LicenseStatus>(
-                &format!("{}/api/profile/license", crate::config::API_BASE),
-                &token,
-            )
-            .await
-            {
-                if let Some(days) = license.days_until_expiry {
-                    let msg = if license.status == "trial" {
-                        format!(
-                            "Période d'essai : expire dans {} jour{}",
-                            days,
-                            if days > 1 { "s" } else { "" }
-                        )
-                    } else {
-                        format!(
-                            "Licence : expire dans {} jour{}",
-                            days,
-                            if days > 1 { "s" } else { "" }
-                        )
-                    };
-                    new_alerts.push(Alert {
-                        vehicle_name: "Licence LimTrack".to_string(),
-                        message: msg,
-                        level: if days <= 3 { AlertLevel::Danger } else { AlertLevel::Warning },
-                    });
+            // Alerte expiration de licence — masquée pour les comptes iOS (accès lifetime)
+            let is_ios = web_sys::window()
+                .and_then(|w| w.local_storage().ok().flatten())
+                .and_then(|s| s.get_item("limtrack_is_ios").ok().flatten())
+                .map(|v| v == "true")
+                .unwrap_or(false);
+
+            if !is_ios {
+                if let Ok(license) = fetch_json::<LicenseStatus>(
+                    &format!("{}/api/profile/license", crate::config::API_BASE),
+                    &token,
+                )
+                .await
+                {
+                    if let Some(days) = license.days_until_expiry {
+                        let msg = if license.status == "trial" {
+                            format!(
+                                "Période d'essai : expire dans {} jour{}",
+                                days,
+                                if days > 1 { "s" } else { "" }
+                            )
+                        } else {
+                            format!(
+                                "Licence : expire dans {} jour{}",
+                                days,
+                                if days > 1 { "s" } else { "" }
+                            )
+                        };
+                        new_alerts.push(Alert {
+                            vehicle_name: "Licence LimTrack".to_string(),
+                            message: msg,
+                            level: if days <= 3 { AlertLevel::Danger } else { AlertLevel::Warning },
+                        });
+                    }
                 }
             }
 
