@@ -209,7 +209,7 @@ GET         /api/broadcasts/active                                ← message ac
 - **Version App Store iOS** : payante (achat unique), accès lifetime inclus
 - **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (Infisical). Idempotent. Stocké `ios_activated` en localStorage.
 - **Détection Tauri** : `crate::config::is_tauri()` via `window.__TAURI__`. Fiable en production ; **peu fiable en dev Simulator** (ne pas s'y fier pour masquer du contenu).
-- **Détection compte iOS** : champ `users.is_ios` (migration 007) — source de vérité pour masquer Licence/Flotte dans le profil et les sections web-only dans À propos. Stocké dans `localStorage["limtrack_is_ios"]` dès le chargement de mainpage pour éviter le flash au rendu.
+- **Détection compte iOS** : champ `users.is_ios` (migration 007) — source de vérité pour masquer Licence/Flotte dans le profil, les sections web-only dans À propos, et l'alerte d'expiration de licence dans la notification bell. Stocké dans `localStorage["limtrack_is_ios"]` dès le chargement de mainpage pour éviter le flash au rendu.
 - **Clé iOS** : `IOS_ACTIVATION_KEY` injectée à la compilation (`option_env!`) — à définir en variable d'env lors du build Tauri iOS.
 - **Conformité AGPL v3** : exception App Store ajoutée dans `licence.md` (Thierry Soulie, détenteur unique).
 - **Privacy Policy** : page `/privacy` hébergée sur `limtrack.app/privacy` (obligatoire App Store).

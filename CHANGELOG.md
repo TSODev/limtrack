@@ -13,6 +13,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ### Corrigé
 - **Page `/privacy`** : hébergement mis à jour — Railway + NeonDB remplacés par VPS OVH, datacenter de Gravelines (France).
+- **Notification bell** : alerte d'expiration de licence masquée pour les comptes iOS (`is_ios = true`) — ces comptes ont un accès lifetime, l'alerte était affichée à tort. Détection via `localStorage["limtrack_is_ios"]`.
 
 ---
 
