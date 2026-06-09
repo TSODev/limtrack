@@ -44,21 +44,21 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
             // Indicateur statut contrats
             {match vehicle.contract_status.as_deref() {
                 Some("danger") => view! {
-                    <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                    <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 border border-red-200 rounded-full px-2 py-0.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                         "Dépassé"
                     </span>
                 }.into_view(),
                 Some("warning") => view! {
-                    <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                        "À risque"
+                    <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2 py-0.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                        "Risque"
                     </span>
                 }.into_view(),
                 Some("ok") => view! {
-                    <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                    <span class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                        "OK"
+                        "Actif"
                     </span>
                 }.into_view(),
                 _ => view! { <span /> }.into_view(),
