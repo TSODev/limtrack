@@ -79,15 +79,60 @@ pub async fn list_vehicles(
             v.archived_at,
             va.role,
             CASE
-                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'exceeded')
-                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'exceeded')
-                THEN 'danger'
-                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
-                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
-                THEN 'warning'
-                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active')
-                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active')
-                THEN 'ok'
+                -- danger : km consommés >= km autorisés (indépendamment de la date)
+                WHEN EXISTS (
+                    SELECT 1 FROM public.contracts_loa l
+                    WHERE l.vehicle_id = v.id
+                      AND COALESCE(
+                          (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                          l.km_start
+                      ) - l.km_start >= l.km_allowed
+                ) OR EXISTS (
+                    SELECT 1 FROM public.contracts_insurance i
+                    WHERE i.vehicle_id = v.id
+                      AND COALESCE(
+                          (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                          i.km_start
+                      ) - i.km_start >= i.km_annual_limit
+                ) THEN 'danger'
+                -- warning : contrat actif expirant dans ≤30j OU projection de km dépasse le plafond
+                WHEN EXISTS (
+                    SELECT 1 FROM public.contracts_loa l
+                    WHERE l.vehicle_id = v.id
+                      AND l.end_date >= CURRENT_DATE
+                      AND (
+                          l.end_date <= CURRENT_DATE + 30
+                          OR (
+                              (COALESCE(
+                                  (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                                  l.km_start
+                              ) - l.km_start)::FLOAT
+                              / GREATEST(CURRENT_DATE - l.start_date, 1)
+                              * (l.end_date - l.start_date) > l.km_allowed
+                          )
+                      )
+                ) OR EXISTS (
+                    SELECT 1 FROM public.contracts_insurance i
+                    WHERE i.vehicle_id = v.id
+                      AND i.end_date >= CURRENT_DATE
+                      AND (
+                          i.end_date <= CURRENT_DATE + 30
+                          OR (
+                              (COALESCE(
+                                  (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                                  i.km_start
+                              ) - i.km_start)::FLOAT
+                              / GREATEST(CURRENT_DATE - i.start_date, 1)
+                              * (i.end_date - i.start_date) > i.km_annual_limit
+                          )
+                      )
+                ) THEN 'warning'
+                -- ok : au moins un contrat en cours, non dépassé
+                WHEN EXISTS (
+                    SELECT 1 FROM public.contracts_loa l WHERE l.vehicle_id = v.id AND l.end_date >= CURRENT_DATE
+                ) OR EXISTS (
+                    SELECT 1 FROM public.contracts_insurance i WHERE i.vehicle_id = v.id AND i.end_date >= CURRENT_DATE
+                ) THEN 'ok'
                 ELSE NULL
             END AS "contract_status?"
         FROM public.vehicles v
@@ -130,15 +175,57 @@ pub async fn get_vehicle(
             v.archived_at,
             va.role,
             CASE
-                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'exceeded')
-                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'exceeded')
-                THEN 'danger'
-                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
-                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
-                THEN 'warning'
-                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active')
-                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active')
-                THEN 'ok'
+                WHEN EXISTS (
+                    SELECT 1 FROM public.contracts_loa l
+                    WHERE l.vehicle_id = v.id
+                      AND COALESCE(
+                          (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                          l.km_start
+                      ) - l.km_start >= l.km_allowed
+                ) OR EXISTS (
+                    SELECT 1 FROM public.contracts_insurance i
+                    WHERE i.vehicle_id = v.id
+                      AND COALESCE(
+                          (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                          i.km_start
+                      ) - i.km_start >= i.km_annual_limit
+                ) THEN 'danger'
+                WHEN EXISTS (
+                    SELECT 1 FROM public.contracts_loa l
+                    WHERE l.vehicle_id = v.id
+                      AND l.end_date >= CURRENT_DATE
+                      AND (
+                          l.end_date <= CURRENT_DATE + 30
+                          OR (
+                              (COALESCE(
+                                  (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                                  l.km_start
+                              ) - l.km_start)::FLOAT
+                              / GREATEST(CURRENT_DATE - l.start_date, 1)
+                              * (l.end_date - l.start_date) > l.km_allowed
+                          )
+                      )
+                ) OR EXISTS (
+                    SELECT 1 FROM public.contracts_insurance i
+                    WHERE i.vehicle_id = v.id
+                      AND i.end_date >= CURRENT_DATE
+                      AND (
+                          i.end_date <= CURRENT_DATE + 30
+                          OR (
+                              (COALESCE(
+                                  (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),
+                                  i.km_start
+                              ) - i.km_start)::FLOAT
+                              / GREATEST(CURRENT_DATE - i.start_date, 1)
+                              * (i.end_date - i.start_date) > i.km_annual_limit
+                          )
+                      )
+                ) THEN 'warning'
+                WHEN EXISTS (
+                    SELECT 1 FROM public.contracts_loa l WHERE l.vehicle_id = v.id AND l.end_date >= CURRENT_DATE
+                ) OR EXISTS (
+                    SELECT 1 FROM public.contracts_insurance i WHERE i.vehicle_id = v.id AND i.end_date >= CURRENT_DATE
+                ) THEN 'ok'
                 ELSE NULL
             END AS "contract_status?"
         FROM public.vehicles v

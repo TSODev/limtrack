@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role,\n            CASE\n                -- danger : km consommés >= km autorisés (indépendamment de la date)\n                WHEN EXISTS (\n                    SELECT 1 FROM public.contracts_loa l\n                    WHERE l.vehicle_id = v.id\n                      AND COALESCE(\n                          (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),\n                          l.km_start\n                      ) - l.km_start >= l.km_allowed\n                ) OR EXISTS (\n                    SELECT 1 FROM public.contracts_insurance i\n                    WHERE i.vehicle_id = v.id\n                      AND COALESCE(\n                          (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),\n                          i.km_start\n                      ) - i.km_start >= i.km_annual_limit\n                ) THEN 'danger'\n                -- warning : contrat actif expirant dans ≤30j OU projection de km dépasse le plafond\n                WHEN EXISTS (\n                    SELECT 1 FROM public.contracts_loa l\n                    WHERE l.vehicle_id = v.id\n                      AND l.end_date >= CURRENT_DATE\n                      AND (\n                          l.end_date <= CURRENT_DATE + 30\n                          OR (\n                              (COALESCE(\n                                  (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),\n                                  l.km_start\n                              ) - l.km_start)::FLOAT\n                              / GREATEST(CURRENT_DATE - l.start_date, 1)\n                              * (l.end_date - l.start_date) > l.km_allowed\n                          )\n                      )\n                ) OR EXISTS (\n                    SELECT 1 FROM public.contracts_insurance i\n                    WHERE i.vehicle_id = v.id\n                      AND i.end_date >= CURRENT_DATE\n                      AND (\n                          i.end_date <= CURRENT_DATE + 30\n                          OR (\n                              (COALESCE(\n                                  (SELECT value FROM public.mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC, created_at DESC LIMIT 1),\n                                  i.km_start\n                              ) - i.km_start)::FLOAT\n                              / GREATEST(CURRENT_DATE - i.start_date, 1)\n                              * (i.end_date - i.start_date) > i.km_annual_limit\n                          )\n                      )\n                ) THEN 'warning'\n                -- ok : au moins un contrat en cours, non dépassé\n                WHEN EXISTS (\n                    SELECT 1 FROM public.contracts_loa l WHERE l.vehicle_id = v.id AND l.end_date >= CURRENT_DATE\n                ) OR EXISTS (\n                    SELECT 1 FROM public.contracts_insurance i WHERE i.vehicle_id = v.id AND i.end_date >= CURRENT_DATE\n                ) THEN 'ok'\n                ELSE NULL\n            END AS \"contract_status?\"\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.archived_at IS NULL\n        ORDER BY v.created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "owner_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "make",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "model",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "plate_number",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "year",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "vin",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "archived_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "role",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "contract_status?",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "a3e6e9c8ad0911d291966edac88212cc7e23ab5339bb5f666fc8cd55dc171960"
+}
