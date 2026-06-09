@@ -15,6 +15,7 @@ struct ContractsData {
 pub fn ContractsWidget(
     vehicle_id: ReadSignal<Option<Uuid>>,
     can_manage_contracts: Memo<bool>,
+    on_navigate: Callback<()>,
 ) -> impl IntoView {
     let (data, set_data) = create_signal(Option::<ContractsData>::None);
     let (loading, set_loading) = create_signal(false);
@@ -71,9 +72,15 @@ pub fn ContractsWidget(
     view! {
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
             <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                <button
+                    on:click=move |_| on_navigate.call(())
+                    class="flex items-center gap-1 text-sm font-semibold text-gray-700 uppercase tracking-wide hover:text-indigo-600 transition-colors duration-150 text-left"
+                >
                     "Contrats actifs"
-                </h3>
+                    <svg class="h-3.5 w-3.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
                 // Boutons visibles uniquement pour owner
                 <Show when=move || can_manage_contracts.get() fallback=|| ()>
                     <div class="flex gap-2">

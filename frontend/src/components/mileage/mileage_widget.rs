@@ -13,7 +13,7 @@ struct WidgetData {
 }
 
 #[component]
-pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
+pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback<()>) -> impl IntoView {
     let (data, set_data) = create_signal(Option::<WidgetData>::None);
     let (loading, set_loading) = create_signal(false);
 
@@ -55,9 +55,15 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>) -> impl IntoView {
 
     view! {
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 flex flex-col gap-3 md:gap-4">
-            <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            <button
+                on:click=move |_| on_navigate.call(())
+                class="flex items-center gap-1 text-sm font-semibold text-gray-700 uppercase tracking-wide hover:text-indigo-600 transition-colors duration-150 text-left"
+            >
                 "Kilométrage"
-            </h3>
+                <svg class="h-3.5 w-3.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+            </button>
 
             <Show when=move || loading.get() fallback=|| ()>
                 <p class="text-xs text-gray-400 animate-pulse">"Chargement..."</p>

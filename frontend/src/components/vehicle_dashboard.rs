@@ -175,10 +175,14 @@ pub fn VehicleDashboard(
                         DashboardTab::Overview => view! {
                             // 1 colonne sur mobile, 2 sur desktop
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <MileageWidget vehicle_id=selected_id />
+                                <MileageWidget
+                                    vehicle_id=selected_id
+                                    on_navigate=Callback::new(move |_| set_tab.set(DashboardTab::Kilometrage))
+                                />
                                 <ContractsWidget
                                     vehicle_id=selected_id
                                     can_manage_contracts=can_manage_contracts
+                                    on_navigate=Callback::new(move |_| set_tab.set(DashboardTab::Contracts))
                                 />
                             </div>
                         }.into_view(),
