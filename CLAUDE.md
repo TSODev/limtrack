@@ -448,9 +448,9 @@ create_effect(move |_| {
 ```
 
 ## Parsing erreurs HTTP — pattern fiable en WASM
-`parse_error_response` dans `contract_list.rs` :
+`parse_error_response` est dans `components/ui.rs` (fonction partagée, `pub async fn`). Utilisée dans tous les fichiers d'écriture (`contract_list`, `contract_widget`, `mileage_list`, `vehicle_header`, `profile`).
 1. Lit le corps via `resp.text()` + `serde_json::from_str` (ne pas revenir à `resp.json()` + `serde_wasm_bindgen::from_value::<serde_json::Value>` — échoue silencieusement en WASM)
-2. Fallback par code HTTP si le JSON ne parse pas : 409 → message chevauchement, 402/403/404/429 → messages métier explicites
+2. Fallback par code HTTP si le JSON ne parse pas : 409 → chevauchement de période, 402/403/404/429 → messages métier explicites
 
 ## Warnings connus
 - `RequestInit::method/headers/body` dépréciés → bénins, correction complexe, à faire lors d'une maj web-sys
