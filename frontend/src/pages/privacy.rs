@@ -78,12 +78,8 @@ pub fn PrivacyPage() -> impl IntoView {
                         <h2 class="text-base font-bold text-gray-900">"4. Hébergement et sous-traitants"</h2>
                         <ul class="list-disc pl-5 space-y-1">
                             <li>
-                                <strong>"Base de données"</strong>
-                                " : NeonDB (PostgreSQL) — hébergé en Europe"
-                            </li>
-                            <li>
-                                <strong>"Backend"</strong>
-                                " : Railway — hébergé aux États-Unis (données chiffrées en transit)"
+                                <strong>"Base de données et backend"</strong>
+                                " : VPS OVH — hébergé en France (Gravelines)"
                             </li>
                             <li>
                                 <strong>"Frontend"</strong>

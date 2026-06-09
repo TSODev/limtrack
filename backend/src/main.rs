@@ -276,6 +276,10 @@ async fn main() {
         }
     });
 
+    let root = Router::new()
+        .route("/health", get(|| async { "ok" }))
+        .merge(app);
+
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, root).await.unwrap();
 }
