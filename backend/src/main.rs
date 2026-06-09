@@ -55,7 +55,8 @@ use crate::vehicles_handler::{
 };
 
 use axum::{
-    extract::DefaultBodyLimit,
+    extract::{DefaultBodyLimit, State},
+    http::StatusCode,
     middleware,
     routing::{delete, get, post},
     Router,
@@ -68,6 +69,13 @@ use tower_governor::{governor::GovernorConfigBuilder, key_extractor::SmartIpKeyE
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
+
+async fn health_handler(State(db): State<PgPool>) -> impl axum::response::IntoResponse {
+    match sqlx::query("SELECT 1").execute(&db).await {
+        Ok(_) => (StatusCode::OK, "ok"),
+        Err(_) => (StatusCode::SERVICE_UNAVAILABLE, "db_error"),
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -86,6 +94,7 @@ async fn main() {
 
     let resend_api_key = std::env::var("RESEND_API_KEY").unwrap_or_default();
     let state = AppState { db: pool.clone(), resend_api_key: resend_api_key.clone() };
+    let health_pool = pool.clone();
     let notif_pool = pool;
 
     info!("Le backend démarre...");
@@ -277,7 +286,8 @@ async fn main() {
     });
 
     let root = Router::new()
-        .route("/health", get(|| async { "ok" }))
+        .route("/health", get(health_handler))
+        .with_state(health_pool)
         .merge(app);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
