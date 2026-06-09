@@ -452,6 +452,9 @@ create_effect(move |_| {
 1. Lit le corps via `resp.text()` + `serde_json::from_str` (ne pas revenir à `resp.json()` + `serde_wasm_bindgen::from_value::<serde_json::Value>` — échoue silencieusement en WASM)
 2. Fallback par code HTTP si le JSON ne parse pas : 409 → chevauchement de période, 402/403/404/429 → messages métier explicites
 
+## Cache WASM — Safari
+Après un déploiement Cloudflare Pages, Safari peut servir l'ancien WASM. Hard refresh : **Option + Cmd + R** (pas Cmd+Shift+R qui active le mode lecture). Ou : menu **Développer → Recharger en ignorant les caches**.
+
 ## Warnings connus
 - `RequestInit::method/headers/body` dépréciés → bénins, correction complexe, à faire lors d'une maj web-sys
 - `web_sys 0.3` — `set_headers()` attend `&JsValue` pas `&Headers`
