@@ -432,6 +432,18 @@ SQLx peut marquer une colonne issue d'un `LEFT JOIN` comme `NOT NULL` dans le ca
 o.name AS "org_name?"   -- force Option<String> même si le cache dit NOT NULL
 ```
 
+### Colonne `status` dans contracts_loa / contracts_insurance — valeur stale
+La colonne `status` en base est initialisée à `'active'` par défaut et **n'est jamais mise à jour**. Le vrai statut (`active` / `exceeded` / `closed`) est calculé à la volée en Rust dans `contracts_handler.rs` à partir des km et des dates. Ne jamais filtrer sur `status = 'exceeded'` dans une sous-requête SQL — la valeur sera toujours `'active'`. Reproduire la logique Rust directement en SQL :
+```sql
+-- danger : km consommés >= plafond
+COALESCE((SELECT value FROM mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC LIMIT 1), l.km_start)
+    - l.km_start >= l.km_allowed
+-- warning : expiration <= 30j OU projection km dépasse le plafond
+l.end_date <= CURRENT_DATE + 30
+OR (km_consumed::FLOAT / GREATEST(CURRENT_DATE - l.start_date, 1) * (l.end_date - l.start_date) > l.km_allowed)
+-- ok : end_date >= CURRENT_DATE et non dépassé
+```
+
 ### Réactivité Leptos — refresh inter-composants
 Pour rafraîchir un composant enfant depuis un autre composant sans relation parent-enfant directe, utiliser un signal compteur dans le parent commun :
 ```rust
