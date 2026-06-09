@@ -1000,11 +1000,13 @@ async fn patch_json(url: &str, token: &str, body: &serde_json::Value) -> Result<
 
 async fn parse_error_response(resp: web_sys::Response) -> String {
     let status = resp.status();
-    if let Ok(promise) = resp.json() {
+    if let Ok(promise) = resp.text() {
         if let Ok(val) = wasm_bindgen_futures::JsFuture::from(promise).await {
-            if let Ok(obj) = serde_wasm_bindgen::from_value::<serde_json::Value>(val) {
-                if let Some(msg) = obj.get("error").and_then(|v| v.as_str()) {
-                    return msg.to_string();
+            if let Some(text) = val.as_string() {
+                if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(msg) = obj.get("error").and_then(|v| v.as_str()) {
+                        return msg.to_string();
+                    }
                 }
             }
         }
