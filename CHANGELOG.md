@@ -17,6 +17,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Messages d'erreur contrats** : `parse_error_response` corrigé — utilise désormais `resp.text()` + `serde_json::from_str` au lieu de `resp.json()` + `serde_wasm_bindgen`, plus fiable en WASM. Les erreurs 409 (chevauchement de dates LOA ou Assurance) affichent le message métier au lieu de "Erreur HTTP : 409".
 - **Fallback messages d'erreur** : si le parsing JSON échoue, les codes HTTP courants affichent un message lisible — 409 → "Un contrat existe déjà sur cette période.", 402 → "Accès en lecture seule — licence expirée.", 403 → "Action non autorisée.", 404 → "Ressource introuvable.", 429 → "Trop de requêtes, réessayez dans quelques secondes."
 - **Centralisation `parse_error_response`** : fonction déplacée dans `ui.rs` (partagée). Appliquée à tous les fichiers d'écriture : `contract_list`, `contract_widget`, `mileage_list`, `vehicle_header`, `profile`. Suppression de ~107 lignes de code dupliqué.
+- **Inscription iOS** : notice "Période d'essai gratuite — 3 mois" et message de succès masqués sur iOS (`is_tauri()`) — les utilisateurs App Store ont un accès lifetime inclus.
 
 ---
 
