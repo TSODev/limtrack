@@ -9,7 +9,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [Unreleased]
 
 ### Ajouté
-- **`GET /health`** : endpoint de monitoring hors middleware (pas d'auth, pas de check licence). Retourne `ok` (200). Utilisé par Uptime Kuma sur `https://api.limtrack.app/health`.
+- **`GET /health`** : endpoint de monitoring hors middleware (pas d'auth, pas de check licence). Vérifie la connectivité DB (`SELECT 1`) — retourne `200 ok` si DB joignable, `503 db_error` sinon. Utilisé par Uptime Kuma (`http://backend:3000/health` en interne Docker).
 
 ### Corrigé
 - **Page `/privacy`** : hébergement mis à jour — Railway + NeonDB remplacés par VPS OVH, datacenter de Gravelines (France).

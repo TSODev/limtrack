@@ -133,7 +133,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 ## Routes API
 ```
 # Monitoring (public, hors middleware)
-GET         /health                                                ← 200 "ok" — pour Uptime Kuma
+GET         /health                                                ← SELECT 1 sur DB → 200 "ok" / 503 "db_error" — Kuma : http://backend:3000/health
 
 # Auth & Profil (public sauf mention)
 POST        /login                                             ← email ou username
