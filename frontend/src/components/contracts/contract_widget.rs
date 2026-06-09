@@ -1,5 +1,5 @@
 // src/components/contracts/contracts_widget.rs
-use crate::components::ui::{format_km, get_token};
+use crate::components::ui::{format_km, get_token, parse_error_response};
 use common::{ContractInsurance, ContractLoa};
 use leptos::*;
 use uuid::Uuid;
@@ -622,7 +622,7 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     if resp.ok() {
         Ok(())
     } else {
-        Err(format!("Erreur HTTP : {}", resp.status()))
+        Err(parse_error_response(resp).await)
     }
 }
 

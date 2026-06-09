@@ -1,5 +1,5 @@
 // src/pages/profile.rs
-use crate::components::ui::{get_token, input_class};
+use crate::components::ui::{get_token, input_class, parse_error_response};
 use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
@@ -1067,19 +1067,7 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     if resp.ok() || resp.status() == 200 {
         Ok(())
     } else {
-        let json =
-            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-                .await
-                .ok();
-        let msg = json
-            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
-            .and_then(|v| {
-                v.get("error")
-                    .and_then(|e| e.as_str())
-                    .map(|s| s.to_string())
-            })
-            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
-        Err(msg)
+        Err(parse_error_response(resp).await)
     }
 }
 
@@ -1103,19 +1091,7 @@ async fn put_json(url: &str, token: &str, body: &serde_json::Value) -> Result<()
     if resp.ok() || resp.status() == 200 {
         Ok(())
     } else {
-        let json =
-            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-                .await
-                .ok();
-        let msg = json
-            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
-            .and_then(|v| {
-                v.get("error")
-                    .and_then(|e| e.as_str())
-                    .map(|s| s.to_string())
-            })
-            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
-        Err(msg)
+        Err(parse_error_response(resp).await)
     }
 }
 
@@ -1137,7 +1113,7 @@ async fn delete_request(url: &str, token: &str) -> Result<(), String> {
     if resp.ok() || resp.status() == 204 {
         Ok(())
     } else {
-        Err(format!("Erreur HTTP : {}", resp.status()))
+        Err(parse_error_response(resp).await)
     }
 }
 
@@ -1161,18 +1137,6 @@ async fn delete_json(url: &str, token: &str, body: &serde_json::Value) -> Result
     if resp.ok() || resp.status() == 204 {
         Ok(())
     } else {
-        let json =
-            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-                .await
-                .ok();
-        let msg = json
-            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
-            .and_then(|v| {
-                v.get("error")
-                    .and_then(|e| e.as_str())
-                    .map(|s| s.to_string())
-            })
-            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
-        Err(msg)
+        Err(parse_error_response(resp).await)
     }
 }

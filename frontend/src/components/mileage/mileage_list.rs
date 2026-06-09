@@ -1,5 +1,5 @@
 // src/components/mileage/mileage_list.rs
-use crate::components::ui::{format_km, get_token, input_class};
+use crate::components::ui::{format_km, get_token, input_class, parse_error_response};
 use common::MileageLog;
 use leptos::*;
 use uuid::Uuid;
@@ -335,6 +335,6 @@ async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(
     if resp.ok() || resp.status() == 201 {
         Ok(())
     } else {
-        Err(format!("Erreur HTTP : {}", resp.status()))
+        Err(parse_error_response(resp).await)
     }
 }

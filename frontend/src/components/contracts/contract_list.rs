@@ -1,5 +1,5 @@
 // src/components/contracts/contract_list.rs
-use crate::components::ui::{format_km, get_token, input_class};
+use crate::components::ui::{format_km, get_token, input_class, parse_error_response};
 use common::{ContractInsurance, ContractLoa, MileageLog};
 use leptos::*;
 use uuid::Uuid;
@@ -998,28 +998,6 @@ async fn patch_json(url: &str, token: &str, body: &serde_json::Value) -> Result<
     }
 }
 
-async fn parse_error_response(resp: web_sys::Response) -> String {
-    let status = resp.status();
-    if let Ok(promise) = resp.text() {
-        if let Ok(val) = wasm_bindgen_futures::JsFuture::from(promise).await {
-            if let Some(text) = val.as_string() {
-                if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let Some(msg) = obj.get("error").and_then(|v| v.as_str()) {
-                        return msg.to_string();
-                    }
-                }
-            }
-        }
-    }
-    match status {
-        409 => "Un contrat existe déjà sur cette période.".to_string(),
-        402 => "Accès en lecture seule — licence expirée.".to_string(),
-        403 => "Action non autorisée.".to_string(),
-        404 => "Ressource introuvable.".to_string(),
-        429 => "Trop de requêtes, réessayez dans quelques secondes.".to_string(),
-        _ => format!("Erreur inattendue (HTTP {}).", status),
-    }
-}
 
 // ─── Export PDF ───────────────────────────────────────────────────
 

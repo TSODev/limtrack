@@ -11,6 +11,29 @@ pub fn get_token() -> Option<String> {
         .and_then(|s| s.get_item("jwt_token").ok()?)
 }
 
+pub async fn parse_error_response(resp: web_sys::Response) -> String {
+    let status = resp.status();
+    if let Ok(promise) = resp.text() {
+        if let Ok(val) = wasm_bindgen_futures::JsFuture::from(promise).await {
+            if let Some(text) = val.as_string() {
+                if let Ok(obj) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(msg) = obj.get("error").and_then(|v| v.as_str()) {
+                        return msg.to_string();
+                    }
+                }
+            }
+        }
+    }
+    match status {
+        409 => "Un contrat existe déjà sur cette période.".to_string(),
+        402 => "Accès en lecture seule — licence expirée.".to_string(),
+        403 => "Action non autorisée.".to_string(),
+        404 => "Ressource introuvable.".to_string(),
+        429 => "Trop de requêtes, réessayez dans quelques secondes.".to_string(),
+        _ => format!("Erreur inattendue (HTTP {}).", status),
+    }
+}
+
 pub fn format_km(km: i32) -> String {
     let s = km.to_string();
     let chars: Vec<char> = s.chars().collect();
