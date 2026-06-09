@@ -10,6 +10,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ### Ajouté
 - **Navigation depuis les widgets** : clic sur le titre "Kilométrage" → onglet Kilométrage, clic sur "Contrats actifs" → onglet Contrats. Titre cliquable avec chevron › et hover indigo.
+- **Indicateur statut contrats sur les cartes véhicule** : badge coloré affiché à droite de chaque carte — vert "OK", orange "À risque", rouge "Dépassé". Calculé en temps réel par sous-requête SQL CASE sur `contracts_loa` et `contracts_insurance` (aucune migration). Champ `contract_status: Option<String>` ajouté au modèle `Vehicle` dans `common`.
 
 ## [1.2.0] iOS — 2026-06-09 (build 3) — soumis le 2026-06-09 à 18h51
 
