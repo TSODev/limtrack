@@ -1011,7 +1011,14 @@ async fn parse_error_response(resp: web_sys::Response) -> String {
             }
         }
     }
-    format!("Erreur HTTP : {}", status)
+    match status {
+        409 => "Un contrat existe déjà sur cette période.".to_string(),
+        402 => "Accès en lecture seule — licence expirée.".to_string(),
+        403 => "Action non autorisée.".to_string(),
+        404 => "Ressource introuvable.".to_string(),
+        429 => "Trop de requêtes, réessayez dans quelques secondes.".to_string(),
+        _ => format!("Erreur inattendue (HTTP {}).", status),
+    }
 }
 
 // ─── Export PDF ───────────────────────────────────────────────────
