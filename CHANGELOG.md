@@ -8,7 +8,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
-## [1.2.0] iOS — 2026-06-09 (build 3)
+## [1.2.0] iOS — 2026-06-09 (build 3) — soumis le 2026-06-09 à 18h51
+
+Identifiant de soumission : `344008c4-5b12-42a4-8349-377cb3343074`
 
 ### Inclus depuis 1.1.0 (build 2)
 - `GET /health` : endpoint monitoring avec check DB
