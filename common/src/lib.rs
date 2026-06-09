@@ -23,6 +23,7 @@ pub struct Vehicle {
     pub created_at: DateTime<Utc>,
     pub archived_at: Option<DateTime<Utc>>,
     pub role: Option<String>,
+    pub contract_status: Option<String>, // "ok" | "warning" | "danger" | None
 }
 
 // --- MODÈLE CONTRAT ---

@@ -77,7 +77,19 @@ pub async fn list_vehicles(
             v.vin,
             v.created_at,
             v.archived_at,
-            va.role
+            va.role,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'exceeded')
+                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'exceeded')
+                THEN 'danger'
+                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
+                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
+                THEN 'warning'
+                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active')
+                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active')
+                THEN 'ok'
+                ELSE NULL
+            END AS "contract_status?"
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id
@@ -116,7 +128,19 @@ pub async fn get_vehicle(
             v.vin,
             v.created_at,
             v.archived_at,
-            va.role
+            va.role,
+            CASE
+                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'exceeded')
+                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'exceeded')
+                THEN 'danger'
+                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
+                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active' AND end_date <= CURRENT_DATE + 30)
+                THEN 'warning'
+                WHEN EXISTS (SELECT 1 FROM public.contracts_loa      WHERE vehicle_id = v.id AND status = 'active')
+                  OR EXISTS (SELECT 1 FROM public.contracts_insurance WHERE vehicle_id = v.id AND status = 'active')
+                THEN 'ok'
+                ELSE NULL
+            END AS "contract_status?"
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id
@@ -208,7 +232,8 @@ pub async fn create_vehicle(
             vin,
             created_at,
             archived_at,
-            'owner' AS role
+            'owner' AS role,
+            NULL::TEXT AS "contract_status?"
         "#,
         user_id,
         payload.make.trim(),
@@ -294,7 +319,8 @@ pub async fn update_vehicle(
             vin,
             created_at,
             archived_at,
-            $7 AS role
+            $7 AS role,
+            NULL::TEXT AS "contract_status?"
         "#,
         payload.make.as_deref().map(str::trim),
         payload.model.as_deref().map(str::trim),
@@ -404,7 +430,8 @@ pub async fn list_archived_vehicles(
             v.vin,
             v.created_at,
             v.archived_at,
-            va.role
+            va.role,
+            NULL::TEXT AS "contract_status?"
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id

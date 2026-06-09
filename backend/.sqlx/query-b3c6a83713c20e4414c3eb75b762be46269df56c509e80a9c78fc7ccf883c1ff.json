@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.id = $2\n        ",
+  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role,\n            NULL::TEXT AS \"contract_status?\"\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.archived_at IS NOT NULL\n        ORDER BY v.archived_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -52,11 +52,15 @@
         "ordinal": 9,
         "name": "role",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "contract_status?",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
         "Uuid"
       ]
     },
@@ -70,8 +74,9 @@
       true,
       false,
       true,
-      false
+      false,
+      null
     ]
   },
-  "hash": "900e9f30f4c1ef83ef42afe6d00dd91e235bc796f52e21693ed856de0f5f196d"
+  "hash": "b3c6a83713c20e4414c3eb75b762be46269df56c509e80a9c78fc7ccf883c1ff"
 }

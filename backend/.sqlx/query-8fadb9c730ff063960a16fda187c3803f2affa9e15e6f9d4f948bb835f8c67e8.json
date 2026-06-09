@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        WHERE v.archived_at IS NULL\n        ORDER BY v.created_at DESC\n        ",
+  "query": "\n        UPDATE public.vehicles SET\n            make         = COALESCE($1, make),\n            model        = COALESCE($2, model),\n            plate_number = COALESCE($3, plate_number),\n            year         = COALESCE($4, year),\n            vin          = COALESCE($5, vin)\n        WHERE id = $6\n        RETURNING\n            id,\n            owner_id,\n            make,\n            model,\n            plate_number,\n            year,\n            vin,\n            created_at,\n            archived_at,\n            $7 AS role,\n            NULL::TEXT AS \"contract_status?\"\n        ",
   "describe": {
     "columns": [
       {
@@ -52,11 +52,22 @@
         "ordinal": 9,
         "name": "role",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "contract_status?",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Text",
+        "Text",
+        "Text",
+        "Int2",
+        "Text",
+        "Uuid",
+        "Text"
       ]
     },
     "nullable": [
@@ -69,8 +80,9 @@
       true,
       false,
       true,
-      false
+      null,
+      null
     ]
   },
-  "hash": "1610e036b4d44edd58afb3995161f3c1c7235d5b8b92fc6c97871c43bc6f55ef"
+  "hash": "8fadb9c730ff063960a16fda187c3803f2affa9e15e6f9d4f948bb835f8c67e8"
 }
