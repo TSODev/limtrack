@@ -448,6 +448,9 @@ create_effect(move |_| {
 });
 ```
 
+## Navigation widgets → onglets
+`MileageWidget` et `ContractsWidget` reçoivent une prop `on_navigate: Callback<()>` passée depuis `vehicle_dashboard.rs`. Clic sur le titre → `set_tab.set(DashboardTab::Kilometrage / Contracts)`.
+
 ## Parsing erreurs HTTP — pattern fiable en WASM
 `parse_error_response` est dans `components/ui.rs` (fonction partagée, `pub async fn`). Utilisée dans tous les fichiers d'écriture (`contract_list`, `contract_widget`, `mileage_list`, `vehicle_header`, `profile`).
 1. Lit le corps via `resp.text()` + `serde_json::from_str` (ne pas revenir à `resp.json()` + `serde_wasm_bindgen::from_value::<serde_json::Value>` — échoue silencieusement en WASM)
