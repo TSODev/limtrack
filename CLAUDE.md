@@ -447,6 +447,9 @@ create_effect(move |_| {
 });
 ```
 
+## Parsing erreurs HTTP — pattern fiable en WASM
+`parse_error_response` dans `contract_list.rs` utilise `resp.text()` + `serde_json::from_str` pour lire le corps JSON des erreurs. Ne pas revenir à `resp.json()` + `serde_wasm_bindgen::from_value::<serde_json::Value>` — cette combinaison échoue silencieusement en WASM et fait tomber en fallback `"Erreur HTTP : N"`.
+
 ## Warnings connus
 - `RequestInit::method/headers/body` dépréciés → bénins, correction complexe, à faire lors d'une maj web-sys
 - `web_sys 0.3` — `set_headers()` attend `&JsValue` pas `&Headers`

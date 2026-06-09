@@ -14,6 +14,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ### Corrigé
 - **Page `/privacy`** : hébergement mis à jour — Railway + NeonDB remplacés par VPS OVH, datacenter de Gravelines (France).
 - **Notification bell** : alerte d'expiration de licence masquée pour les comptes iOS (`is_ios = true`) — ces comptes ont un accès lifetime, l'alerte était affichée à tort. Détection via `localStorage["limtrack_is_ios"]`.
+- **Messages d'erreur contrats** : `parse_error_response` corrigé — utilise désormais `resp.text()` + `serde_json::from_str` au lieu de `resp.json()` + `serde_wasm_bindgen`, plus fiable en WASM. Les erreurs 409 (chevauchement de dates LOA ou Assurance) affichent le message métier au lieu de "Erreur HTTP : 409".
 
 ---
 
