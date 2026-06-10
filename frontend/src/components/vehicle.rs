@@ -24,7 +24,7 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
     let id = vehicle.id;
     let (img_failed, set_img_failed) = create_signal(false);
 
-    let slug = vehicle.make.replace(' ', "%20");
+    let slug = vehicle.make.to_lowercase().replace(' ', "-");
     let logo_url = format!(
         "https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/optimized/{}.png",
         slug
