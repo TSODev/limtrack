@@ -129,3 +129,31 @@ docs/PLAN_DEPLOIEMENT_VPS.md
 - **Deploy automatique** : tout push sur `main` touchant `backend/**`, `common/**`, `Cargo.toml`, `Cargo.lock` ou `Dockerfile.vps` déclenche le CI/CD
 - **Buildx** : driver `docker` utilisé (pas `docker-container`) — pas de cache GHA mais pas de dépendance Docker Hub
 - **Migrations** : à appliquer manuellement sur le VPS via Adminer ou `docker compose exec postgres psql -U limtrack -d limtrack`
+
+## SQLx offline cache — après extinction NeonDB
+
+Le cache `.sqlx/` (requis par `SQLX_OFFLINE=true`) est régénéré via `cargo sqlx prepare` qui nécessite une BDD avec le schéma complet.
+
+**Option A — Tunnel SSH vers le VPS (recommandé)**
+```bash
+# Terminal 1
+ssh -L 5433:localhost:5432 limtrack@164.132.40.109
+
+# Terminal 2
+cd backend
+DATABASE_URL=postgres://limtrack:MOTDEPASSE@localhost:5433/limtrack cargo sqlx prepare
+git add .sqlx/ && git commit -m "fix: sqlx cache" && git push
+```
+
+**Option B — PostgreSQL local via Docker**
+```bash
+docker run -d --name limtrack-dev \
+  -e POSTGRES_USER=limtrack \
+  -e POSTGRES_PASSWORD=dev \
+  -e POSTGRES_DB=limtrack \
+  -p 5432:5432 \
+  postgres:15
+
+# Appliquer toutes les migrations (sql/migrations/*.sql), puis :
+DATABASE_URL=postgres://limtrack:dev@localhost:5432/limtrack cargo sqlx prepare
+```
