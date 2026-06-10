@@ -298,28 +298,28 @@ pub fn AdminPage() -> impl IntoView {
     view! {
         <div class="min-h-screen bg-gray-100">
 
-            // ─── Navbar ──────────────────────────────────────
-            <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: var(--nav-top)">
-                <div class="max-w-5xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
-                    <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-                        </svg>
-                        "Retour"
-                    </A>
-                    <span class="text-xl font-bold text-indigo-600">"Dashboard Admin"</span>
-                    <div class="w-20" />
-                </div>
-            </nav>
-
-            // ─── Barre d'onglets ──────────────────────────────
-            <div class="bg-white border-b border-gray-200">
-                <div class="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto">
-                    {tab_btn("apercu", "Aperçu")}
-                    {tab_btn("users", "Utilisateurs")}
-                    {tab_btn("licences", "Licences")}
-                    {tab_btn("flottes", "Flottes")}
-                    {tab_btn("generation", "Génération")}
+            // ─── Navbar + Barre d'onglets (sticky) ───────────
+            <div class="sticky top-0 z-20">
+                <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: var(--nav-top)">
+                    <div class="max-w-5xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
+                        <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                            </svg>
+                            "Retour"
+                        </A>
+                        <span class="text-xl font-bold text-indigo-600">"Dashboard Admin"</span>
+                        <div class="w-20" />
+                    </div>
+                </nav>
+                <div class="bg-white border-b border-gray-200">
+                    <div class="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto">
+                        {tab_btn("apercu", "Aperçu")}
+                        {tab_btn("users", "Utilisateurs")}
+                        {tab_btn("licences", "Licences")}
+                        {tab_btn("flottes", "Flottes")}
+                        {tab_btn("generation", "Génération")}
+                    </div>
                 </div>
             </div>
 
