@@ -34,6 +34,14 @@ pub async fn parse_error_response(resp: web_sys::Response) -> String {
     }
 }
 
+pub fn format_date_fr(d: chrono::NaiveDate) -> String {
+    let months = [
+        "jan.", "fév.", "mars", "avr.", "mai", "juin",
+        "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+    ];
+    format!("{} {} {}", d.day(), months[d.month0() as usize], d.year())
+}
+
 pub fn format_km(km: i32) -> String {
     let s = km.to_string();
     let chars: Vec<char> = s.chars().collect();

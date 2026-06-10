@@ -1,6 +1,6 @@
 // src/components/mileage/mileage_widget.rs
 use crate::api_client::api_get;
-use crate::components::ui::{format_km, get_token};
+use crate::components::ui::{format_date_fr, format_km, get_token};
 use common::{ContractInsurance, ContractLoa, MileageLog};
 use leptos::*;
 use uuid::Uuid;
@@ -203,7 +203,7 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                                     {format_km(last.value)}
                                 </p>
                                 <p class="text-xs text-gray-400 mt-1">
-                                    "Relevé du "{last.recorded_at.to_string()}
+                                    "Relevé du "{format_date_fr(last.recorded_at)}
                                 </p>
                             </div>
 

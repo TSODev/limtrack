@@ -1,6 +1,6 @@
 // src/components/mileage/mileage_list.rs
 use crate::api_client::{api_delete, api_get, api_post};
-use crate::components::ui::{format_km, get_token, input_class};
+use crate::components::ui::{format_date_fr, format_km, get_token, input_class};
 use common::MileageLog;
 use leptos::*;
 use uuid::Uuid;
@@ -95,7 +95,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                 <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
                                     <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">"Compteur actuel"</p>
                                     <p class="text-2xl font-extrabold text-indigo-600">{format_km(last.value)}</p>
-                                    <p class="text-xs text-gray-400 mt-1">"au "{last.recorded_at.to_string()}</p>
+                                    <p class="text-xs text-gray-400 mt-1">"au "{format_date_fr(last.recorded_at)}</p>
                                 </div>
                                 <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
                                     <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">"Km parcourus"</p>
@@ -138,7 +138,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                                                 let is_confirming = move || confirm_delete_id.get() == Some(entry_id);
                                                 view! {
                                                     <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors duration-100">
-                                                        <td class="px-4 py-3 text-gray-700">{entry.recorded_at.to_string()}</td>
+                                                        <td class="px-4 py-3 text-gray-700">{format_date_fr(entry.recorded_at)}</td>
                                                         <td class="px-4 py-3 text-right font-semibold text-gray-900">{format_km(entry.value)}</td>
                                                         <td class="px-4 py-3 text-right text-gray-500">
                                                             {ecart.map(|e| format!("+ {}", format_km(e))).unwrap_or("—".to_string())}

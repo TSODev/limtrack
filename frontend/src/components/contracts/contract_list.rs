@@ -1,6 +1,6 @@
 // src/components/contracts/contract_list.rs
 use crate::api_client::{api_delete, api_get, api_patch, api_post};
-use crate::components::ui::{format_km, get_token, input_class};
+use crate::components::ui::{format_date_fr, format_km, get_token, input_class};
 use common::{ContractInsurance, ContractLoa, MileageLog};
 use js_sys;
 use leptos::*;
@@ -208,7 +208,7 @@ fn ContractLoaCard(contract: ContractLoa, can_manage: bool, on_deleted: Callback
             </div>
             {contract.estimated_limit_date.map(|d| view! {
                 <p class=format!("text-xs {}", if contract.overage_risk { "text-amber-600" } else { "text-gray-400" })>
-                    "📅 Limite estimée : "{d.to_string()}
+                    "📅 Limite estimée : "{format_date_fr(d)}
                 </p>
             })}
             {contract.price_per_extra_km.and_then(|price| {
@@ -229,9 +229,9 @@ fn ContractLoaCard(contract: ContractLoa, can_manage: bool, on_deleted: Callback
             })}
             <div class="flex items-center justify-between pt-1 border-t border-gray-50">
                 <div class="flex text-xs text-gray-400 gap-2">
-                    <span>"Du "{contract.start_date.to_string()}</span>
+                    <span>"Du "{format_date_fr(contract.start_date)}</span>
                     <span>"→"</span>
-                    <span>{contract.end_date.to_string()}</span>
+                    <span>{format_date_fr(contract.end_date)}</span>
                 </div>
                 <div class="flex gap-1.5">
                     // Bouton édition prix/km (owner uniquement)
@@ -517,14 +517,14 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
             </div>
             {contract.estimated_limit_date.map(|d| view! {
                 <p class=format!("text-xs {}", if contract.overage_risk { "text-amber-600" } else { "text-gray-400" })>
-                    "📅 Limite estimée : "{d.to_string()}
+                    "📅 Limite estimée : "{format_date_fr(d)}
                 </p>
             })}
             <div class="flex items-center justify-between pt-1 border-t border-gray-50">
                 <div class="flex text-xs text-gray-400 gap-2">
-                    <span>"Du "{contract.start_date.to_string()}</span>
+                    <span>"Du "{format_date_fr(contract.start_date)}</span>
                     <span>"→"</span>
-                    <span>{contract.end_date.to_string()}</span>
+                    <span>{format_date_fr(contract.end_date)}</span>
                 </div>
                 <div class="flex gap-1.5">
                     {

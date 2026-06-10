@@ -1,6 +1,6 @@
 // src/components/contracts/contracts_widget.rs
 use crate::api_client::{api_get, api_post};
-use crate::components::ui::{format_km, get_token};
+use crate::components::ui::{format_date_fr, format_km, get_token};
 use common::{ContractInsurance, ContractLoa};
 use leptos::*;
 use uuid::Uuid;
@@ -204,7 +204,7 @@ fn ContractLoaSummary(contract: ContractLoa) -> impl IntoView {
         format_km(contract.forecast_km)
     };
     let limit_date_info = contract.estimated_limit_date.map(|d| {
-        (d.to_string(), d > contract.end_date)
+        (format_date_fr(d), d > contract.end_date)
     });
 
     view! {
@@ -280,7 +280,7 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
         format_km(contract.forecast_km)
     };
     let limit_date_info = contract.estimated_limit_date.map(|d| {
-        (d.to_string(), d > contract.end_date)
+        (format_date_fr(d), d > contract.end_date)
     });
 
     view! {
