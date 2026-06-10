@@ -26,8 +26,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
   - **Onglet Licences / Flottes** : filtres texte.
 - **`GET /api/admin/growth`** : croissance hebdomadaire utilisateurs + véhicules sur 12 semaines (`date_trunc('week', created_at)`). Retourne `{"users": [...], "vehicles": [...]}` avec `week` et `count` par point.
 - **`PATCH /api/admin/users/:id`** : édition admin de tous les champs éditables — username (unicité vérifiée), email (unicité vérifiée), is_admin, is_ios, license_type, access_expires_at. Payload partiel (champs `None` ignorés).
+- **`POST /api/admin/assign-license`** : assigne un jeton existant (non utilisé) à un compte par email. Vérifie que le jeton n'est pas déjà consommé, calcule la nouvelle expiration, met à jour `users.license_type`.
+- **`POST /api/admin/notify-expiry`** : déclenche manuellement les emails d'expiration de licence (même logique que la tâche de fond 8h UTC, anti-doublon 24h). Nécessite `RESEND_API_KEY`.
+- **`POST /api/admin/broadcasts`** : crée un message broadcast en base (message, durée en jours, `exclude_ios`). Visible dans l'application via `GET /api/broadcasts/active`.
 - **`GET /api/admin/stats`** : ajout `total_vehicles` (nombre de véhicules actifs non archivés).
 - **Migration `013`** : colonne `license_type TEXT NOT NULL DEFAULT 'personal'` sur `users`. Backfill automatique depuis le dernier jeton utilisé par chaque utilisateur. `GET /api/profile/license` lit `license_type` directement depuis `users`. `POST /api/profile/redeem` met à jour `users.license_type` lors de l'activation d'un jeton.
+
+### Infrastructure
+- **CI/CD backend** : `docker/setup-buildx-action` configuré avec `driver: docker` — évite le pull de `moby/buildkit` depuis Docker Hub (timeout réseau intermittent sur les runners GitHub Actions). Cache GHA retiré (incompatible avec ce driver).
+
 - **Client HTTP partagé** : création de `frontend/src/api_client.rs` avec 8 fonctions publiques (`api_get`, `api_post`, `api_post_response`, `api_put`, `api_patch`, `api_patch_empty`, `api_delete`, `api_delete_body`). Supprime ~480 lignes de code dupliqué dans 10 fichiers (`contract_list`, `contract_widget`, `mileage_list`, `mileage_widget`, `vehicle_header`, `vehicle_list`, `join_vehicle_button`, `notification_bell`, `profile`, `fleet`). Une seule implémentation réseau, un seul endroit à maintenir.
 
 ## [1.2.0] iOS — 2026-06-09 (build 3) — soumis le 2026-06-09 à 18h51

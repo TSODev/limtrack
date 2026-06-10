@@ -39,6 +39,9 @@
 - [x] Migration 013 — `users.license_type` (backfill + mis à jour à l'activation du jeton)
 - [x] `GET /api/admin/growth` — croissance hebdomadaire users/véhicules (`date_trunc('week', ...)`, 12 semaines)
 - [x] `PATCH /api/admin/users/:id` — édition admin (username, email, is_admin, is_ios, license_type, access_expires_at)
+- [x] `POST /api/admin/assign-license` — assigner un jeton existant à un compte par email
+- [x] `POST /api/admin/notify-expiry` — déclencher manuellement les emails d'expiration
+- [x] `POST /api/admin/broadcasts` — créer un broadcast depuis l'UI admin
 
 **Prochaine étape :** réponse Apple en attente (build 3, soumis le 2026-06-09).
 

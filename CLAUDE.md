@@ -190,6 +190,9 @@ PATCH       /api/admin/users/:id                                  ← édition a
 GET         /api/admin/growth                                     ← croissance hebdomadaire users + véhicules sur 12 semaines
 GET         /api/admin/license-requests
 POST        /api/admin/generate-token
+POST        /api/admin/assign-license                             ← assigne un jeton existant à un compte (email + token)
+POST        /api/admin/notify-expiry                              ← déclenche manuellement les emails d'expiration (Resend)
+POST        /api/admin/broadcasts                                 ← crée un broadcast (message, days, exclude_ios)
 GET         /api/admin/companies
 
 # Broadcasts
