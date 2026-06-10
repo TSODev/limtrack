@@ -197,17 +197,14 @@ fn ContractLoaSummary(contract: ContractLoa) -> impl IntoView {
     let pct =
         ((contract.km_consumed as f64 / contract.km_allowed as f64) * 100.0).min(100.0) as u32;
     let colors = status_colors(&contract.status, contract.overage_risk);
-    let forecast_label = if contract.forecast_km > contract.km_allowed {
-        format!("⚠ {} estimés à échéance", format_km(contract.forecast_km))
+    let forecast_over = contract.forecast_km > contract.km_allowed;
+    let forecast_display = if forecast_over {
+        format!("⚠ {}", format_km(contract.forecast_km))
     } else {
-        format!("{} estimés à échéance", format_km(contract.forecast_km))
+        format_km(contract.forecast_km)
     };
-    let limit_date_label = contract.estimated_limit_date.map(|d| {
-        if d <= contract.end_date {
-            format!("Limite atteinte vers le {}", d)
-        } else {
-            format!("Limite atteinte après l'échéance ({})", d)
-        }
+    let limit_date_info = contract.estimated_limit_date.map(|d| {
+        (d.to_string(), d > contract.end_date)
     });
 
     view! {
@@ -227,16 +224,22 @@ fn ContractLoaSummary(contract: ContractLoa) -> impl IntoView {
                     <div class=format!("h-1.5 rounded-full {}", colors.bar) style=format!("width: {}%", pct) />
                 </div>
             </div>
-            <div class="space-y-1.5">
-                <div class=format!("flex items-center gap-1.5 text-xs font-medium {}", colors.text)>
-                    <span>"📊"</span><span>{forecast_label}</span>
-                </div>
-                {limit_date_label.map(|label| view! {
-                    <div class=format!("flex items-center gap-1.5 text-xs {}", colors.text)>
-                        <span>"📅"</span><span>{label}</span>
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-white/60 rounded-lg p-2 text-center">
+                        <div class=format!("text-sm font-bold {}", if forecast_over { colors.text } else { "text-gray-800" })>
+                            {forecast_display}
+                        </div>
+                        <div class="text-xs text-gray-500">"estimés à l'échéance"</div>
                     </div>
-                })}
-                <div class="flex justify-between text-xs text-gray-500 pt-1">
+                    {limit_date_info.map(|(date, after_end)| view! {
+                        <div class="bg-white/60 rounded-lg p-2 text-center">
+                            <div class="text-sm font-bold text-gray-800">{date}</div>
+                            <div class="text-xs text-gray-500">{if after_end { "limite km après échéance" } else { "limite km atteinte" }}</div>
+                        </div>
+                    })}
+                </div>
+                <div class="flex justify-between text-xs text-gray-500">
                     <span>{format_km(contract.km_remaining)}" restants"</span>
                     <span>{contract.days_remaining}" j jusqu'à l'échéance"</span>
                 </div>
@@ -270,17 +273,14 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
     let pct =
         ((contract.km_consumed as f64 / contract.km_annual_limit as f64) * 100.0).min(100.0) as u32;
     let colors = status_colors(&contract.status, contract.overage_risk);
-    let forecast_label = if contract.forecast_km > contract.km_annual_limit {
-        format!("⚠ {} estimés à échéance", format_km(contract.forecast_km))
+    let forecast_over = contract.forecast_km > contract.km_annual_limit;
+    let forecast_display = if forecast_over {
+        format!("⚠ {}", format_km(contract.forecast_km))
     } else {
-        format!("{} estimés à échéance", format_km(contract.forecast_km))
+        format_km(contract.forecast_km)
     };
-    let limit_date_label = contract.estimated_limit_date.map(|d| {
-        if d <= contract.end_date {
-            format!("Limite atteinte vers le {}", d)
-        } else {
-            format!("Limite atteinte après l'échéance ({})", d)
-        }
+    let limit_date_info = contract.estimated_limit_date.map(|d| {
+        (d.to_string(), d > contract.end_date)
     });
 
     view! {
@@ -308,16 +308,22 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
                     <div class=format!("h-1.5 rounded-full {}", colors.bar) style=format!("width: {}%", pct) />
                 </div>
             </div>
-            <div class="space-y-1.5">
-                <div class=format!("flex items-center gap-1.5 text-xs font-medium {}", colors.text)>
-                    <span>"📊"</span><span>{forecast_label}</span>
-                </div>
-                {limit_date_label.map(|label| view! {
-                    <div class=format!("flex items-center gap-1.5 text-xs {}", colors.text)>
-                        <span>"📅"</span><span>{label}</span>
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-white/60 rounded-lg p-2 text-center">
+                        <div class=format!("text-sm font-bold {}", if forecast_over { colors.text } else { "text-gray-800" })>
+                            {forecast_display}
+                        </div>
+                        <div class="text-xs text-gray-500">"estimés à l'échéance"</div>
                     </div>
-                })}
-                <div class="flex justify-between text-xs text-gray-500 pt-1">
+                    {limit_date_info.map(|(date, after_end)| view! {
+                        <div class="bg-white/60 rounded-lg p-2 text-center">
+                            <div class="text-sm font-bold text-gray-800">{date}</div>
+                            <div class="text-xs text-gray-500">{if after_end { "limite km après échéance" } else { "limite km atteinte" }}</div>
+                        </div>
+                    })}
+                </div>
+                <div class="flex justify-between text-xs text-gray-500">
                     <span>{format_km(contract.km_remaining)}" restants"</span>
                     <span>{contract.days_remaining}" j jusqu'à l'échéance"</span>
                 </div>
