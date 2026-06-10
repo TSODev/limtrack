@@ -35,6 +35,7 @@ pub async fn parse_error_response(resp: web_sys::Response) -> String {
 }
 
 pub fn format_date_fr(d: chrono::NaiveDate) -> String {
+    use chrono::Datelike;
     let months = [
         "jan.", "fév.", "mars", "avr.", "mai", "juin",
         "juil.", "août", "sept.", "oct.", "nov.", "déc.",
