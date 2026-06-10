@@ -301,7 +301,7 @@ pub fn AdminPage() -> impl IntoView {
             // ─── Navbar + Barre d'onglets (sticky) ───────────
             <div class="sticky top-0 z-20">
                 <nav class="bg-white shadow-sm border-b border-gray-200" style="padding-top: var(--nav-top)">
-                    <div class="max-w-5xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
+                    <div class="max-w-4xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
                         <A href="/mainpage" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium text-sm transition">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -313,7 +313,7 @@ pub fn AdminPage() -> impl IntoView {
                     </div>
                 </nav>
                 <div class="bg-white border-b border-gray-200">
-                    <div class="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto">
+                    <div class="max-w-4xl mx-auto px-4 flex gap-1 overflow-x-auto">
                         {tab_btn("apercu", "Aperçu")}
                         {tab_btn("users", "Utilisateurs")}
                         {tab_btn("licences", "Licences")}
@@ -323,7 +323,7 @@ pub fn AdminPage() -> impl IntoView {
                 </div>
             </div>
 
-            <div class="max-w-5xl mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-6">
+            <div class="max-w-4xl mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-6">
 
                 // ══════════════════════════════════════════════
                 // Onglet : Aperçu
