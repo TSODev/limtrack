@@ -1,9 +1,10 @@
 // src/components/join_vehicle_button.rs
 // Bouton "Rejoindre un véhicule" — affiché sous AddVehicleButton dans vehicle_list
 
+use crate::api_client::{api_get, api_post};
+use crate::components::ui::get_token;
 use common::Vehicle;
 use leptos::*;
-use wasm_bindgen::JsCast;
 
 #[component]
 pub fn JoinVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoView {
@@ -55,7 +56,7 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "code": trimmed });
 
-            match post_json(
+            match api_post(
                 &format!("{}/api/vehicles/join", crate::config::API_BASE),
                 &token,
                 &body,
@@ -65,7 +66,7 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
                 Ok(_) => {
                     set_success
                         .set("Accès accordé ! Le véhicule apparaît dans votre liste.".to_string());
-                    if let Ok(vehicles) = fetch_vehicles(&token).await {
+                    if let Ok(vehicles) = api_get::<Vec<Vehicle>>(&format!("{}/api/vehicles", crate::config::API_BASE), &token).await {
                         set_vehicles.set(vehicles);
                     }
                 }
@@ -152,75 +153,3 @@ fn JoinModal(set_vehicles: WriteSignal<Vec<Vehicle>>, on_close: Callback<()>) ->
     }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────
-
-fn get_token() -> Option<String> {
-    leptos::window()
-        .local_storage()
-        .ok()?
-        .and_then(|s| s.get_item("jwt_token").ok()?)
-}
-
-async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req = web_sys::Request::new_with_str_and_init(
-        &format!("{}/api/vehicles", crate::config::API_BASE),
-        &opts,
-    )
-    .map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
-}
-
-async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 201 {
-        Ok(())
-    } else {
-        let json =
-            wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-                .await
-                .ok();
-        let msg = json
-            .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
-            .and_then(|v| {
-                v.get("error")
-                    .and_then(|e| e.as_str())
-                    .map(|s| s.to_string())
-            })
-            .unwrap_or_else(|| format!("Erreur HTTP : {}", resp.status()));
-        Err(msg)
-    }
-}

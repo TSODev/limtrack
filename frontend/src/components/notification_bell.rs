@@ -1,8 +1,8 @@
 // src/components/notification_bell.rs
+use crate::api_client::api_get;
 use common::{ContractInsurance, ContractLoa, LicenseStatus};
 use leptos::*;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::JsCast;
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
     create_effect(move |_| {
         spawn_local(async move {
             let Some(token) = get_token() else { return };
-            if let Ok(p) = fetch_json::<UserPreferences>(
+            if let Ok(p) = api_get::<UserPreferences>(
                 &format!("{}/api/profile/preferences", crate::config::API_BASE),
                 &token,
             )
@@ -74,7 +74,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                 .unwrap_or(false);
 
             if !is_ios {
-                if let Ok(license) = fetch_json::<LicenseStatus>(
+                if let Ok(license) = api_get::<LicenseStatus>(
                     &format!("{}/api/profile/license", crate::config::API_BASE),
                     &token,
                 )
@@ -108,7 +108,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                 let id = vehicle.id;
 
                 // Fetch contrats LOA
-                if let Ok(loas) = fetch_json::<Vec<ContractLoa>>(
+                if let Ok(loas) = api_get::<Vec<ContractLoa>>(
                     &format!(
                         "{}/api/vehicles/{}/contracts/loa",
                         crate::config::API_BASE,
@@ -175,7 +175,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                 }
 
                 // Fetch contrats Assurance
-                if let Ok(insurances) = fetch_json::<Vec<ContractInsurance>>(
+                if let Ok(insurances) = api_get::<Vec<ContractInsurance>>(
                     &format!(
                         "{}/api/vehicles/{}/contracts/insurance",
                         crate::config::API_BASE,
@@ -384,30 +384,3 @@ fn format_km(km: i32) -> String {
     format!("{} km", formatted)
 }
 
-async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
-    url: &str,
-    token: &str,
-) -> Result<T, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
-}

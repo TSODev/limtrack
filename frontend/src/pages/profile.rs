@@ -1,5 +1,6 @@
 // src/pages/profile.rs
-use crate::components::ui::{get_token, input_class, parse_error_response};
+use crate::api_client::{api_delete, api_delete_body, api_get, api_post, api_put};
+use crate::components::ui::{get_token, input_class};
 use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
@@ -73,17 +74,17 @@ pub fn ProfilePage() -> impl IntoView {
         };
 
         spawn_local(async move {
-            let p = fetch_json::<UserProfile>(
+            let p = api_get::<UserProfile>(
                 &format!("{}/api/profile", crate::config::API_BASE),
                 &token,
             )
             .await;
-            let s = fetch_json::<ProfileShares>(
+            let s = api_get::<ProfileShares>(
                 &format!("{}/api/profile/shares", crate::config::API_BASE),
                 &token,
             )
             .await;
-            let pref = fetch_json::<UserPreferences>(
+            let pref = api_get::<UserPreferences>(
                 &format!("{}/api/profile/preferences", crate::config::API_BASE),
                 &token,
             )
@@ -109,7 +110,7 @@ pub fn ProfilePage() -> impl IntoView {
     let reload_shares = move || {
         if let Some(token) = get_token() {
             spawn_local(async move {
-                if let Ok(s) = fetch_json::<ProfileShares>(
+                if let Ok(s) = api_get::<ProfileShares>(
                     &format!("{}/api/profile/shares", crate::config::API_BASE),
                     &token,
                 )
@@ -226,7 +227,7 @@ fn ChangePasswordSection() -> impl IntoView {
                     "new_password":     new_pass,
                 });
 
-                match post_json(
+                match api_post(
                     &format!("{}/api/profile/password", crate::config::API_BASE),
                     &token,
                     &body,
@@ -334,7 +335,7 @@ fn PreferencesSection(
                 "notif_km_percent":  percent_val,
             });
 
-            match put_json(
+            match api_put(
                 &format!("{}/api/profile/preferences", crate::config::API_BASE),
                 &token,
                 &body,
@@ -526,7 +527,7 @@ fn OwnedVehicleCard(
                                     spawn_local(async move {
                                         let token = get_token().unwrap_or_default();
                                         let url = format!("{}/api/vehicles/{}/access/{}", crate::config::API_BASE, vehicle_id, user_id);
-                                        if delete_request(&url, &token).await.is_ok() {
+                                        if api_delete(&url, &token).await.is_ok() {
                                             on_revoke();
                                         }
                                     });
@@ -582,7 +583,7 @@ fn SharedVehicleCard(vehicle: SharedVehicle, on_leave: Callback<()>) -> impl Int
                     spawn_local(async move {
                         let token = get_token().unwrap_or_default();
                         let url   = format!("{}/api/vehicles/{}/leave", crate::config::API_BASE, vehicle_id);
-                        if delete_request(&url, &token).await.is_ok() {
+                        if api_delete(&url, &token).await.is_ok() {
                             on_leave.call(());
                         }
                     });
@@ -616,7 +617,7 @@ fn LicenseSection() -> impl IntoView {
     let reload_license = move || {
         if let Some(jwt) = get_token() {
             spawn_local(async move {
-                if let Ok(l) = fetch_json::<LicenseStatus>(
+                if let Ok(l) = api_get::<LicenseStatus>(
                     &format!("{}/api/profile/license", crate::config::API_BASE),
                     &jwt,
                 )
@@ -644,7 +645,7 @@ fn LicenseSection() -> impl IntoView {
             let jwt = get_token().unwrap_or_default();
             let body = serde_json::json!({ "token": token });
 
-            match post_json(
+            match api_post(
                 &format!("{}/api/profile/redeem", crate::config::API_BASE),
                 &jwt,
                 &body,
@@ -774,7 +775,7 @@ fn DeleteAccountSection() -> impl IntoView {
                 "new_password": password, // champ requis par le struct, ignoré côté serveur
             });
 
-            match delete_json(
+            match api_delete_body(
                 &format!("{}/api/profile", crate::config::API_BASE),
                 &token,
                 &body,
@@ -935,7 +936,7 @@ fn FleetSection() -> impl IntoView {
             let token_lic = token.clone();
             spawn_local(async move {
                 // Vérifier le type de licence avant d'afficher la section
-                if let Ok(lic) = fetch_json::<LicenseStatus>(
+                if let Ok(lic) = api_get::<LicenseStatus>(
                     &format!("{}/api/profile/license", crate::config::API_BASE),
                     &token_lic,
                 )
@@ -946,7 +947,7 @@ fn FleetSection() -> impl IntoView {
                     set_has_fleet_license.set(is_fleet);
 
                     if is_fleet {
-                        if let Ok(list) = fetch_json::<Vec<CompanyBrief>>(
+                        if let Ok(list) = api_get::<Vec<CompanyBrief>>(
                             &format!("{}/api/companies", crate::config::API_BASE),
                             &token_lic,
                         )
@@ -1017,126 +1018,3 @@ fn FleetSection() -> impl IntoView {
     }
 }
 
-// ─── Helpers réseau ───────────────────────────────────────────────
-
-async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
-    url: &str,
-    token: &str,
-) -> Result<T, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
-}
-
-async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 200 {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
-
-async fn put_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("PUT");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 200 {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
-
-async fn delete_request(url: &str, token: &str) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("DELETE");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    opts.headers(&headers);
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 204 {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
-
-async fn delete_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("DELETE");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 204 {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}

@@ -1,9 +1,9 @@
 // src/components/contracts/contracts_widget.rs
-use crate::components::ui::{format_km, get_token, parse_error_response};
+use crate::api_client::{api_get, api_post};
+use crate::components::ui::{format_km, get_token};
 use common::{ContractInsurance, ContractLoa};
 use leptos::*;
 use uuid::Uuid;
-use wasm_bindgen::JsCast;
 
 #[derive(Clone)]
 struct ContractsData {
@@ -28,13 +28,13 @@ pub fn ContractsWidget(
             set_loading.set(true);
             spawn_local(async move {
                 let Some(token) = get_token() else { return };
-                let loa = fetch_json::<Vec<ContractLoa>>(
+                let loa = api_get::<Vec<ContractLoa>>(
                     &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
                 .unwrap_or_default();
-                let insurance = fetch_json::<Vec<ContractInsurance>>(
+                let insurance = api_get::<Vec<ContractInsurance>>(
                     &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, id),
                     &token,
                 )
@@ -51,13 +51,13 @@ pub fn ContractsWidget(
             set_loading.set(true);
             spawn_local(async move {
                 let Some(token) = get_token() else { return };
-                let loa = fetch_json::<Vec<ContractLoa>>(
+                let loa = api_get::<Vec<ContractLoa>>(
                     &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, id),
                     &token,
                 )
                 .await
                 .unwrap_or_default();
-                let insurance = fetch_json::<Vec<ContractInsurance>>(
+                let insurance = api_get::<Vec<ContractInsurance>>(
                     &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, id),
                     &token,
                 )
@@ -354,7 +354,7 @@ fn LoaModal(
                     "start_date": sd, "end_date": ed,
                     "price_per_extra_km": price_val,
                 });
-                match post_json(
+                match api_post(
                     &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, vid),
                     &token,
                     &body,
@@ -445,7 +445,7 @@ fn InsuranceModal(
                     "insurer": if ins.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(ins) },
                     "auto_renew": ar,
                 });
-                match post_json(
+                match api_post(
                     &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, vid),
                     &token,
                     &body,
@@ -581,55 +581,4 @@ fn input_class() -> &'static str {
      sm:text-sm transition duration-150"
 }
 
-// ─── Helpers réseau ──────────────────────────────────────────────
-
-async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
-    url: &str,
-    token: &str,
-) -> Result<T, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req =
-        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
-}
-
-async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers.set("Authorization", &format!("Bearer {}", token)).ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
 

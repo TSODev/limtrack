@@ -2,6 +2,7 @@
 use leptos::*;
 use leptos_router::*;
 
+pub mod api_client;
 pub mod components;
 mod config;
 

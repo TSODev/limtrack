@@ -1,10 +1,10 @@
 // src/components/vehicle_list.rs
+use crate::api_client::api_get;
 use crate::components::add_vehicle_button::AddVehicleButton;
 use crate::components::join_vehicle_button::JoinVehicleButton;
 use crate::components::vehicle::VehicleCard;
 use common::Vehicle;
 use leptos::*;
-use wasm_bindgen::JsCast;
 
 #[component]
 pub fn Vehicle_list(
@@ -98,54 +98,9 @@ pub fn Vehicle_list(
 }
 
 pub async fn fetch_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
-    fetch_from(
-        &format!("{}/api/vehicles", crate::config::API_BASE),
-        token,
-    )
-    .await
+    api_get(&format!("{}/api/vehicles", crate::config::API_BASE), token).await
 }
 
 pub async fn fetch_archived_vehicles(token: &str) -> Result<Vec<Vehicle>, String> {
-    fetch_from(
-        &format!("{}/api/vehicles/archived", crate::config::API_BASE),
-        token,
-    )
-    .await
-}
-
-async fn fetch_from(url: &str, token: &str) -> Result<Vec<Vehicle>, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Content-Type", "application/json")
-        .map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Cache-Control", "no-cache")
-        .map_err(|e| format!("{:?}", e))?;
-    opts.headers(&headers);
-
-    let request =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-
-    let window = leptos::window();
-    let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_request(&request))
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
+    api_get(&format!("{}/api/vehicles/archived", crate::config::API_BASE), token).await
 }

@@ -1,5 +1,6 @@
 // src/pages/fleet.rs — Gestion de flotte
 
+use crate::api_client::{api_delete, api_get, api_post};
 use crate::components::ui::{format_km, get_token, input_class};
 use common::{FleetReportContract, FleetReportVehicle};
 use js_sys;
@@ -90,7 +91,7 @@ pub fn FleetPage() -> impl IntoView {
             return;
         };
         spawn_local(async move {
-            match fetch_json::<Vec<Company>>(
+            match api_get::<Vec<Company>>(
                 &format!("{}/api/companies", crate::config::API_BASE),
                 &token,
             )
@@ -111,7 +112,7 @@ pub fn FleetPage() -> impl IntoView {
     let reload = move || {
         if let Some(token) = get_token() {
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<Company>>(
+                if let Ok(list) = api_get::<Vec<Company>>(
                     &format!("{}/api/companies", crate::config::API_BASE),
                     &token,
                 )
@@ -209,7 +210,7 @@ fn CreateCompanyCard(on_created: impl Fn() + 'static + Copy) -> impl IntoView {
                 serde_json::Value::String(siret.trim().to_string())
             };
             let body = serde_json::json!({ "name": name.trim(), "siret": siret_val });
-            match post_json(
+            match api_post(
                 &format!("{}/api/companies", crate::config::API_BASE),
                 &token,
                 &body,
@@ -366,7 +367,7 @@ fn NewCompanyInline(on_created: impl Fn() + 'static + Copy) -> impl IntoView {
             set_error.set(String::new());
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "name": name.trim() });
-            match post_json(
+            match api_post(
                 &format!("{}/api/companies", crate::config::API_BASE),
                 &token,
                 &body,
@@ -441,7 +442,7 @@ fn FleetVehiclesSection(
         let _ = refresh.get();
         let Some(token) = get_token() else { return };
         spawn_local(async move {
-            match fetch_json::<Vec<FleetVehicle>>(
+            match api_get::<Vec<FleetVehicle>>(
                 &format!("{}/api/companies/{}/vehicles", crate::config::API_BASE, company_id),
                 &token,
             )
@@ -467,8 +468,8 @@ fn FleetVehiclesSection(
                 let url_members = format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id);
                 let url_report  = format!("{}/api/companies/{}/fleet-report", crate::config::API_BASE, company_id);
                 let (members, report) = futures::join!(
-                    fetch_json::<Vec<CompanyMember>>(&url_members, &token),
-                    fetch_json::<Vec<FleetReportVehicle>>(&url_report, &token)
+                    api_get::<Vec<CompanyMember>>(&url_members, &token),
+                    api_get::<Vec<FleetReportVehicle>>(&url_report, &token)
                 );
                 export_fleet_pdf(&cn, cs.as_deref(), &members.unwrap_or_default(), &report.unwrap_or_default());
             }
@@ -613,7 +614,7 @@ fn MembersSection(company_id: Uuid) -> impl IntoView {
     let reload = move || {
         if let Some(token) = get_token() {
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<CompanyMember>>(
+                if let Ok(list) = api_get::<Vec<CompanyMember>>(
                     &format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id),
                     &token,
                 )
@@ -633,7 +634,7 @@ fn MembersSection(company_id: Uuid) -> impl IntoView {
             set_error.set(String::new());
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "email": email.trim() });
-            match post_json(
+            match api_post(
                 &format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id),
                 &token,
                 &body,
@@ -711,7 +712,7 @@ fn MembersSection(company_id: Uuid) -> impl IntoView {
                                         spawn_local(async move {
                                             let token = get_token().unwrap_or_default();
                                             let url = format!("{}/api/companies/{}/members/{}", crate::config::API_BASE, company_id, uid);
-                                            if delete_request(&url, &token).await.is_ok() { reload(); }
+                                            if api_delete(&url, &token).await.is_ok() { reload(); }
                                         });
                                     }
                                     class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition"
@@ -737,7 +738,7 @@ fn OrgsSection(company_id: Uuid) -> impl IntoView {
     let reload = move || {
         if let Some(token) = get_token() {
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<Organization>>(
+                if let Ok(list) = api_get::<Vec<Organization>>(
                     &format!("{}/api/companies/{}/organizations", crate::config::API_BASE, company_id),
                     &token,
                 )
@@ -757,7 +758,7 @@ fn OrgsSection(company_id: Uuid) -> impl IntoView {
             set_error.set(String::new());
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "name": n.trim(), "parent_org_id": pid });
-            match post_json(
+            match api_post(
                 &format!("{}/api/companies/{}/organizations", crate::config::API_BASE, company_id),
                 &token,
                 &body,
@@ -841,7 +842,7 @@ fn OrgsSection(company_id: Uuid) -> impl IntoView {
                                             spawn_local(async move {
                                                 let token = get_token().unwrap_or_default();
                                                 let url = format!("{}/api/companies/{}/organizations/{}", crate::config::API_BASE, company_id, oid);
-                                                if delete_request(&url, &token).await.is_ok() { reload(); }
+                                                if api_delete(&url, &token).await.is_ok() { reload(); }
                                             });
                                         }
                                         class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition"
@@ -866,7 +867,7 @@ fn OrgsSection(company_id: Uuid) -> impl IntoView {
                                                                 spawn_local(async move {
                                                                     let token = get_token().unwrap_or_default();
                                                                     let url = format!("{}/api/companies/{}/organizations/{}", crate::config::API_BASE, company_id, cid);
-                                                                    if delete_request(&url, &token).await.is_ok() { reload(); }
+                                                                    if api_delete(&url, &token).await.is_ok() { reload(); }
                                                                 });
                                                             }
                                                             class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition"
@@ -903,19 +904,19 @@ fn RolesSection(company_id: Uuid) -> impl IntoView {
             let t2 = token.clone();
             let t3 = token.clone();
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<FleetRoleEntry>>(
+                if let Ok(list) = api_get::<Vec<FleetRoleEntry>>(
                     &format!("{}/api/companies/{}/fleet-roles", crate::config::API_BASE, company_id),
                     &token,
                 ).await { set_roles.set(list); }
             });
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<CompanyMember>>(
+                if let Ok(list) = api_get::<Vec<CompanyMember>>(
                     &format!("{}/api/companies/{}/members", crate::config::API_BASE, company_id),
                     &t2,
                 ).await { set_members.set(list); }
             });
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<Organization>>(
+                if let Ok(list) = api_get::<Vec<Organization>>(
                     &format!("{}/api/companies/{}/organizations", crate::config::API_BASE, company_id),
                     &t3,
                 ).await { set_orgs.set(list); }
@@ -941,7 +942,7 @@ fn RolesSection(company_id: Uuid) -> impl IntoView {
             };
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "user_id": uid, "org_id": org_id_val, "role": role });
-            match post_json(
+            match api_post(
                 &format!("{}/api/companies/{}/fleet-roles", crate::config::API_BASE, company_id),
                 &token,
                 &body,
@@ -1019,7 +1020,7 @@ fn RolesSection(company_id: Uuid) -> impl IntoView {
                                     spawn_local(async move {
                                         let token = get_token().unwrap_or_default();
                                         let url = format!("{}/api/companies/{}/fleet-roles/{}", crate::config::API_BASE, company_id, rid);
-                                        if delete_request(&url, &token).await.is_ok() { reload(); }
+                                        if api_delete(&url, &token).await.is_ok() { reload(); }
                                     });
                                 }
                                 class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition"
@@ -1048,17 +1049,17 @@ fn VehiclesSection(company_id: Uuid, on_changed: Callback<()>) -> impl IntoView 
             let t2 = token.clone();
             let t3 = token.clone();
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<PersonalVehicle>>(
+                if let Ok(list) = api_get::<Vec<PersonalVehicle>>(
                     &format!("{}/api/vehicles", crate::config::API_BASE), &token,
                 ).await { set_personal.set(list); }
             });
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<FleetVehicle>>(
+                if let Ok(list) = api_get::<Vec<FleetVehicle>>(
                     &format!("{}/api/companies/{}/vehicles", crate::config::API_BASE, company_id), &t2,
                 ).await { set_fleet_veh.set(list); }
             });
             spawn_local(async move {
-                if let Ok(list) = fetch_json::<Vec<Organization>>(
+                if let Ok(list) = api_get::<Vec<Organization>>(
                     &format!("{}/api/companies/{}/organizations", crate::config::API_BASE, company_id), &t3,
                 ).await { set_orgs.set(list); }
             });
@@ -1093,7 +1094,7 @@ fn VehiclesSection(company_id: Uuid, on_changed: Callback<()>) -> impl IntoView 
             };
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "company_id": company_id, "org_id": org_id_val });
-            match post_json(
+            match api_post(
                 &format!("{}/api/vehicles/{}/fleet", crate::config::API_BASE, vid),
                 &token,
                 &body,
@@ -1164,7 +1165,7 @@ fn VehiclesSection(company_id: Uuid, on_changed: Callback<()>) -> impl IntoView 
                                     spawn_local(async move {
                                         let token = get_token().unwrap_or_default();
                                         let url = format!("{}/api/vehicles/{}/fleet", crate::config::API_BASE, vid);
-                                        if delete_request(&url, &token).await.is_ok() { reload(); on_changed.call(()); }
+                                        if api_delete(&url, &token).await.is_ok() { reload(); on_changed.call(()); }
                                     });
                                 }
                                 class="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition"
@@ -1180,7 +1181,7 @@ fn VehiclesSection(company_id: Uuid, on_changed: Callback<()>) -> impl IntoView 
 // ─── Helpers réseau ───────────────────────────────────────────────
 
 pub async fn fetch_companies_count(token: &str) -> usize {
-    fetch_json::<Vec<serde_json::Value>>(
+    api_get::<Vec<serde_json::Value>>(
         &format!("{}/api/companies", crate::config::API_BASE),
         token,
     )
@@ -1189,59 +1190,6 @@ pub async fn fetch_companies_count(token: &str) -> usize {
     .unwrap_or(0)
 }
 
-async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(url: &str, token: &str) -> Result<T, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{e:?}"))?;
-    headers.set("Authorization", &format!("Bearer {token}")).ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req = web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{e:?}"))?;
-    let resp_value = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-        .await.map_err(|e| format!("{e:?}"))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{e:?}"))?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{e:?}"))?)
-        .await.map_err(|e| format!("{e:?}"))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{e:?}"))
-}
-
-async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{e:?}"))?;
-    headers.set("Authorization", &format!("Bearer {token}")).ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req = web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{e:?}"))?;
-    let resp_value = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-        .await.map_err(|e| format!("{e:?}"))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{e:?}"))?;
-    if resp.ok() || resp.status() == 201 || resp.status() == 204 {
-        return Ok(());
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{e:?}"))?)
-        .await.ok();
-    let msg = json
-        .and_then(|j| serde_wasm_bindgen::from_value::<serde_json::Value>(j).ok())
-        .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(|s| s.to_string()))
-        .unwrap_or_else(|| format!("HTTP {}", resp.status()));
-    Err(msg)
-}
-
-async fn delete_request(url: &str, token: &str) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("DELETE");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{e:?}"))?;
-    headers.set("Authorization", &format!("Bearer {token}")).ok();
-    opts.headers(&headers);
-    let req = web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{e:?}"))?;
-    let resp_value = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-        .await.map_err(|e| format!("{e:?}"))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{e:?}"))?;
-    if resp.ok() || resp.status() == 204 { Ok(()) } else { Err(format!("HTTP {}", resp.status())) }
-}
 
 // ─── Export CSV flotte ─────────────────────────────────────────────
 

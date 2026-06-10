@@ -1,10 +1,10 @@
 // src/components/contracts/contract_list.rs
-use crate::components::ui::{format_km, get_token, input_class, parse_error_response};
+use crate::api_client::{api_delete, api_get, api_patch, api_post};
+use crate::components::ui::{format_km, get_token, input_class};
 use common::{ContractInsurance, ContractLoa, MileageLog};
+use js_sys;
 use leptos::*;
 use uuid::Uuid;
-use wasm_bindgen::JsCast;
-use js_sys;
 
 #[derive(Clone)]
 struct ContractsData {
@@ -26,13 +26,13 @@ pub fn ContractList(
         set_loading.set(true);
         spawn_local(async move {
             let Some(token) = get_token() else { return };
-            let loa = fetch_json::<Vec<ContractLoa>>(
+            let loa = api_get::<Vec<ContractLoa>>(
                 &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, id),
                 &token,
             )
             .await
             .unwrap_or_default();
-            let insurance = fetch_json::<Vec<ContractInsurance>>(
+            let insurance = api_get::<Vec<ContractInsurance>>(
                 &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, id),
                 &token,
             )
@@ -151,19 +151,8 @@ fn ContractLoaCard(contract: ContractLoa, can_manage: bool, on_deleted: Callback
             "{}/api/vehicles/{}/contracts/loa/{}",
             crate::config::API_BASE, vehicle_id, contract_id
         );
-        let mut opts = web_sys::RequestInit::new();
-        opts.method("DELETE");
-        let headers = web_sys::Headers::new().unwrap();
-        headers.set("Authorization", &format!("Bearer {}", token)).ok();
-        opts.headers(&headers);
-        let req = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
-        if let Ok(resp_val) = wasm_bindgen_futures::JsFuture::from(
-            leptos::window().fetch_with_request(&req)
-        ).await {
-            let resp: web_sys::Response = resp_val.dyn_into().unwrap();
-            if resp.ok() || resp.status() == 204 {
-                on_deleted.call(());
-            }
+        if api_delete(&url, &token).await.is_ok() {
+            on_deleted.call(());
         }
         set_show_confirm_delete.set(false);
     });
@@ -281,7 +270,7 @@ fn ContractLoaCard(contract: ContractLoa, can_manage: bool, on_deleted: Callback
                         let end_date    = contract.end_date;
                         let csv_action = create_action(move |_: &()| async move {
                             if let Some(token) = get_token() {
-                                if let Ok(entries) = fetch_json::<Vec<MileageLog>>(
+                                if let Ok(entries) = api_get::<Vec<MileageLog>>(
                                     &format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid),
                                     &token,
                                 ).await {
@@ -360,28 +349,12 @@ fn EditLoaPriceModal(
                 "{}/api/vehicles/{}/contracts/loa/{}",
                 crate::config::API_BASE, vehicle_id, contract_id
             );
-            let mut opts = web_sys::RequestInit::new();
-            opts.method("PATCH");
-            let headers = web_sys::Headers::new().unwrap();
-            headers.set("Authorization", &format!("Bearer {}", token)).ok();
-            headers.set("Content-Type", "application/json").ok();
-            opts.headers(&headers);
-            opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-            use wasm_bindgen::JsCast;
-            let req = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
-            match wasm_bindgen_futures::JsFuture::from(
-                leptos::window().fetch_with_request(&req)
-            ).await {
-                Ok(r) => {
-                    let resp: web_sys::Response = r.dyn_into().unwrap();
-                    if resp.ok() || resp.status() == 204 {
-                        on_close.call(());
-                        leptos::window().location().reload().ok();
-                    } else {
-                        set_error.set(format!("Erreur HTTP {}", resp.status()));
-                    }
+            match api_patch(&url, &token, &body).await {
+                Ok(_) => {
+                    on_close.call(());
+                    leptos::window().location().reload().ok();
                 }
-                Err(_) => set_error.set("Erreur réseau".to_string()),
+                Err(e) => set_error.set(e),
             }
         }
     });
@@ -445,7 +418,7 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
         let on_upd = on_updated_toggle.clone();
         async move {
             let token = get_token().unwrap_or_default();
-            let result = patch_json(
+            let result = api_patch(
                 &format!("{}/api/vehicles/{}/contracts/insurance/{}", crate::config::API_BASE, vid, cid),
                 &token,
                 &serde_json::json!({ "auto_renew": val }),
@@ -460,7 +433,7 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
         let on_upd = on_updated.clone();
         async move {
             let token = get_token().unwrap_or_default();
-            let result = post_json(
+            let result = api_post(
                 &format!("{}/api/vehicles/{}/contracts/insurance/{}/renew", crate::config::API_BASE, vid, cid),
                 &token,
                 &serde_json::json!({}),
@@ -478,19 +451,8 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
             "{}/api/vehicles/{}/contracts/insurance/{}",
             crate::config::API_BASE, vehicle_id, contract_id
         );
-        let mut opts = web_sys::RequestInit::new();
-        opts.method("DELETE");
-        let headers = web_sys::Headers::new().unwrap();
-        headers.set("Authorization", &format!("Bearer {}", token)).ok();
-        opts.headers(&headers);
-        let req = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
-        if let Ok(resp_val) = wasm_bindgen_futures::JsFuture::from(
-            leptos::window().fetch_with_request(&req)
-        ).await {
-            let resp: web_sys::Response = resp_val.dyn_into().unwrap();
-            if resp.ok() || resp.status() == 204 {
-                on_deleted.call(());
-            }
+        if api_delete(&url, &token).await.is_ok() {
+            on_deleted.call(());
         }
         set_show_confirm_delete.set(false);
     });
@@ -588,7 +550,7 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
                         let end_date   = contract.end_date;
                         let csv_action = create_action(move |_: &()| async move {
                             if let Some(token) = get_token() {
-                                if let Ok(entries) = fetch_json::<Vec<MileageLog>>(
+                                if let Ok(entries) = api_get::<Vec<MileageLog>>(
                                     &format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid),
                                     &token,
                                 ).await {
@@ -753,7 +715,7 @@ fn LoaModal(
                     "start_date": sd, "end_date": ed,
                     "price_per_extra_km": price_val,
                 });
-                match post_json(
+                match api_post(
                     &format!("{}/api/vehicles/{}/contracts/loa", crate::config::API_BASE, vid),
                     &token,
                     &body,
@@ -828,7 +790,7 @@ fn InsuranceModal(
                     "insurer": if ins.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(ins) },
                     "auto_renew": ar,
                 });
-                match post_json(
+                match api_post(
                     &format!("{}/api/vehicles/{}/contracts/insurance", crate::config::API_BASE, vid),
                     &token,
                     &body,
@@ -926,82 +888,12 @@ fn ModalActions(
     }
 }
 
-async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
-    url: &str,
-    token: &str,
-) -> Result<T, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req =
-        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
-}
-
-async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers.set("Authorization", &format!("Bearer {}", token)).ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
-
-async fn patch_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("PATCH");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers.set("Authorization", &format!("Bearer {}", token)).ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
 
 
 // ─── Export PDF ───────────────────────────────────────────────────
 
 fn export_loa_pdf(c: &ContractLoa) {
+    use wasm_bindgen::JsCast;
     let pct = ((c.km_consumed as f64 / c.km_allowed as f64) * 100.0).min(100.0) as u32;
     let status_label = match c.status.as_str() {
         "exceeded" => "Dépassé",
@@ -1077,6 +969,7 @@ footer{{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f
 }
 
 fn export_insurance_pdf(c: &ContractInsurance) {
+    use wasm_bindgen::JsCast;
     let pct = ((c.km_consumed as f64 / c.km_annual_limit as f64) * 100.0).min(100.0) as u32;
     let status_label = match c.status.as_str() {
         "exceeded" => "Dépassé",
@@ -1192,6 +1085,7 @@ fn download_mileage_csv(
 }
 
 fn trigger_download(content: &str, filename: &str, mime: &str) {
+    use wasm_bindgen::JsCast;
     let array = js_sys::Array::new();
     array.push(&wasm_bindgen::JsValue::from_str(content));
     let mut opts = web_sys::BlobPropertyBag::new();

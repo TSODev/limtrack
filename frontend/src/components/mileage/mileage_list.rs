@@ -1,9 +1,9 @@
 // src/components/mileage/mileage_list.rs
-use crate::components::ui::{format_km, get_token, input_class, parse_error_response};
+use crate::api_client::{api_delete, api_get, api_post};
+use crate::components::ui::{format_km, get_token, input_class};
 use common::MileageLog;
 use leptos::*;
 use uuid::Uuid;
-use wasm_bindgen::JsCast;
 
 #[component]
 pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -> impl IntoView {
@@ -17,7 +17,7 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
         spawn_local(async move {
             let Some(token) = get_token() else { return };
             let data =
-                fetch_json::<Vec<MileageLog>>(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, id), &token)
+                api_get::<Vec<MileageLog>>(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, id), &token)
                     .await
                     .unwrap_or_default();
             set_entries.set(data);
@@ -47,19 +47,8 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                 "{}/api/vehicles/{}/mileage/{}",
                 crate::config::API_BASE, id, entry_id
             );
-            let mut opts = web_sys::RequestInit::new();
-            opts.method("DELETE");
-            let headers = web_sys::Headers::new().unwrap();
-            headers.set("Authorization", &format!("Bearer {}", token)).ok();
-            opts.headers(&headers);
-            let Ok(req) = web_sys::Request::new_with_str_and_init(&url, &opts) else { return };
-            if let Ok(resp_val) = wasm_bindgen_futures::JsFuture::from(
-                leptos::window().fetch_with_request(&req)
-            ).await {
-                let resp: web_sys::Response = resp_val.dyn_into().unwrap();
-                if resp.ok() || resp.status() == 204 {
-                    load_mileage(id);
-                }
+            if api_delete(&url, &token).await.is_ok() {
+                load_mileage(id);
             }
             set_confirm_delete_id.set(None);
         });
@@ -223,7 +212,7 @@ fn MileageModal(
         async move {
             let token = get_token().unwrap_or_default();
             let body = serde_json::json!({ "value": val.parse::<i32>().unwrap_or(0), "recorded_at": date, "source": "manual" });
-            match post_json(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid), &token, &body).await {
+            match api_post(&format!("{}/api/vehicles/{}/mileage", crate::config::API_BASE, vid), &token, &body).await {
                 Ok(_) => {
                     on_created.call(());
                     on_close.call(());
@@ -287,54 +276,3 @@ fn today_str() -> String {
     chrono::Local::now().format("%Y-%m-%d").to_string()
 }
 
-async fn fetch_json<T: for<'de> serde::Deserialize<'de>>(
-    url: &str,
-    token: &str,
-) -> Result<T, String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Cache-Control", "no-cache").ok();
-    opts.headers(&headers);
-    let req =
-        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if !resp.ok() {
-        return Err(format!("Erreur HTTP : {}", resp.status()));
-    }
-    let json = wasm_bindgen_futures::JsFuture::from(resp.json().map_err(|e| format!("{:?}", e))?)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
-    serde_wasm_bindgen::from_value(json).map_err(|e| format!("{:?}", e))
-}
-
-async fn post_json(url: &str, token: &str, body: &serde_json::Value) -> Result<(), String> {
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("POST");
-    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
-    headers
-        .set("Authorization", &format!("Bearer {}", token))
-        .ok();
-    headers.set("Content-Type", "application/json").ok();
-    opts.headers(&headers);
-    opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
-    let req =
-        web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
-    let resp_value =
-        wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-            .await
-            .map_err(|e| format!("{:?}", e))?;
-    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
-    if resp.ok() || resp.status() == 201 {
-        Ok(())
-    } else {
-        Err(parse_error_response(resp).await)
-    }
-}
