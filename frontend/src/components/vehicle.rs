@@ -4,16 +4,17 @@ use leptos::*;
 use uuid::Uuid;
 
 fn make_avatar_style(make: &str) -> &'static str {
+    // Palette froide uniquement — évite rouge/amber/vert utilisés par les badges statut contrats
     let styles = [
-        "background-color:#fee2e2;color:#b91c1c", // red
-        "background-color:#ffedd5;color:#c2410c", // orange
-        "background-color:#fef3c7;color:#b45309", // amber
-        "background-color:#dcfce7;color:#15803d", // green
-        "background-color:#ccfbf1;color:#0f766e", // teal
         "background-color:#dbeafe;color:#1d4ed8", // blue
         "background-color:#e0e7ff;color:#4338ca", // indigo
         "background-color:#ede9fe;color:#6d28d9", // violet
-        "background-color:#fce7f3;color:#be185d", // pink
+        "background-color:#f3e8ff;color:#7e22ce", // purple
+        "background-color:#fdf4ff;color:#a21caf", // fuchsia
+        "background-color:#cffafe;color:#0e7490", // cyan
+        "background-color:#ccfbf1;color:#0f766e", // teal
+        "background-color:#e0f2fe;color:#0369a1", // sky
+        "background-color:#f1f5f9;color:#475569", // slate
     ];
     let idx = make.bytes().fold(0usize, |acc, b| acc.wrapping_add(b as usize)) % styles.len();
     styles[idx]
