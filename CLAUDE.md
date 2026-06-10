@@ -128,6 +128,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- vehicles.archived_at TIMESTAMPTZ NULL — migration 009, archivage fin de LOA
 -- broadcasts (id, message, created_at, expires_at, exclude_ios) — migration 010, messages broadcast admin
 -- contracts_insurance.auto_renew BOOLEAN NOT NULL DEFAULT FALSE — migration 011, renouvellement automatique J-7
+-- VIEW v_contract_status (vehicle_id, status) — migration 012, calcul danger/warning/ok centralisé (utilisé via LEFT JOIN dans vehicles_handler.rs)
 ```
 
 ## Routes API
@@ -433,7 +434,14 @@ o.name AS "org_name?"   -- force Option<String> même si le cache dit NOT NULL
 ```
 
 ### Colonne `status` dans contracts_loa / contracts_insurance — valeur stale
-La colonne `status` en base est initialisée à `'active'` par défaut et **n'est jamais mise à jour**. Le vrai statut (`active` / `exceeded` / `closed`) est calculé à la volée en Rust dans `contracts_handler.rs` à partir des km et des dates. Ne jamais filtrer sur `status = 'exceeded'` dans une sous-requête SQL — la valeur sera toujours `'active'`. Reproduire la logique Rust directement en SQL :
+La colonne `status` en base est initialisée à `'active'` par défaut et **n'est jamais mise à jour**. Le vrai statut (`active` / `exceeded` / `closed`) est calculé à la volée en Rust dans `contracts_handler.rs` à partir des km et des dates. Ne jamais filtrer sur `status = 'exceeded'` dans une sous-requête SQL — la valeur sera toujours `'active'`.
+
+Pour obtenir le statut agrégé d'un véhicule (danger/warning/ok), **utiliser la vue `v_contract_status`** (migration 012) — ne pas réécrire les sous-requêtes CASE inline :
+```sql
+LEFT JOIN public.v_contract_status vcs ON vcs.vehicle_id = v.id
+-- vcs.status AS "contract_status?"  → NULL | 'danger' | 'warning' | 'ok'
+```
+Si la vue n'est pas applicable (besoin du détail par contrat), reproduire la logique directement en SQL :
 ```sql
 -- danger : km consommés >= plafond
 COALESCE((SELECT value FROM mileage_log WHERE vehicle_id = v.id ORDER BY recorded_at DESC LIMIT 1), l.km_start)

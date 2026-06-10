@@ -34,6 +34,7 @@
 - [x] Navigation depuis les widgets → onglets (titre cliquable, `on_navigate` callback)
 - [x] Badge statut contrats sur les cartes véhicule (danger/warning/ok, calcul SQL corrigé)
 - [x] Client HTTP partagé `api_client.rs` (~480 lignes supprimées sur 10 fichiers)
+- [x] Vue SQL `v_contract_status` (migration 012) — calcul danger/warning/ok centralisé, `LEFT JOIN` dans `vehicles_handler.rs`
 
 **Prochaine étape :** réponse Apple en attente (build 3, soumis le 2026-06-09).
 
