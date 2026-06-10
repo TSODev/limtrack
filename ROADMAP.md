@@ -35,6 +35,10 @@
 - [x] Badge statut contrats sur les cartes véhicule (danger/warning/ok, calcul SQL corrigé)
 - [x] Client HTTP partagé `api_client.rs` (~480 lignes supprimées sur 10 fichiers)
 - [x] Vue SQL `v_contract_status` (migration 012) — calcul danger/warning/ok centralisé, `LEFT JOIN` dans `vehicles_handler.rs`
+- [x] Dashboard admin v2 — 5 onglets (Aperçu/Utilisateurs/Licences/Flottes/Génération), cartes stats cliquables, croissance hebdomadaire 12 semaines, filtres client-side, édition inline utilisateurs
+- [x] Migration 013 — `users.license_type` (backfill + mis à jour à l'activation du jeton)
+- [x] `GET /api/admin/growth` — croissance hebdomadaire users/véhicules (`date_trunc('week', ...)`, 12 semaines)
+- [x] `PATCH /api/admin/users/:id` — édition admin (username, email, is_admin, is_ios, license_type, access_expires_at)
 
 **Prochaine étape :** réponse Apple en attente (build 3, soumis le 2026-06-09).
 
@@ -116,6 +120,7 @@
 - [x] Page `/admin` avec stats globales, liste utilisateurs, demandes de licence, génération de jeton
 - [x] Section Flottes : entreprises, membres, organisations, véhicules
 - [x] Bouton Admin dans la navbar (admins uniquement)
+- [x] v2 — 5 onglets, cartes cliquables, croissance hebdomadaire, filtres, édition inline utilisateurs, migration 013 `license_type`
 
 ---
 
@@ -133,10 +138,9 @@ Chaque composant Leptos définit ses propres `fetch_json` / `post_json` / `patch
 - [x] Créer `frontend/src/api_client.rs` — 8 fonctions (`api_get`, `api_post`, `api_post_response`, `api_put`, `api_patch`, `api_patch_empty`, `api_delete`, `api_delete_body`)
 - [x] Migrer les 10 composants (contracts, mileage, vehicle_header, vehicle_list, join_vehicle_button, notification_bell, profile, fleet) — ~480 lignes supprimées
 
-### Calculs métier dupliqués SQL / Rust
-Le statut des contrats (`exceeded` / `active` / `closed`) et le calcul `overage_risk` existent à la fois en Rust (`contracts_handler.rs`) et reconstitués en SQL (`vehicles_handler.rs`). Une divergence a déjà causé un bug (badge toujours vert). Pistes :
-- [ ] Extraire la logique de calcul de statut dans des fonctions Rust partagées (crate `common` ou module dédié)
-- [ ] Ou créer une vue SQL `v_contract_status` recalculée à la volée, référencée partout
+### Calculs métier dupliqués SQL / Rust ✅
+Le statut des contrats (`exceeded` / `active` / `closed`) et le calcul `overage_risk` existaient à la fois en Rust (`contracts_handler.rs`) et reconstitués en SQL (`vehicles_handler.rs`). Une divergence avait causé un bug (badge toujours vert).
+- [x] Vue SQL `v_contract_status` (migration 012) — source de vérité unique, référencée via `LEFT JOIN` dans `vehicles_handler.rs`
 
 ---
 

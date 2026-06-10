@@ -17,6 +17,17 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ### Refactoring
 - **Vue SQL `v_contract_status`** (migration 012) : le calcul du statut des contrats (danger/warning/ok) est centralisé dans une vue PostgreSQL réutilisable. `vehicles_handler.rs` remplace les sous-requêtes CASE inline par un simple `LEFT JOIN public.v_contract_status`. Élimine la duplication entre `contracts_handler.rs` et `vehicles_handler.rs` ; source de vérité unique pour toute requête nécessitant le statut agrégé d'un véhicule.
+
+### Dashboard administrateur v2
+
+- **Page `/admin` — 5 onglets** : Aperçu, Utilisateurs, Licences, Flottes, Génération.
+  - **Onglet Aperçu** : 6 cartes stats cliquables (total utilisateurs, en essai, actifs, expirés, véhicules actifs, demandes de licence) — clic → navigation directe vers l'onglet correspondant avec filtre pré-rempli. Tableau de croissance hebdomadaire sur 12 semaines avec mini-barres proportionnelles (indigo = users, amber = véhicules).
+  - **Onglet Utilisateurs** : filtres texte (nom/email) + 4 boutons statut (tous/essai/actif/expiré) client-side, badge compteur résultats. Édition inline par ligne : username, email, type de licence (personal/fleet), is_ios, is_admin, access_expires_at. Boutons Save/Cancel par ligne.
+  - **Onglet Licences / Flottes** : filtres texte.
+- **`GET /api/admin/growth`** : croissance hebdomadaire utilisateurs + véhicules sur 12 semaines (`date_trunc('week', created_at)`). Retourne `{"users": [...], "vehicles": [...]}` avec `week` et `count` par point.
+- **`PATCH /api/admin/users/:id`** : édition admin de tous les champs éditables — username (unicité vérifiée), email (unicité vérifiée), is_admin, is_ios, license_type, access_expires_at. Payload partiel (champs `None` ignorés).
+- **`GET /api/admin/stats`** : ajout `total_vehicles` (nombre de véhicules actifs non archivés).
+- **Migration `013`** : colonne `license_type TEXT NOT NULL DEFAULT 'personal'` sur `users`. Backfill automatique depuis le dernier jeton utilisé par chaque utilisateur. `GET /api/profile/license` lit `license_type` directement depuis `users`. `POST /api/profile/redeem` met à jour `users.license_type` lors de l'activation d'un jeton.
 - **Client HTTP partagé** : création de `frontend/src/api_client.rs` avec 8 fonctions publiques (`api_get`, `api_post`, `api_post_response`, `api_put`, `api_patch`, `api_patch_empty`, `api_delete`, `api_delete_body`). Supprime ~480 lignes de code dupliqué dans 10 fichiers (`contract_list`, `contract_widget`, `mileage_list`, `mileage_widget`, `vehicle_header`, `vehicle_list`, `join_vehicle_button`, `notification_bell`, `profile`, `fleet`). Une seule implémentation réseau, un seul endroit à maintenir.
 
 ## [1.2.0] iOS — 2026-06-09 (build 3) — soumis le 2026-06-09 à 18h51

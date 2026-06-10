@@ -129,6 +129,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- broadcasts (id, message, created_at, expires_at, exclude_ios) — migration 010, messages broadcast admin
 -- contracts_insurance.auto_renew BOOLEAN NOT NULL DEFAULT FALSE — migration 011, renouvellement automatique J-7
 -- VIEW v_contract_status (vehicle_id, status) — migration 012, calcul danger/warning/ok centralisé (utilisé via LEFT JOIN dans vehicles_handler.rs)
+-- users.license_type TEXT NOT NULL DEFAULT 'personal' — migration 013, type de licence centralisé sur users (backfill depuis dernier jeton, éditable via PATCH /api/admin/users/:id)
 ```
 
 ## Routes API
@@ -183,8 +184,10 @@ GET         /api/companies/:id/organizations/:oid/vehicles
 GET         /api/companies/:id/fleet-report                   ← rapport PDF/CSV flotte
 
 # Admin (is_admin = true requis)
-GET         /api/admin/stats
+GET         /api/admin/stats                                      ← total users/trial/active/expired/vehicles/license-requests
 GET         /api/admin/users
+PATCH       /api/admin/users/:id                                  ← édition admin : username, email, is_admin, is_ios, license_type, access_expires_at
+GET         /api/admin/growth                                     ← croissance hebdomadaire users + véhicules sur 12 semaines
 GET         /api/admin/license-requests
 POST        /api/admin/generate-token
 GET         /api/admin/companies
