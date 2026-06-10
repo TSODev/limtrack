@@ -83,6 +83,7 @@
 - [x] `/etc/fail2ban/jail.local` créé depuis `jail.conf` — section `[sshd]` : `backend = systemd`, `maxretry = 3`, `findtime = 5m`, `bantime = 30m`
 - [x] Jail SSH actif — 3 IPs bannies dès la mise en service (bots détectés immédiatement)
 - [ ] Snapshots automatiques OVH (Control Panel → Backup)
+- [~] Network Firewall OVHcloud — non activé (ufw + Fail2ban suffisants pour un projet solo)
 
 ---
 
