@@ -16,10 +16,12 @@
 | [0.7.0] | 2026-06-04 | Dashboard administrateur — stats, utilisateurs, licences, flottes, génération de jetons |
 | [1.0.0] | 2026-06-05 | Version stable — export PDF/CSV, SaaS ready, Mobile ready (PWA), open source AGPL v3 |
 | [1.1.0] | 2026-06-05 | Prix/km dépassement LOA, rapport flotte enrichi (contrats), App Store iOS ready |
-| [1.1.0-appstore] | 2026-06-05 | Soumission App Store (build 2, Apple ID 6777175237) — en attente review Apple |
+| [1.1.0-appstore] | 2026-06-05 | Soumission App Store (build 2, Apple ID 6777175237) — refusé par le développeur |
 | [1.1.1] | 2026-06-06 | Réinitialisation du mot de passe par email (token SHA-256, expiry 1h, Resend) |
 | [1.1.2] | 2026-06-07 | Archivage véhicules (LOA terminée), renouvellement licence gratuite, suppression contrats/relevés km |
 | [1.1.3] | 2026-06-07 | Confirmation avant archivage, correctifs UX (chevron, bouton amber invisible) |
+| [1.2.0] | 2026-06-09 | Monitoring `/health`, messages d'erreur centralisés, renouvellement assurance auto, broadcast admin, UX iOS, navigation widgets, badge statut contrats |
+| [1.2.0-appstore] | 2026-06-09 | Soumission App Store build 3 (Apple ID 6777175237) — en attente de vérification Apple |
 
 ---
 
@@ -27,8 +29,13 @@
 
 - [x] Broadcast messages — messages ponctuels admin → utilisateurs (banner, auto-dismiss, exclude_ios)
 - [x] `--help` clap sur tous les CLIs
+- [x] Monitoring `/health` (DB ping, Uptime Kuma)
+- [x] Renouvellement assurance auto (tâche de fond 8h UTC, route `/renew`, toggle `auto_renew`)
+- [x] Navigation depuis les widgets → onglets (titre cliquable, `on_navigate` callback)
+- [x] Badge statut contrats sur les cartes véhicule (danger/warning/ok, calcul SQL corrigé)
+- [x] Client HTTP partagé `api_client.rs` (~480 lignes supprimées sur 10 fichiers)
 
-**Prochaine étape :** réponse Apple + publication App Store.
+**Prochaine étape :** réponse Apple en attente (build 3, soumis le 2026-06-09).
 
 ---
 
@@ -42,7 +49,7 @@
 | Ancien | Nouveau | Service |
 |--------|---------|---------|
 | `odo.tsodev.fr` (Netlify) | `limtrack.app` (Cloudflare Pages) | Frontend |
-| `api.tsodev.fr` | `api.limtrack.app` | Railway — backend |
+| `api.tsodev.fr` | `api.limtrack.app` | OVH VPS (`164.132.40.109`) — backend |
 | `noreply@tsodev.fr` | `noreply@limtrack.app` | Resend — emails |
 
 - [x] Domaine `limtrack.app` enregistré sur Cloudflare (2026-06-03)
