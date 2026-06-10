@@ -15,6 +15,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ### Corrigé
 - **`contract_status` toujours vert** : la colonne `status` en base est statique (`'active'` par défaut, jamais mise à jour) — le CASE SQL comparait `status = 'exceeded'` sur une valeur toujours fausse. Remplacé par le calcul réel : `danger` si km consommés ≥ plafond, `warning` si expiration ≤ 30j ou projection km dépasse le plafond (même logique que le handler Rust), `ok` si contrat actif non dépassé.
 
+### Refactoring
+- **Client HTTP partagé** : création de `frontend/src/api_client.rs` avec 8 fonctions publiques (`api_get`, `api_post`, `api_post_response`, `api_put`, `api_patch`, `api_patch_empty`, `api_delete`, `api_delete_body`). Supprime ~480 lignes de code dupliqué dans 10 fichiers (`contract_list`, `contract_widget`, `mileage_list`, `mileage_widget`, `vehicle_header`, `vehicle_list`, `join_vehicle_button`, `notification_bell`, `profile`, `fleet`). Une seule implémentation réseau, un seul endroit à maintenir.
+
 ## [1.2.0] iOS — 2026-06-09 (build 3) — soumis le 2026-06-09 à 18h51
 
 Identifiant de soumission : `344008c4-5b12-42a4-8349-377cb3343074`

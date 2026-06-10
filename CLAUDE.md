@@ -463,8 +463,29 @@ create_effect(move |_| {
 ## Navigation widgets → onglets
 `MileageWidget` et `ContractsWidget` reçoivent une prop `on_navigate: Callback<()>` passée depuis `vehicle_dashboard.rs`. Clic sur le titre → `set_tab.set(DashboardTab::Kilometrage / Contracts)`.
 
+## Client HTTP partagé — `api_client.rs`
+`frontend/src/api_client.rs` centralise tous les appels réseau du frontend. Ne jamais réécrire de helper HTTP local dans un composant — utiliser ces fonctions :
+
+| Fonction | Méthode | Corps | Retour |
+|----------|---------|-------|--------|
+| `api_get::<T>` | GET | — | `Result<T, String>` |
+| `api_post` | POST | JSON | `Result<(), String>` |
+| `api_post_response::<T>` | POST | JSON | `Result<T, String>` |
+| `api_put` | PUT | JSON | `Result<(), String>` |
+| `api_patch` | PATCH | JSON | `Result<(), String>` |
+| `api_patch_empty` | PATCH | — | `Result<(), String>` |
+| `api_delete` | DELETE | — | `Result<(), String>` |
+| `api_delete_body` | DELETE | JSON | `Result<(), String>` |
+
+```rust
+use crate::api_client::{api_get, api_post};
+
+let vehicles = api_get::<Vec<Vehicle>>(&url, &token).await?;
+api_post(&url, &token, &serde_json::json!({"role": "editor"})).await?;
+```
+
 ## Parsing erreurs HTTP — pattern fiable en WASM
-`parse_error_response` est dans `components/ui.rs` (fonction partagée, `pub async fn`). Utilisée dans tous les fichiers d'écriture (`contract_list`, `contract_widget`, `mileage_list`, `vehicle_header`, `profile`).
+`parse_error_response` est dans `components/ui.rs` (fonction partagée, `pub async fn`). Intégrée dans `api_client.rs` pour toutes les opérations d'écriture.
 1. Lit le corps via `resp.text()` + `serde_json::from_str` (ne pas revenir à `resp.json()` + `serde_wasm_bindgen::from_value::<serde_json::Value>` — échoue silencieusement en WASM)
 2. Fallback par code HTTP si le JSON ne parse pas : 409 → chevauchement de période, 402/403/404/429 → messages métier explicites
 

@@ -120,10 +120,10 @@
 
 ## Qualité du code — refactoring
 
-### Client HTTP partagé (frontend)
+### Client HTTP partagé (frontend) ✅
 Chaque composant Leptos définit ses propres `fetch_json` / `post_json` / `patch_json` / `delete_json`. La centralisation de `parse_error_response` dans `ui.rs` est un premier pas — l'étape suivante est un vrai module `api_client.rs` avec des helpers génériques réutilisables partout.
-- [ ] Créer `frontend/src/api_client.rs` — `get<T>`, `post<T>`, `patch<T>`, `delete` avec headers, token et `parse_error_response` intégrés
-- [ ] Migrer les composants progressivement (contracts, mileage, vehicle_header, profile…)
+- [x] Créer `frontend/src/api_client.rs` — 8 fonctions (`api_get`, `api_post`, `api_post_response`, `api_put`, `api_patch`, `api_patch_empty`, `api_delete`, `api_delete_body`)
+- [x] Migrer les 10 composants (contracts, mileage, vehicle_header, vehicle_list, join_vehicle_button, notification_bell, profile, fleet) — ~480 lignes supprimées
 
 ### Calculs métier dupliqués SQL / Rust
 Le statut des contrats (`exceeded` / `active` / `closed`) et le calcul `overage_risk` existent à la fois en Rust (`contracts_handler.rs`) et reconstitués en SQL (`vehicles_handler.rs`). Une divergence a déjà causé un bug (badge toujours vert). Pistes :
