@@ -3,20 +3,20 @@ use common::Vehicle;
 use leptos::*;
 use uuid::Uuid;
 
-fn make_avatar_classes(make: &str) -> (&'static str, &'static str) {
-    let colors = [
-        ("bg-red-100", "text-red-700"),
-        ("bg-orange-100", "text-orange-700"),
-        ("bg-amber-100", "text-amber-700"),
-        ("bg-green-100", "text-green-700"),
-        ("bg-teal-100", "text-teal-700"),
-        ("bg-blue-100", "text-blue-700"),
-        ("bg-indigo-100", "text-indigo-700"),
-        ("bg-violet-100", "text-violet-700"),
-        ("bg-pink-100", "text-pink-700"),
+fn make_avatar_style(make: &str) -> &'static str {
+    let styles = [
+        "background-color:#fee2e2;color:#b91c1c", // red
+        "background-color:#ffedd5;color:#c2410c", // orange
+        "background-color:#fef3c7;color:#b45309", // amber
+        "background-color:#dcfce7;color:#15803d", // green
+        "background-color:#ccfbf1;color:#0f766e", // teal
+        "background-color:#dbeafe;color:#1d4ed8", // blue
+        "background-color:#e0e7ff;color:#4338ca", // indigo
+        "background-color:#ede9fe;color:#6d28d9", // violet
+        "background-color:#fce7f3;color:#be185d", // pink
     ];
-    let idx = make.bytes().fold(0usize, |acc, b| acc.wrapping_add(b as usize)) % colors.len();
-    colors[idx]
+    let idx = make.bytes().fold(0usize, |acc, b| acc.wrapping_add(b as usize)) % styles.len();
+    styles[idx]
 }
 
 #[component]
@@ -30,7 +30,7 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
         .unwrap_or('?')
         .to_ascii_uppercase()
         .to_string();
-    let (bg, text) = make_avatar_classes(&vehicle.make);
+    let avatar_style = make_avatar_style(&vehicle.make);
 
     view! {
         <button
@@ -42,7 +42,7 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
                    transition-all duration-150"
         >
             // Initiale de la marque
-            <div class=format!("shrink-0 w-9 h-9 rounded-lg flex items-center justify-center {} {}", bg, text)>
+            <div class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style=avatar_style>
                 <span class="text-sm font-bold">{initial}</span>
             </div>
 
