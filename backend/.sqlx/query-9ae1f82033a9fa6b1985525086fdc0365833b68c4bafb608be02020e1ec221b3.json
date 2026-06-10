@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT trial_ends_at, access_expires_at, license_type FROM public.users WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "trial_ends_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "access_expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "license_type",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "9ae1f82033a9fa6b1985525086fdc0365833b68c4bafb608be02020e1ec221b3"
+}

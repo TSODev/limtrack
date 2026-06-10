@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT username, email, is_admin, is_ios, access_expires_at, license_type\n         FROM public.users WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "email",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "is_admin",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "is_ios",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "access_expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "license_type",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "2b6d57a2ed69ef1f5f6f2467e2c426e4a9cf473158a5955405443e6bb9767af7"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM public.vehicles WHERE archived_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c1920f6b4697162313f7f6fc07fd3471eae635a4c331b99b2b2af6b748a0b98d"
+}

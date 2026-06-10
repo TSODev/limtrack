@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT date_trunc('week', created_at)::date::text AS \"week!\",\n               COUNT(*) AS \"count!\"\n        FROM public.vehicles\n        WHERE created_at >= NOW() - INTERVAL '11 weeks'\n        GROUP BY date_trunc('week', created_at)\n        ORDER BY 1 DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "week!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "b108c76e5f2a2bb695bd4e1c0f8acf52c0c3661ccc5b338716a1ff9e3714f3d1"
+}

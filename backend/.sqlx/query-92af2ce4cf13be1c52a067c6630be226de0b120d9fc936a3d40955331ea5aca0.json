@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE public.users SET access_expires_at = $1, license_type = $2 WHERE id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "92af2ce4cf13be1c52a067c6630be226de0b120d9fc936a3d40955331ea5aca0"
+}

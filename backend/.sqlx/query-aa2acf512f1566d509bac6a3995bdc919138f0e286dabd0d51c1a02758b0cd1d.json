@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, username, email, is_admin, created_at, trial_ends_at, access_expires_at\n         FROM public.users ORDER BY created_at DESC",
+  "query": "SELECT id, username, email, is_admin, is_ios, license_type, created_at, trial_ends_at, access_expires_at\n         FROM public.users ORDER BY created_at DESC",
   "describe": {
     "columns": [
       {
@@ -25,16 +25,26 @@
       },
       {
         "ordinal": 4,
+        "name": "is_ios",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "license_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "trial_ends_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 6,
+        "ordinal": 8,
         "name": "access_expires_at",
         "type_info": "Timestamptz"
       }
@@ -47,10 +57,12 @@
       false,
       false,
       false,
+      false,
+      false,
       true,
       false,
       true
     ]
   },
-  "hash": "a53f3ab040cacaeeb7b3dcb3518a05c50872959af49916895b5345aa72f349f0"
+  "hash": "aa2acf512f1566d509bac6a3995bdc919138f0e286dabd0d51c1a02758b0cd1d"
 }

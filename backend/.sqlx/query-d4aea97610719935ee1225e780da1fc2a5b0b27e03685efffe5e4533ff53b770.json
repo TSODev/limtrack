@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM public.users WHERE username = $1 AND id != $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d4aea97610719935ee1225e780da1fc2a5b0b27e03685efffe5e4533ff53b770"
+}

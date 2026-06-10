@@ -2,7 +2,7 @@
 
 use axum::{
     async_trait,
-    extract::{FromRequestParts, State},
+    extract::{FromRequestParts, Path, State},
     http::{request::Parts, StatusCode},
     response::IntoResponse,
     Json,
@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::auth::{AuthenticatedUser, Claims};
+use crate::auth::Claims;
 use crate::state::AppState;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 
@@ -82,6 +82,7 @@ pub struct AdminStats {
     pub trial: i64,
     pub active: i64,
     pub expired: i64,
+    pub total_vehicles: i64,
     pub total_license_requests: i64,
 }
 
@@ -91,6 +92,8 @@ pub struct AdminUser_ {
     pub username: String,
     pub email: String,
     pub is_admin: bool,
+    pub is_ios: bool,
+    pub license_type: String,
     pub created_at: chrono::DateTime<Utc>,
     pub trial_ends_at: chrono::DateTime<Utc>,
     pub access_expires_at: Option<chrono::DateTime<Utc>>,
@@ -114,6 +117,22 @@ pub struct GenerateTokenPayload {
 pub struct GenerateTokenResponse {
     pub token: String,
     pub assigned_to: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct GrowthPoint {
+    pub week: String,
+    pub count: i64,
+}
+
+#[derive(Deserialize)]
+pub struct PatchUserPayload {
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub is_admin: Option<bool>,
+    pub is_ios: Option<bool>,
+    pub license_type: Option<String>,
+    pub access_expires_at: Option<chrono::DateTime<Utc>>,
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -191,6 +210,14 @@ pub async fn get_stats(
     .unwrap_or(Some(0))
     .unwrap_or(0);
 
+    let total_vehicles = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM public.vehicles WHERE archived_at IS NULL"
+    )
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or(Some(0))
+    .unwrap_or(0);
+
     let total_license_requests =
         sqlx::query_scalar!("SELECT COUNT(*) FROM public.license_requests")
             .fetch_one(&state.db)
@@ -203,6 +230,7 @@ pub async fn get_stats(
         trial,
         active,
         expired,
+        total_vehicles,
         total_license_requests,
     })
 }
@@ -214,7 +242,7 @@ pub async fn list_users(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let rows = sqlx::query!(
-        "SELECT id, username, email, is_admin, created_at, trial_ends_at, access_expires_at
+        "SELECT id, username, email, is_admin, is_ios, license_type, created_at, trial_ends_at, access_expires_at
          FROM public.users ORDER BY created_at DESC"
     )
     .fetch_all(&state.db)
@@ -231,6 +259,8 @@ pub async fn list_users(
                         username: r.username,
                         email: r.email,
                         is_admin: r.is_admin,
+                        is_ios: r.is_ios,
+                        license_type: r.license_type,
                         created_at: r.created_at.unwrap_or_else(Utc::now),
                         trial_ends_at: r.trial_ends_at,
                         access_expires_at: r.access_expires_at,
@@ -241,6 +271,165 @@ pub async fn list_users(
             Json(users).into_response()
         }
         Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur base de données"})),
+        )
+            .into_response(),
+    }
+}
+
+// ─── PATCH /api/admin/users/:id ────────────────────────────────
+
+pub async fn patch_user_admin(
+    AdminUser(_): AdminUser,
+    Path(user_id): Path<Uuid>,
+    State(state): State<AppState>,
+    Json(payload): Json<PatchUserPayload>,
+) -> impl IntoResponse {
+    if let Some(ref lt) = payload.license_type {
+        if lt != "personal" && lt != "fleet" {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "license_type invalide (personal | fleet)"})),
+            )
+                .into_response();
+        }
+    }
+
+    let current = sqlx::query!(
+        "SELECT username, email, is_admin, is_ios, access_expires_at, license_type
+         FROM public.users WHERE id = $1",
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let current = match current {
+        Ok(Some(r)) => r,
+        Ok(None) => return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Utilisateur introuvable"})),
+        ).into_response(),
+        Err(_) => return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur base de données"})),
+        ).into_response(),
+    };
+
+    if let Some(ref new_username) = payload.username {
+        let exists = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM public.users WHERE username = $1 AND id != $2",
+            new_username,
+            user_id
+        )
+        .fetch_one(&state.db)
+        .await
+        .unwrap_or(Some(0))
+        .unwrap_or(0);
+        if exists > 0 {
+            return (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({"error": "Ce nom d'utilisateur est déjà pris"})),
+            )
+                .into_response();
+        }
+    }
+
+    if let Some(ref new_email) = payload.email {
+        let exists = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM public.users WHERE email = $1 AND id != $2",
+            new_email,
+            user_id
+        )
+        .fetch_one(&state.db)
+        .await
+        .unwrap_or(Some(0))
+        .unwrap_or(0);
+        if exists > 0 {
+            return (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({"error": "Cet email est déjà utilisé"})),
+            )
+                .into_response();
+        }
+    }
+
+    let username = payload.username.as_deref().unwrap_or(&current.username);
+    let email = payload.email.as_deref().unwrap_or(&current.email);
+    let is_admin = payload.is_admin.unwrap_or(current.is_admin);
+    let is_ios = payload.is_ios.unwrap_or(current.is_ios);
+    let license_type = payload.license_type.as_deref().unwrap_or(&current.license_type);
+    let access_expires_at = if payload.access_expires_at.is_some() {
+        payload.access_expires_at
+    } else {
+        current.access_expires_at
+    };
+
+    match sqlx::query!(
+        "UPDATE public.users
+         SET username = $2, email = $3, is_admin = $4, is_ios = $5, license_type = $6, access_expires_at = $7
+         WHERE id = $1",
+        user_id,
+        username,
+        email,
+        is_admin,
+        is_ios,
+        license_type,
+        access_expires_at
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({"ok": true}))).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur mise à jour"})),
+        )
+            .into_response(),
+    }
+}
+
+// ─── GET /api/admin/growth ─────────────────────────────────────
+
+pub async fn get_growth(
+    AdminUser(_): AdminUser,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let user_rows = sqlx::query!(
+        r#"
+        SELECT date_trunc('week', created_at)::date::text AS "week!",
+               COUNT(*) AS "count!"
+        FROM public.users
+        WHERE created_at >= NOW() - INTERVAL '11 weeks'
+        GROUP BY date_trunc('week', created_at)
+        ORDER BY 1 DESC
+        "#
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    let vehicle_rows = sqlx::query!(
+        r#"
+        SELECT date_trunc('week', created_at)::date::text AS "week!",
+               COUNT(*) AS "count!"
+        FROM public.vehicles
+        WHERE created_at >= NOW() - INTERVAL '11 weeks'
+        GROUP BY date_trunc('week', created_at)
+        ORDER BY 1 DESC
+        "#
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    match (user_rows, vehicle_rows) {
+        (Ok(u), Ok(v)) => {
+            let result = serde_json::json!({
+                "users": u.into_iter().map(|r| serde_json::json!({"week": r.week, "count": r.count})).collect::<Vec<_>>(),
+                "vehicles": v.into_iter().map(|r| serde_json::json!({"week": r.week, "count": r.count})).collect::<Vec<_>>(),
+            });
+            (StatusCode::OK, Json(result)).into_response()
+        }
+        _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": "Erreur base de données"})),
         )
@@ -321,7 +510,6 @@ pub async fn generate_token_handler(
             .into_response();
     }
 
-    // Si un email est fourni, assigner directement
     let mut assigned_to: Option<String> = None;
     if let Some(ref email) = payload.email {
         let email = email.trim().to_lowercase();
@@ -350,8 +538,9 @@ pub async fn generate_token_handler(
                 .await;
 
                 let _ = sqlx::query!(
-                    "UPDATE public.users SET access_expires_at = $1 WHERE id = $2",
+                    "UPDATE public.users SET access_expires_at = $1, license_type = $2 WHERE id = $3",
                     new_expiry,
+                    payload.license_type,
                     user.id
                 )
                 .execute(&state.db)

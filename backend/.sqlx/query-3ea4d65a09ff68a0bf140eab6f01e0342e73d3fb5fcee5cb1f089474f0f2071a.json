@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, duration_days, license_type, used_at FROM public.license_tokens WHERE token_hash = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "duration_days",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "license_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "used_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3ea4d65a09ff68a0bf140eab6f01e0342e73d3fb5fcee5cb1f089474f0f2071a"
+}
