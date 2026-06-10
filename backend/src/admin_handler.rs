@@ -555,6 +555,174 @@ pub async fn generate_token_handler(
     Json(GenerateTokenResponse { token, assigned_to }).into_response()
 }
 
+// ─── POST /api/admin/assign-license ───────────────────────────
+
+#[derive(Deserialize)]
+pub struct AssignLicensePayload {
+    pub email: String,
+    pub token: String,
+}
+
+pub async fn assign_license_handler(
+    AdminUser(admin_id): AdminUser,
+    State(state): State<AppState>,
+    Json(payload): Json<AssignLicensePayload>,
+) -> impl IntoResponse {
+    let email = payload.email.trim().to_lowercase();
+    if email.is_empty() || payload.token.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "email et token requis"})),
+        )
+            .into_response();
+    }
+
+    let token_hash = hash_token(payload.token.trim());
+
+    let token = sqlx::query!(
+        "SELECT id, duration_days, license_type, used_at FROM public.license_tokens WHERE token_hash = $1",
+        token_hash
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let token = match token {
+        Ok(Some(t)) => t,
+        Ok(None) => return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Jeton invalide ou inexistant"})),
+        ).into_response(),
+        Err(_) => return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur base de données"})),
+        ).into_response(),
+    };
+
+    if token.used_at.is_some() {
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({"error": "Ce jeton a déjà été utilisé"})),
+        ).into_response();
+    }
+
+    let user = sqlx::query!(
+        "SELECT id, access_expires_at FROM public.users WHERE email = $1",
+        email
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let user = match user {
+        Ok(Some(u)) => u,
+        Ok(None) => return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Utilisateur introuvable"})),
+        ).into_response(),
+        Err(_) => return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur base de données"})),
+        ).into_response(),
+    };
+
+    let base = user.access_expires_at.filter(|e| *e > Utc::now()).unwrap_or_else(Utc::now);
+    let new_expiry = base + chrono::Duration::days(token.duration_days as i64);
+
+    let _ = sqlx::query!(
+        "UPDATE public.license_tokens SET used_at = NOW(), used_by = $1 WHERE id = $2",
+        user.id,
+        token.id
+    )
+    .execute(&state.db)
+    .await;
+
+    match sqlx::query!(
+        "UPDATE public.users SET access_expires_at = $1, license_type = $2 WHERE id = $3",
+        new_expiry,
+        token.license_type,
+        user.id
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(_) => {
+            info!("admin {}: jeton assigné à {}", admin_id, email);
+            (StatusCode::OK, Json(serde_json::json!({
+                "ok": true,
+                "email": email,
+                "new_expires_at": new_expiry.format("%Y-%m-%d").to_string(),
+                "license_type": token.license_type,
+            })))
+                .into_response()
+        }
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur mise à jour"})),
+        )
+            .into_response(),
+    }
+}
+
+// ─── POST /api/admin/notify-expiry ────────────────────────────
+
+pub async fn trigger_notify_expiry(
+    AdminUser(_): AdminUser,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if state.resend_api_key.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "RESEND_API_KEY non configurée — notifications désactivées"})),
+        )
+            .into_response();
+    }
+    crate::notifier::run_notifications(&state.db, &state.resend_api_key).await;
+    (StatusCode::OK, Json(serde_json::json!({"ok": true}))).into_response()
+}
+
+// ─── POST /api/admin/broadcasts ───────────────────────────────
+
+#[derive(Deserialize)]
+pub struct CreateBroadcastPayload {
+    pub message: String,
+    pub days: Option<i64>,
+    pub exclude_ios: bool,
+}
+
+pub async fn create_broadcast(
+    AdminUser(_): AdminUser,
+    State(state): State<AppState>,
+    Json(payload): Json<CreateBroadcastPayload>,
+) -> impl IntoResponse {
+    let message = payload.message.trim().to_string();
+    if message.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "message requis"})),
+        )
+            .into_response();
+    }
+
+    let days = payload.days.unwrap_or(7);
+    let expires_at = Utc::now() + chrono::Duration::days(days);
+
+    match sqlx::query!(
+        "INSERT INTO public.broadcasts (message, expires_at, exclude_ios) VALUES ($1, $2, $3)",
+        message,
+        expires_at,
+        payload.exclude_ios
+    )
+    .execute(&state.db)
+    .await
+    {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({"ok": true}))).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "Erreur création broadcast"})),
+        )
+            .into_response(),
+    }
+}
+
 // ─── GET /api/admin/companies ─────────────────────────────────
 
 #[derive(Serialize)]

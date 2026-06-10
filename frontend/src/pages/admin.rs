@@ -236,6 +236,20 @@ pub fn AdminPage() -> impl IntoView {
     let (gen_type, set_gen_type)       = create_signal("personal".to_string());
     let (gen_result, set_gen_result)   = create_signal(Option::<Result<String, String>>::None);
     let (gen_loading, set_gen_loading) = create_signal(false);
+    // Assigner jeton existant
+    let (assign_email, set_assign_email) = create_signal(String::new());
+    let (assign_token, set_assign_token) = create_signal(String::new());
+    let (assign_result, set_assign_result) = create_signal(Option::<Result<String, String>>::None);
+    let (assign_loading, set_assign_loading) = create_signal(false);
+    // Notifications email manuelles
+    let (notif_result, set_notif_result) = create_signal(Option::<Result<String, String>>::None);
+    let (notif_loading, set_notif_loading) = create_signal(false);
+    // Broadcast
+    let (bc_message, set_bc_message)     = create_signal(String::new());
+    let (bc_days, set_bc_days)           = create_signal(7i64);
+    let (bc_exclude_ios, set_bc_exclude_ios) = create_signal(false);
+    let (bc_result, set_bc_result)       = create_signal(Option::<Result<String, String>>::None);
+    let (bc_loading, set_bc_loading)     = create_signal(false);
 
     let stats     = create_resource(move || refresh.get(), |_| async { api_get::<AdminStats>("/api/admin/stats").await });
     let users     = create_resource(move || refresh.get(), |_| async { api_get::<Vec<AdminUser>>("/api/admin/users").await });
@@ -277,6 +291,41 @@ pub fn AdminPage() -> impl IntoView {
             if result.is_ok() { set_refresh.update(|n| *n += 1); }
             set_gen_result.set(Some(result));
             set_gen_loading.set(false);
+        }
+    });
+
+    let assign_action = create_action(move |(email, token): &(String, String)| {
+        let email = email.clone(); let token = token.clone();
+        async move {
+            set_assign_loading.set(true);
+            set_assign_result.set(None);
+            let payload = serde_json::json!({"email": email, "token": token});
+            let result = api_post("/api/admin/assign-license", &payload.to_string()).await;
+            set_assign_result.set(Some(result));
+            set_assign_loading.set(false);
+        }
+    });
+
+    let notif_action = create_action(move |_: &()| {
+        async move {
+            set_notif_loading.set(true);
+            set_notif_result.set(None);
+            let result = api_post("/api/admin/notify-expiry", "{}").await;
+            set_notif_result.set(Some(result));
+            set_notif_loading.set(false);
+        }
+    });
+
+    let bc_action = create_action(move |(message, days, exclude_ios): &(String, i64, bool)| {
+        let message = message.clone(); let days = *days; let exclude_ios = *exclude_ios;
+        async move {
+            set_bc_loading.set(true);
+            set_bc_result.set(None);
+            let payload = serde_json::json!({"message": message, "days": days, "exclude_ios": exclude_ios});
+            let result = api_post("/api/admin/broadcasts", &payload.to_string()).await;
+            if result.is_ok() { set_bc_message.set(String::new()); }
+            set_bc_result.set(Some(result));
+            set_bc_loading.set(false);
         }
     });
 
@@ -882,6 +931,142 @@ pub fn AdminPage() -> impl IntoView {
                             class="px-5 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 transition"
                         >
                             {move || if gen_loading.get() { "Génération..." } else { "Générer" }}
+                        </button>
+                    </div>
+
+                    // ─── Assigner un jeton existant ───────────
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900">"Assigner un jeton existant"</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">"Applique un jeton déjà généré (non utilisé) directement à un compte."</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-xs font-medium text-gray-600 block">"Email du compte"</label>
+                                <input
+                                    type="email"
+                                    prop:value=assign_email
+                                    on:input=move |ev| set_assign_email.set(event_target_value(&ev))
+                                    placeholder="user@example.com"
+                                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-medium text-gray-600 block">"Jeton (XXXX-XXXX-XXXX-XXXX)"</label>
+                                <input
+                                    type="text"
+                                    prop:value=assign_token
+                                    on:input=move |ev| set_assign_token.set(event_target_value(&ev))
+                                    placeholder="ABCD-EFGH-IJKL-MNOP"
+                                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                        </div>
+                        {move || assign_result.get().map(|res| match res {
+                            Ok(json) => {
+                                let v = serde_json::from_str::<serde_json::Value>(&json).unwrap_or_default();
+                                let email = v["email"].as_str().unwrap_or("").to_string();
+                                let expires = v["new_expires_at"].as_str().unwrap_or("").to_string();
+                                let lt = v["license_type"].as_str().unwrap_or("personal").to_string();
+                                view! {
+                                    <div class="p-3 rounded-lg border bg-green-50 border-green-200">
+                                        <p class="text-xs font-medium text-green-600">"✓ Jeton assigné à "{email}</p>
+                                        <p class="text-xs text-green-700 mt-0.5">"Expiration : "{expires}" — "{lt}</p>
+                                    </div>
+                                }.into_view()
+                            }
+                            Err(e) => view! {
+                                <p class="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200">{e}</p>
+                            }.into_view(),
+                        })}
+                        <button
+                            on:click=move |_| assign_action.dispatch((assign_email.get(), assign_token.get()))
+                            prop:disabled=assign_loading
+                            class="px-5 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 transition"
+                        >
+                            {move || if assign_loading.get() { "Assignation..." } else { "Assigner" }}
+                        </button>
+                    </div>
+
+                    // ─── Notifications email manuelles ────────
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900">"Déclencher les notifications email"</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">"Envoie immédiatement les emails d'expiration de licence aux utilisateurs concernés (même logique que la tâche de fond 8h UTC, anti-doublon 24h)."</p>
+                        </div>
+                        {move || notif_result.get().map(|res| match res {
+                            Ok(_) => view! {
+                                <p class="text-sm text-green-700 p-3 rounded-lg bg-green-50 border border-green-200">"✓ Notifications envoyées avec succès."</p>
+                            }.into_view(),
+                            Err(e) => view! {
+                                <p class="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200">{e}</p>
+                            }.into_view(),
+                        })}
+                        <button
+                            on:click=move |_| notif_action.dispatch(())
+                            prop:disabled=notif_loading
+                            class="px-5 py-2 rounded-md text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 transition"
+                        >
+                            {move || if notif_loading.get() { "Envoi en cours..." } else { "Déclencher" }}
+                        </button>
+                    </div>
+
+                    // ─── Broadcast ────────────────────────────
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
+                        <div>
+                            <h2 class="text-base font-bold text-gray-900">"Créer un broadcast"</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">"Message affiché une seule fois à tous les utilisateurs connectés (banner bas d'écran, auto-dismiss 10s)."</p>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="space-y-1">
+                                <label class="text-xs font-medium text-gray-600 block">"Message"</label>
+                                <textarea
+                                    prop:value=bc_message
+                                    on:input=move |ev| set_bc_message.set(event_target_value(&ev))
+                                    placeholder="Maintenance prévue ce soir à 22h..."
+                                    rows="3"
+                                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                />
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="text-xs font-medium text-gray-600 block">"Durée (jours)"</label>
+                                    <input
+                                        type="number"
+                                        prop:value=bc_days
+                                        on:input=move |ev| { if let Ok(d) = event_target_value(&ev).parse::<i64>() { set_bc_days.set(d); } }
+                                        min="1"
+                                        max="365"
+                                        class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                    />
+                                </div>
+                                <div class="space-y-1 flex flex-col justify-end">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            prop:checked=bc_exclude_ios
+                                            on:change=move |ev| set_bc_exclude_ios.set(event_target_checked(&ev))
+                                            class="rounded border-gray-300 text-indigo-600"
+                                        />
+                                        <span class="text-xs font-medium text-gray-600">"Exclure iOS (règle 3.1.1)"</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        {move || bc_result.get().map(|res| match res {
+                            Ok(_) => view! {
+                                <p class="text-sm text-green-700 p-3 rounded-lg bg-green-50 border border-green-200">"✓ Broadcast créé avec succès."</p>
+                            }.into_view(),
+                            Err(e) => view! {
+                                <p class="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200">{e}</p>
+                            }.into_view(),
+                        })}
+                        <button
+                            on:click=move |_| bc_action.dispatch((bc_message.get(), bc_days.get(), bc_exclude_ios.get()))
+                            prop:disabled=bc_loading
+                            class="px-5 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 transition"
+                        >
+                            {move || if bc_loading.get() { "Envoi..." } else { "Envoyer le broadcast" }}
                         </button>
                     </div>
                 </Show>

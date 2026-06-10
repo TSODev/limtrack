@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO public.broadcasts (message, expires_at, exclude_ios) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9c25f5d648477108ae335af8590a1aac74e927df2e68ebbbed0d3adb0ad34561"
+}
