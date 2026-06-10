@@ -22,13 +22,7 @@ fn make_avatar_classes(make: &str) -> (&'static str, &'static str) {
 #[component]
 pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) -> impl IntoView {
     let id = vehicle.id;
-    let (img_failed, set_img_failed) = create_signal(false);
 
-    let slug = vehicle.make.to_lowercase().replace(' ', "-");
-    let logo_url = format!(
-        "https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/optimized/{}.png",
-        slug
-    );
     let initial = vehicle
         .make
         .chars()
@@ -47,29 +41,9 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
                    cursor-pointer hover:border-indigo-300 hover:shadow-sm
                    transition-all duration-150"
         >
-            // Logo marque avec fallback initiales
-            <div class="shrink-0 w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center bg-white border border-gray-100">
-                <Show
-                    when=move || !img_failed.get()
-                    fallback={
-                        let initial = initial.clone();
-                        move || view! {
-                            <div class=format!(
-                                "w-full h-full flex items-center justify-center rounded-lg {} {}",
-                                bg, text
-                            )>
-                                <span class="text-sm font-bold">{initial.clone()}</span>
-                            </div>
-                        }
-                    }
-                >
-                    <img
-                        src=logo_url.clone()
-                        alt=""
-                        class="w-full h-full object-contain p-1"
-                        on:error=move |_| set_img_failed.set(true)
-                    />
-                </Show>
+            // Initiale de la marque
+            <div class=format!("shrink-0 w-9 h-9 rounded-lg flex items-center justify-center {} {}", bg, text)>
+                <span class="text-sm font-bold">{initial}</span>
             </div>
 
             // Contenu
