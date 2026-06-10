@@ -77,6 +77,13 @@
 - [x] Production stable — app en ligne depuis v1.2.0 (2026-06-09)
 - [ ] Résilier Railway + NeonDB (optionnel — comptes désactivés)
 
+## Phase 8 — Sécurité complémentaire ✅
+
+- [x] **Fail2ban** installé (`sudo apt install fail2ban`)
+- [x] `/etc/fail2ban/jail.local` créé depuis `jail.conf` — section `[sshd]` : `backend = systemd`, `maxretry = 3`, `findtime = 5m`, `bantime = 30m`
+- [x] Jail SSH actif — 3 IPs bannies dès la mise en service (bots détectés immédiatement)
+- [ ] Snapshots automatiques OVH (Control Panel → Backup)
+
 ---
 
 ## Migrations appliquées en production
