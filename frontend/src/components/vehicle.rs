@@ -48,7 +48,7 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
                    transition-all duration-150"
         >
             // Logo marque avec fallback initiales
-            <div class="shrink-0 w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50">
+            <div class="shrink-0 w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center bg-white border border-gray-100">
                 <Show
                     when=move || !img_failed.get()
                     fallback={
@@ -66,7 +66,7 @@ pub fn VehicleCard(vehicle: Vehicle, set_selected: WriteSignal<Option<Uuid>>) ->
                     <img
                         src=logo_url.clone()
                         alt=""
-                        class="w-full h-full object-contain p-1"
+                        class="w-full h-full object-contain p-0.5"
                         on:error=move |_| set_img_failed.set(true)
                     />
                 </Show>
