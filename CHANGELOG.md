@@ -32,6 +32,10 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **`GET /api/admin/stats`** : ajout `total_vehicles` (nombre de véhicules actifs non archivés).
 - **Migration `013`** : colonne `license_type TEXT NOT NULL DEFAULT 'personal'` sur `users`. Backfill automatique depuis le dernier jeton utilisé par chaque utilisateur. `GET /api/profile/license` lit `license_type` directement depuis `users`. `POST /api/profile/redeem` met à jour `users.license_type` lors de l'activation d'un jeton.
 
+### UX
+- **Dates en français** : helper `format_date_fr()` ajouté dans `ui.rs` (trait `chrono::Datelike`). Toutes les dates affichées au format "9 juin 2030" au lieu de "2030-06-09". Appliqué dans les contrats LOA/assurance (widget dashboard + liste onglet) et les relevés kilométriques (widget + liste).
+- **Indicateurs contrats LOA/assurance** : km estimés à l'échéance et date limite affichés en grille 2 colonnes avec `bg-white/60` dans le widget dashboard — plus lisibles que des lignes de texte.
+
 ### Infrastructure
 - **CI/CD backend** : `docker/setup-buildx-action` configuré avec `driver: docker` — évite le pull de `moby/buildkit` depuis Docker Hub (timeout réseau intermittent sur les runners GitHub Actions). Cache GHA retiré (incompatible avec ce driver).
 

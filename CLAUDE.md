@@ -61,7 +61,7 @@ limtrack/
 │   │   ├── request_license.rs ← page /request-license : formulaire email → jeton gratuit 365j
 │   │   └── admin.rs           ← page /admin : dashboard admin (stats, users, licences, flottes)
 │   └── components/
-│       ├── ui.rs              ← helpers partagés : input_class(), get_token(), format_km()
+│       ├── ui.rs              ← helpers partagés : input_class(), get_token(), format_km(), format_date_fr()
 │       ├── vehicle.rs         ← VehicleCard component
 │       ├── vehicle_dashboard.rs
 │       ├── vehicle_detail.rs  ← détail véhicule avec VehicleWithAccess
@@ -497,6 +497,13 @@ use crate::api_client::{api_get, api_post};
 let vehicles = api_get::<Vec<Vehicle>>(&url, &token).await?;
 api_post(&url, &token, &serde_json::json!({"role": "editor"})).await?;
 ```
+
+## Helpers UI partagés — `components/ui.rs`
+- `format_km(km: i32) -> String` — formate un entier en "45 000 km" (espace fine `\u{202F}`)
+- `format_date_fr(d: NaiveDate) -> String` — formate une date en "9 juin 2030" (nécessite `use chrono::Datelike` dans la fonction). Utilisé partout où une date est affichée : contrats LOA/assurance (widget + liste), relevés kilométriques (widget + liste).
+- `get_token() -> Option<String>` — lit le JWT depuis `localStorage["jwt_token"]`
+- `input_class() -> &'static str` — classes Tailwind communes pour les champs de formulaire
+- `parse_error_response(resp) -> String` — lit le JSON `{"error": "..."}` ou fallback par code HTTP
 
 ## Parsing erreurs HTTP — pattern fiable en WASM
 `parse_error_response` est dans `components/ui.rs` (fonction partagée, `pub async fn`). Intégrée dans `api_client.rs` pour toutes les opérations d'écriture.
