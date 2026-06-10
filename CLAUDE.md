@@ -498,6 +498,9 @@ let vehicles = api_get::<Vec<Vehicle>>(&url, &token).await?;
 api_post(&url, &token, &serde_json::json!({"role": "editor"})).await?;
 ```
 
+## Avatar marque — `components/vehicle.rs`
+`make_avatar_style(make: &str) -> &'static str` — retourne un inline style `background-color/color` déterministe (somme octets % 9). Palette exclusivement froide (bleu, indigo, violet, purple, fuchsia, cyan, teal, sky, slate) pour ne pas interférer avec les badges statut contrats (rouge/amber/vert). **Utiliser des inline styles** — les classes Tailwind dynamiques générées avec `format!()` sont purgées à la compilation et disparaissent en production.
+
 ## Helpers UI partagés — `components/ui.rs`
 - `format_km(km: i32) -> String` — formate un entier en "45 000 km" (espace fine `\u{202F}`)
 - `format_date_fr(d: NaiveDate) -> String` — formate une date en "9 juin 2030" (nécessite `use chrono::Datelike` dans la fonction). Utilisé partout où une date est affichée : contrats LOA/assurance (widget + liste), relevés kilométriques (widget + liste).

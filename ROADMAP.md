@@ -44,6 +44,7 @@
 - [x] `POST /api/admin/broadcasts` — créer un broadcast depuis l'UI admin
 - [x] Dates en français — `format_date_fr()` dans `ui.rs`, appliqué contrats + relevés km
 - [x] Indicateurs contrats widget — grille 2 colonnes (km estimés + date limite) plus lisibles
+- [x] Avatar marque sur les cartes véhicule — initiale colorée (palette froide, inline styles)
 
 **Prochaine étape :** réponse Apple en attente (build 3, soumis le 2026-06-09).
 
