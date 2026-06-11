@@ -529,7 +529,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.3.0` — déployé en production (Cloudflare Pages + OVH VPS)
-iOS App Store : 1.3.0 build 4 soumis le 2026-06-11 — Waiting for Review (Apple ID 6777175237, SKU limtrack-ios-001)
+`1.3.1` — déployé en production (Cloudflare Pages + OVH VPS)
+iOS App Store : 1.3.1 build 1 à soumettre — correctif Guideline 2.1 (retrait notice période d'essai de l'inscription)
 
 

@@ -20,6 +20,7 @@ pub fn MainPage() -> impl IntoView {
     let (is_admin, set_is_admin) = create_signal(false);
     let (is_ios_user, set_is_ios_user) = create_signal(false);
     let (broadcast, set_broadcast) = create_signal(Option::<(String, String)>::None); // (id, message)
+    let (show_trial_modal, set_show_trial_modal) = create_signal(false);
 
     let navigate_effect = navigate.clone();
     create_effect(move |_| {
@@ -61,6 +62,17 @@ pub fn MainPage() -> impl IntoView {
                     // Cache pour les pages secondaires (about, profile) — évite le flash
                     if let Ok(Some(storage)) = leptos::window().local_storage() {
                         let _ = storage.set_item("limtrack_is_ios", if ios { "1" } else { "0" });
+                        // Popup période d'essai — uniquement pour les comptes web, une seule fois
+                        if !ios {
+                            let already_shown = storage
+                                .get_item("limtrack_trial_notice_shown")
+                                .ok()
+                                .flatten()
+                                .is_some();
+                            if !already_shown {
+                                set_show_trial_modal.set(true);
+                            }
+                        }
                     }
                 }
             });
@@ -401,6 +413,55 @@ pub fn MainPage() -> impl IntoView {
                 // Footer desktop uniquement
                 <footer class="hidden md:block shrink-0 bg-white border-t border-gray-200 p-4" />
             </div>
+
+            // Modal période d'essai — web uniquement, affiché une seule fois après la première connexion
+            <Show when=move || show_trial_modal.get() fallback=|| ()>
+                <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <div class="flex items-start gap-3">
+                            <svg class="mt-0.5 h-6 w-6 flex-shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                            </svg>
+                            <div>
+                                <h3 class="font-bold text-gray-900">"Bienvenue sur LimTrack !"</h3>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    "Votre compte bénéficie d'un accès complet pendant "
+                                    <strong>"3 mois"</strong>
+                                    ". Au-delà, une licence sera nécessaire pour enregistrer de nouvelles données."
+                                </p>
+                                <p class="mt-2 text-sm text-gray-600">
+                                    "Des licences gratuites d'un an sont disponibles sur demande."
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 justify-end pt-2">
+                            <button
+                                on:click=move |_| {
+                                    if let Ok(Some(storage)) = leptos::window().local_storage() {
+                                        let _ = storage.set_item("limtrack_trial_notice_shown", "1");
+                                    }
+                                    set_show_trial_modal.set(false);
+                                }
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-150"
+                            >
+                                "Ok"
+                            </button>
+                            <a
+                                href="/request-license"
+                                on:click=move |_| {
+                                    if let Ok(Some(storage)) = leptos::window().local_storage() {
+                                        let _ = storage.set_item("limtrack_trial_notice_shown", "1");
+                                    }
+                                    set_show_trial_modal.set(false);
+                                }
+                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition duration-150"
+                            >
+                                "Demander une licence gratuite →"
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </Show>
 
             // Broadcast banner (message ponctuel, auto-dismiss 10s)
             <Show when=move || broadcast.get().is_some() fallback=|| ()>
