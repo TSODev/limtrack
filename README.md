@@ -6,7 +6,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-1.2.0-indigo)
+![Version](https://img.shields.io/badge/version-1.3.1-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
@@ -14,6 +14,12 @@
 ![License](https://img.shields.io/badge/license-AGPL--v3-blue)
 ![PWA](https://img.shields.io/badge/PWA-Mobile%20ready-brightgreen)
 ![Web](https://img.shields.io/badge/Web-SaaS%20ready-brightgreen)
+
+<p align="center">
+  <a href="https://apps.apple.com/app/id6777175237">
+    <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-app-store.svg" alt="Télécharger sur l'App Store" height="48" />
+  </a>
+</p>
 
 ---
 
@@ -185,10 +191,10 @@ limtrack/
 - ✅ Page d'accueil avec image de fond
 
 ### Mobile (Tauri iOS)
+- ✅ **Disponible sur l'[App Store](https://apps.apple.com/app/id6777175237)** (achat unique)
 - ✅ App iOS via Tauri v2
 - ✅ Icône app personnalisée toutes tailles
 - ✅ Testé sur Simulator iOS (iPhone 13 Pro)
-- ✅ Sideloading compatible (Apple ID gratuit)
 
 ---
 
