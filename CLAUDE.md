@@ -530,6 +530,6 @@ const APP_VERSION: &str = env!("APP_VERSION");
 
 ## Version actuelle
 `1.3.1` — déployé en production (Cloudflare Pages + OVH VPS)
-iOS App Store : 1.3.1 build 1 soumis — En attente de vérification — correctif Guideline 2.1 (retrait notice période d'essai de l'inscription)
+iOS App Store : 1.3.1 build 2 soumis le 2026-06-11 à 14h27 — En attente de vérification (correctif Guideline 2.1 + IOS_ACTIVATION_KEY correctement définie)
 
 
