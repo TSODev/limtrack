@@ -8,6 +8,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.3.0] iOS — 2026-06-11 (build 4) — soumis le 2026-06-11
+
+Resoumission App Store suite refus Apple Guideline 2.1b (information complémentaire requise sur la "licence complémentaire"). Contient toutes les évolutions post-1.2.0.
+
 ### Ajouté
 - **Navigation depuis les widgets** : clic sur le titre "Kilométrage" → onglet Kilométrage, clic sur "Contrats actifs" → onglet Contrats. Titre cliquable avec chevron › et hover indigo.
 - **Indicateur statut contrats sur les cartes véhicule** : badge coloré affiché à droite de chaque carte — vert "Actif", amber "Risque", rouge "Dépassé". Calculé en temps réel par sous-requête SQL CASE sur `contracts_loa` et `contracts_insurance` (aucune migration). Champ `contract_status: Option<String>` ajouté au modèle `Vehicle` dans `common`. Couleurs et libellés alignés sur le dashboard.

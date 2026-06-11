@@ -21,32 +21,15 @@
 | [1.1.2] | 2026-06-07 | Archivage véhicules (LOA terminée), renouvellement licence gratuite, suppression contrats/relevés km |
 | [1.1.3] | 2026-06-07 | Confirmation avant archivage, correctifs UX (chevron, bouton amber invisible) |
 | [1.2.0] | 2026-06-09 | Monitoring `/health`, messages d'erreur centralisés, renouvellement assurance auto, broadcast admin, UX iOS, navigation widgets, badge statut contrats |
-| [1.2.0-appstore] | 2026-06-09 | Soumission App Store build 3 (Apple ID 6777175237) — en attente de vérification Apple |
+| [1.2.0-appstore] | 2026-06-09 | Soumission App Store build 3 (Apple ID 6777175237) — refusé Guideline 2.1b (licence complémentaire) |
+| [1.3.0] | 2026-06-11 | Avatars marque véhicule, dates françaises, indicateurs contrats widget, dashboard admin v2, client HTTP partagé, vue SQL `v_contract_status` |
+| [1.3.0-appstore] | 2026-06-11 | Resoumission App Store build 4 — réponse Guideline 2.1b + évolutions post-1.2.0 |
 
 ---
 
 ## En cours — [Unreleased]
 
-- [x] Broadcast messages — messages ponctuels admin → utilisateurs (banner, auto-dismiss, exclude_ios)
-- [x] `--help` clap sur tous les CLIs
-- [x] Monitoring `/health` (DB ping, Uptime Kuma)
-- [x] Renouvellement assurance auto (tâche de fond 8h UTC, route `/renew`, toggle `auto_renew`)
-- [x] Navigation depuis les widgets → onglets (titre cliquable, `on_navigate` callback)
-- [x] Badge statut contrats sur les cartes véhicule (danger/warning/ok, calcul SQL corrigé)
-- [x] Client HTTP partagé `api_client.rs` (~480 lignes supprimées sur 10 fichiers)
-- [x] Vue SQL `v_contract_status` (migration 012) — calcul danger/warning/ok centralisé, `LEFT JOIN` dans `vehicles_handler.rs`
-- [x] Dashboard admin v2 — 5 onglets (Aperçu/Utilisateurs/Licences/Flottes/Génération), cartes stats cliquables, croissance hebdomadaire 12 semaines, filtres client-side, édition inline utilisateurs
-- [x] Migration 013 — `users.license_type` (backfill + mis à jour à l'activation du jeton)
-- [x] `GET /api/admin/growth` — croissance hebdomadaire users/véhicules (`date_trunc('week', ...)`, 12 semaines)
-- [x] `PATCH /api/admin/users/:id` — édition admin (username, email, is_admin, is_ios, license_type, access_expires_at)
-- [x] `POST /api/admin/assign-license` — assigner un jeton existant à un compte par email
-- [x] `POST /api/admin/notify-expiry` — déclencher manuellement les emails d'expiration
-- [x] `POST /api/admin/broadcasts` — créer un broadcast depuis l'UI admin
-- [x] Dates en français — `format_date_fr()` dans `ui.rs`, appliqué contrats + relevés km
-- [x] Indicateurs contrats widget — grille 2 colonnes (km estimés + date limite) plus lisibles
-- [x] Avatar marque sur les cartes véhicule — initiale colorée (palette froide, inline styles)
-
-**Prochaine étape :** réponse Apple en attente (build 3, soumis le 2026-06-09).
+**Prochaine étape :** en attente de la réponse Apple (déblocage soumission build 4, soumis le 2026-06-11).
 
 ---
 
