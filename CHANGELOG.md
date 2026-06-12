@@ -8,6 +8,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Corrigé
+- **Modal "période d'essai" affiché à tort** : le popup s'affichait dès que le flag `limtrack_trial_notice_shown` était absent du localStorage, indépendamment du statut de licence réel. `fetch_profile_flags` appelle désormais aussi `GET /api/profile/license` et retourne `is_trial_only` — le modal n'apparaît que si `status == "trial"`. Un compte avec une licence active (même sur un nouveau navigateur) ne le verra plus jamais.
+
 ### UX — Onboarding nouvel utilisateur
 - **Écran d'accueil si aucun véhicule** : lorsqu'un utilisateur vient de s'inscrire (ou n'a aucun véhicule), la zone principale affiche un écran centré avec icône, message d'accueil et les deux boutons "Ajouter un véhicule" / "Rejoindre un véhicule partagé" — remplace un dashboard vide sans CTA. Sur mobile, la pill "Sélectionner un véhicule" est masquée pendant cet état. Signal `vehicles_loaded` dans `mainpage.rs` évite tout flash avant la fin du premier fetch. Composant `OnboardingEmpty` réutilise `AddVehicleButton` et `JoinVehicleButton` existants.
 - **États vides enrichis** : l'onglet "Contrats" explique désormais la différence LOA / Assurance quand aucun contrat n'est enregistré (visible owner/editor uniquement). L'onglet "Kilométrage" explique que le relevé alimente tous les contrats actifs du véhicule.

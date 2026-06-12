@@ -54,7 +54,7 @@ limtrack/
 │   │   ├── home.rs
 │   │   ├── login.rs
 │   │   ├── register.rs
-│   │   ├── mainpage.rs        ← signal `vehicles_loaded` + composant `OnboardingEmpty` (écran d'accueil si 0 véhicule)
+│   │   ├── mainpage.rs        ← signal `vehicles_loaded` + composant `OnboardingEmpty` (écran d'accueil si 0 véhicule) + `fetch_profile_flags` retourne `(is_admin, is_ios, is_trial_only)`
 │   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
 │   │   ├── profile.rs
 │   │   ├── about.rs           ← page À propos : version, description, contact mailto:, Ko-fi, GitHub Sponsors
@@ -209,6 +209,7 @@ GET         /api/broadcasts/active                                ← message ac
 - Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
 - Durées disponibles : 30, 90, 180, 365 jours
 - **Page d'inscription** : encadré info "Période d'essai gratuite — 3 mois" affiché avant le bouton de soumission ; message de succès rappelle la durée d'essai
+- **Modal "période d'essai"** (`mainpage.rs`) : affiché une seule fois par navigateur (`limtrack_trial_notice_shown` en localStorage), **uniquement si `is_trial_only == true`** (vérifié via `GET /api/profile/license` → `status == "trial"`). Un compte avec une licence active ne voit jamais ce modal, même sur un nouveau navigateur. `fetch_profile_flags` retourne `(is_admin, is_ios, is_trial_only)` en un double fetch parallèle.
 - **Délivrance automatique** : `POST /api/license/request` (public, sans auth) — email → jeton 365j généré et envoyé via Resend. Anti-doublon via table `license_requests` : une nouvelle demande est autorisée uniquement si le jeton précédent a déjà été utilisé (permettant le renouvellement annuel pour les LOA 3-4 ans). `RESEND_API_KEY` lu au démarrage via `AppState.resend_api_key`.
 
 ## iOS App Store — modèle payant
