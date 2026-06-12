@@ -214,7 +214,7 @@ GET         /api/broadcasts/active                                ← message ac
 ## iOS App Store — modèle payant
 - **Version web (PWA)** : gratuite, licences sur demande, dons Ko-fi/GitHub Sponsors
 - **Version App Store iOS** : payante (achat unique), accès lifetime inclus
-- **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (Infisical). Idempotent. Stocké `ios_activated` en localStorage.
+- **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (Infisical). Idempotent. Stocké `ios_activated` en localStorage. En cas de succès : écrit aussi `limtrack_is_ios = "1"` en localStorage ET met à jour les signaux Leptos `set_is_ios_user(true)` / `set_show_trial_modal(false)` immédiatement — évite le flash du modal d'essai au premier lancement.
 - **Détection Tauri** : `crate::config::is_tauri()` via `window.__TAURI__`. Fiable en production ; **peu fiable en dev Simulator** (ne pas s'y fier pour masquer du contenu).
 - **Détection compte iOS** : champ `users.is_ios` (migration 007) — source de vérité pour masquer Licence/Flotte dans le profil, les sections web-only dans À propos, et l'alerte d'expiration de licence dans la notification bell. Stocké dans `localStorage["limtrack_is_ios"]` dès le chargement de mainpage pour éviter le flash au rendu.
 - **Détection contexte Tauri** : `crate::config::is_tauri()` — utilisé à l'inscription (`register.rs`) pour masquer la notice et le message "3 mois d'essai" non pertinents sur iOS.

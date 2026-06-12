@@ -9,7 +9,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [Unreleased]
 
 ### UX iOS
-- **Pages `/privacy` et `/support`** : navbar remplacée — lien "Accueil" supprimé (évitait d'exposer l'app web aux utilisateurs iOS arrivant depuis l'App Store). Bouton "Fermer ✕" ajouté à droite : quitte l'app via `__TAURI_INTERNALS__.invoke('exit')` en contexte Tauri, tente `window.close()` en Safari. `padding-top: var(--nav-top)` ajouté sur `/privacy` (manquant). Import `leptos_router` supprimé de `privacy.rs`.
+- **Pages `/privacy` et `/support`** : bouton "Fermer ✕" remplace le lien "Accueil" — empêche les utilisateurs iOS d'accéder à l'app web depuis ces pages. En contexte Tauri : `__TAURI_INTERNALS__.invoke('exit', {exitCode:0})`. En Safari : `window.close()` (best-effort). `padding-top: var(--nav-top)` ajouté sur `/privacy` (manquant). Import `leptos_router` supprimé de `privacy.rs`.
+
+---
+
+## [1.3.1] iOS — APPROUVÉ App Store le 2026-06-11 (build 2)
+
+Contient tout [1.3.0] plus le correctif ci-dessous (commit omis lors de la soumission, rattaché rétrospectivement).
+
+### Corrigé
+- **Flash du modal "période d'essai" au premier lancement iOS** : lors de l'activation (`POST /api/ios/activate`), `localStorage["limtrack_is_ios"]` est écrit immédiatement et les signaux Leptos `set_is_ios_user` / `set_show_trial_modal` sont mis à jour en live — le modal disparaît sans rechargement de page.
 
 ---
 
