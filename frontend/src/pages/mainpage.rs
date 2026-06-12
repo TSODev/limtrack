@@ -119,9 +119,15 @@ pub fn MainPage() -> impl IntoView {
                         use wasm_bindgen::JsCast;
                         if let Ok(r) = resp.dyn_into::<web_sys::Response>() {
                             if r.ok() {
-                                if let Some(s) = storage {
+                                if let Some(s) = &storage {
                                     s.set_item("ios_activated", "1").ok();
+                                    // Marquer is_ios en cache local immédiatement pour éviter
+                                    // le flash du modal d'essai au premier lancement
+                                    s.set_item("limtrack_is_ios", "1").ok();
                                 }
+                                // Mettre à jour le signal — supprime le modal d'essai si déjà affiché
+                                set_is_ios_user.set(true);
+                                set_show_trial_modal.set(false);
                             }
                         }
                     }
