@@ -61,12 +61,19 @@ pub fn MainPage() -> impl IntoView {
                 if let Ok((admin, ios, is_trial)) = fetch_profile_flags(&token_admin).await {
                     set_is_admin.set(admin);
                     set_is_ios_user.set(ios);
-                    // Cache pour les pages secondaires (about, profile) — évite le flash
+                    // Cache pour les pages secondaires (about, profile) — évite le flash.
+                    // En contexte Tauri, on n'écrit jamais "0" : l'activation iOS tourne en
+                    // parallèle et ce fetch peut lire is_ios=false avant que la DB soit mise à
+                    // jour, ce qui écraserait le "1" posé par l'activation (race condition 1er
+                    // lancement).
                     if let Ok(Some(storage)) = leptos::window().local_storage() {
-                        let _ = storage.set_item("limtrack_is_ios", if ios { "1" } else { "0" });
-                        // Popup période d'essai — uniquement pour les comptes web en période d'essai,
-                        // une seule fois par navigateur. Jamais affiché si une licence active est présente.
-                        if !ios && is_trial {
+                        if ios {
+                            let _ = storage.set_item("limtrack_is_ios", "1");
+                        } else if !crate::config::is_tauri() {
+                            let _ = storage.set_item("limtrack_is_ios", "0");
+                        }
+                        // Modal d'essai — jamais en contexte Tauri (utilisateurs iOS App Store).
+                        if !ios && is_trial && !crate::config::is_tauri() {
                             let already_shown = storage
                                 .get_item("limtrack_trial_notice_shown")
                                 .ok()
