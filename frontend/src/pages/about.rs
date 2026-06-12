@@ -39,7 +39,7 @@ pub fn AboutPage() -> impl IntoView {
     create_effect(move |_| {
         if let Some(token) = get_token() {
             spawn_local(async move {
-                if let Ok((_admin, ios)) = fetch_profile_flags(&token).await {
+                if let Ok((_admin, ios, _)) = fetch_profile_flags(&token).await {
                     set_is_ios_account.set(ios);
                 }
             });

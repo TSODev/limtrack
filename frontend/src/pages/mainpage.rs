@@ -58,14 +58,15 @@ pub fn MainPage() -> impl IntoView {
             });
             // Vérification admin + is_ios depuis le profil
             spawn_local(async move {
-                if let Ok((admin, ios)) = fetch_profile_flags(&token_admin).await {
+                if let Ok((admin, ios, is_trial)) = fetch_profile_flags(&token_admin).await {
                     set_is_admin.set(admin);
                     set_is_ios_user.set(ios);
                     // Cache pour les pages secondaires (about, profile) — évite le flash
                     if let Ok(Some(storage)) = leptos::window().local_storage() {
                         let _ = storage.set_item("limtrack_is_ios", if ios { "1" } else { "0" });
-                        // Popup période d'essai — uniquement pour les comptes web, une seule fois
-                        if !ios {
+                        // Popup période d'essai — uniquement pour les comptes web en période d'essai,
+                        // une seule fois par navigateur. Jamais affiché si une licence active est présente.
+                        if !ios && is_trial {
                             let already_shown = storage
                                 .get_item("limtrack_trial_notice_shown")
                                 .ok()
@@ -535,30 +536,41 @@ fn OnboardingEmpty(set_vehicles: WriteSignal<Vec<common::Vehicle>>) -> impl Into
     }
 }
 
-/// Retourne (is_admin, is_ios) depuis GET /api/profile en un seul appel.
-pub async fn fetch_profile_flags(token: &str) -> Result<(bool, bool), String> {
-    let url = format!("{}/api/profile", crate::config::API_BASE);
-    let mut opts = web_sys::RequestInit::new();
-    opts.method("GET");
-    let headers = web_sys::Headers::new().map_err(|_| "Headers")?;
-    headers.set("Authorization", &format!("Bearer {}", token)).map_err(|_| "Auth")?;
-    opts.headers(&headers);
-    let req = web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|_| "Request")?;
-    let resp = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req))
-        .await
-        .map_err(|_| "Network")?;
+/// Retourne (is_admin, is_ios, is_trial_only) depuis GET /api/profile + GET /api/profile/license.
+/// `is_trial_only` = true uniquement si le compte est en période d'essai sans licence active.
+pub async fn fetch_profile_flags(token: &str) -> Result<(bool, bool, bool), String> {
     use wasm_bindgen::JsCast;
-    let resp: web_sys::Response = resp.dyn_into().map_err(|_| "Cast")?;
-    if !resp.ok() { return Ok((false, false)); }
-    let text = wasm_bindgen_futures::JsFuture::from(resp.text().map_err(|_| "Text")?)
-        .await
-        .map_err(|_| "Text await")?
-        .as_string()
-        .unwrap_or_default();
-    let v = serde_json::from_str::<serde_json::Value>(&text).unwrap_or_default();
+
+    let make_get = |url: &str| -> Result<web_sys::Request, String> {
+        let mut opts = web_sys::RequestInit::new();
+        opts.method("GET");
+        let headers = web_sys::Headers::new().map_err(|_| "Headers")?;
+        headers.set("Authorization", &format!("Bearer {}", token)).map_err(|_| "Auth")?;
+        opts.headers(&headers);
+        web_sys::Request::new_with_str_and_init(url, &opts).map_err(|_| "Request".to_string())
+    };
+
+    let req_profile = make_get(&format!("{}/api/profile", crate::config::API_BASE))?;
+    let req_license = make_get(&format!("{}/api/profile/license", crate::config::API_BASE))?;
+
+    let resp_profile = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req_profile))
+        .await.map_err(|_| "Network")?.dyn_into::<web_sys::Response>().map_err(|_| "Cast")?;
+    let resp_license = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&req_license))
+        .await.map_err(|_| "Network")?.dyn_into::<web_sys::Response>().map_err(|_| "Cast")?;
+
+    let profile_text = wasm_bindgen_futures::JsFuture::from(resp_profile.text().map_err(|_| "Text")?)
+        .await.map_err(|_| "Text await")?.as_string().unwrap_or_default();
+    let license_text = wasm_bindgen_futures::JsFuture::from(resp_license.text().map_err(|_| "Text")?)
+        .await.map_err(|_| "Text await")?.as_string().unwrap_or_default();
+
+    let p = serde_json::from_str::<serde_json::Value>(&profile_text).unwrap_or_default();
+    let l = serde_json::from_str::<serde_json::Value>(&license_text).unwrap_or_default();
+
+    let is_trial_only = l["status"].as_str() == Some("trial");
     Ok((
-        v["is_admin"].as_bool().unwrap_or(false),
-        v["is_ios"].as_bool().unwrap_or(false),
+        p["is_admin"].as_bool().unwrap_or(false),
+        p["is_ios"].as_bool().unwrap_or(false),
+        is_trial_only,
     ))
 }
 
