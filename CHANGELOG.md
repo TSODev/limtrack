@@ -8,7 +8,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.3.2] iOS — 2026-06-12
+
 ### Corrigé
+- **Race condition au premier lancement iOS** : `fetch_profile_flags` et `POST /api/ios/activate` tournaient en parallèle au chargement de `mainpage`. Le fetch pouvait lire `is_ios=false` en base (avant que l'activation ne mette à jour la DB) et écraser `limtrack_is_ios="1"` avec `"0"` dans le localStorage, déclenchant le modal d'essai et affichant les sections Licence/Dons dans la page À propos. Fix : en contexte Tauri, le fetch de profil n'écrit jamais `"0"` pour `limtrack_is_ios` et ne déclenche jamais le modal d'essai, quelle que soit la réponse du serveur.
 - **Modal "période d'essai" affiché à tort** : le popup s'affichait dès que le flag `limtrack_trial_notice_shown` était absent du localStorage, indépendamment du statut de licence réel. `fetch_profile_flags` appelle désormais aussi `GET /api/profile/license` et retourne `is_trial_only` — le modal n'apparaît que si `status == "trial"`. Un compte avec une licence active (même sur un nouveau navigateur) ne le verra plus jamais.
 
 ### UX — Onboarding nouvel utilisateur
