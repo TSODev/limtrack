@@ -79,6 +79,41 @@
 
 ---
 
+## Communautés dev françaises
+
+### r/programmation — angle Rust
+
+**Titre :** Retour d'expérience — j'ai fait une app full-stack 100% Rust en prod (Leptos/WASM + Axum + Tauri iOS)
+
+**Corps :**
+> Ça fait quelques mois que LimTrack tourne en production, je voulais partager un retour d'expérience sur la stack.
+>
+> **Le projet** : une app de suivi kilométrique pour les contrats LOA/LLD. Rien de révolutionnaire fonctionnellement, mais l'occasion de pousser Rust partout et de voir ce que ça donne en conditions réelles.
+>
+> **Stack :**
+> - Backend : Axum 0.7, SQLx 0.8, PostgreSQL
+> - Frontend : Leptos 0.6 (WASM), Tailwind CSS v4, Trunk
+> - Mobile : Tauri v2, soumis et accepté sur l'iOS App Store
+> - Types partagés : crate `common` dans le workspace Cargo — le frontend et le backend parlent exactement les mêmes structs
+>
+> **Ce qui a bien marché :**
+> - Le workspace Cargo avec la crate commune élimine toute désynchronisation front/back. Quand je change un type, le compilateur me retrouve tous les endroits à corriger.
+> - SQLx avec les requêtes vérifiées à la compilation : zéro surprise à runtime sur les types de colonnes (ou presque — voir ci-dessous)
+> - Leptos est surprenant de puissance pour du WASM — la réactivité fine-grained est plus agréable que ce à quoi je m'attendais
+>
+> **Ce qui a été galère :**
+> - Les temps de compilation. Sur un projet de cette taille, un build from scratch prend plusieurs minutes. `cargo check` reste supportable.
+> - Leptos et le borrow checker : les closures réactives capturent beaucoup, et cloner des strings pour satisfaire le compilateur devient vite verbeux.
+> - SQLx offline cache (`cargo sqlx prepare`) : indispensable pour les builds Docker, facile à oublier après chaque modif SQL.
+> - Tauri iOS : ne jamais builder depuis Xcode directement — le pre-build script cherche le WebSocket lancé par `cargo tauri ios build`, sinon "Connection refused". Et iOS 26 beta crashe le WKWebView/WASM.
+> - LEFT JOIN + SQLx : une colonne nullable issue d'un LEFT JOIN peut être marquée NOT NULL dans le cache offline → `UnexpectedNullError` à runtime. Fix : syntaxe `"col?"` pour forcer `Option<T>`.
+>
+> Code source : github.com/TSODev/limtrack (AGPL v3)
+>
+> Des questions sur Leptos, Tauri iOS ou SQLx en prod ?
+
+---
+
 ## Communautés tech (levier open source)
 
 ### Hacker News — Show HN
