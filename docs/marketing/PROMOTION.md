@@ -18,8 +18,18 @@
 - Post honnête et direct, sans spam
 - Angle couple/famille : "Vous êtes deux à conduire la même voiture en LOA ? LimTrack permet de partager le suivi — chacun saisit ses km, les alertes sont communes"
 
-#### Règles Reddit à respecter
-- Poster dans **r/voiture en premier** — audience la plus qualifiée, moins risqué qu'un premier post sur r/france
+#### Contraintes découvertes (2026-06-12)
+- **r/voiture** : exige un minimum d'activité/karma avant de pouvoir poster — commenter quelques posts existants du sub avant de tenter
+- **r/france** : règle 12 interdit explicitement la publicité — post rejeté, ne pas retenter avec un post direct
+- Sur les grands subs généralistes, participer organiquement d'abord et laisser les gens découvrir via le profil
+
+#### Alternatives viables
+- **r/programmation** ou **r/rust** — angle technique "projet Rust fullstack en prod", pas perçu comme de la pub
+- **r/bonsplans** — app gratuite, peut passer comme un bon plan utile
+- **r/SideProject** (EN) — fait explicitement pour le partage de projets perso
+- Vérifier l'existence et les règles de r/leasing ou r/LOA
+
+#### Règles Reddit générales
 - Attendre un peu avant de répondre aux commentaires, puis répondre à tout
 - Ne pas faire de cross-post le même jour — espacer d'au moins une semaine
 - Éviter les majuscules excessives et les points d'exclamation (ça sent le marketing)
