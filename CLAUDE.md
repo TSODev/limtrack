@@ -221,6 +221,7 @@ GET         /api/broadcasts/active                                ← message ac
 - **Clé iOS** : `IOS_ACTIVATION_KEY` injectée à la compilation (`option_env!`) — à définir en variable d'env lors du build Tauri iOS.
 - **Conformité AGPL v3** : exception App Store ajoutée dans `licence.md` (Thierry Soulie, détenteur unique).
 - **Privacy Policy** : page `/privacy` hébergée sur `limtrack.app/privacy` (obligatoire App Store).
+- **Pages iOS-only (`/privacy`, `/support`)** : navbar sans lien "Accueil" — bouton "Fermer ✕" uniquement. En contexte Tauri : `window.__TAURI_INTERNALS__.invoke('exit', {exitCode:0})`. En Safari (lien App Store) : `window.close()` (best-effort, Safari l'autorise seulement si la fenêtre a été ouverte par script). Ces pages ne doivent jamais permettre de naviguer vers l'app web.
 - **Règle Apple 3.1.1** : liens de dons masqués pour les comptes `is_ios = true` (Ko-fi/GitHub Sponsors interdits sur iOS).
 - **Compte review App Store** : `apple.reviewer / AppReview2024!` (seed `seed_appstore_review.sql`). Voir `docs/appstore-screenshots.md`.
 

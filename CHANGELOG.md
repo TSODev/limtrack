@@ -8,6 +8,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### UX iOS
+- **Pages `/privacy` et `/support`** : navbar remplacée — lien "Accueil" supprimé (évitait d'exposer l'app web aux utilisateurs iOS arrivant depuis l'App Store). Bouton "Fermer ✕" ajouté à droite : quitte l'app via `__TAURI_INTERNALS__.invoke('exit')` en contexte Tauri, tente `window.close()` en Safari. `padding-top: var(--nav-top)` ajouté sur `/privacy` (manquant). Import `leptos_router` supprimé de `privacy.rs`.
+
 ---
 
 ## [1.3.0] iOS — 2026-06-11 (build 4) — soumis le 2026-06-11
