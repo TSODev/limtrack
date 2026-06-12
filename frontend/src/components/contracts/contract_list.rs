@@ -89,8 +89,21 @@ pub fn ContractList(
                     let can_manage = can_manage_contracts.get();
                     if total == 0 {
                         return view! {
-                            <div class="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
-                                <p class="text-sm text-gray-400 italic">"Aucun contrat enregistré."</p>
+                            <div class="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center space-y-2">
+                                <p class="text-sm font-medium text-gray-600">"Aucun contrat enregistré."</p>
+                                {if can_manage {
+                                    view! {
+                                        <p class="text-xs text-gray-400 max-w-sm mx-auto">
+                                            "Ajoutez un contrat "
+                                            <strong class="text-gray-600">"LOA"</strong>
+                                            " pour suivre vos kilomètres contractuels et anticiper les dépassements, ou un contrat "
+                                            <strong class="text-gray-600">"Assurance"</strong>
+                                            " pour surveiller votre limite kilométrique annuelle."
+                                        </p>
+                                    }.into_view()
+                                } else {
+                                    view! { <></> }.into_view()
+                                }}
                             </div>
                         }.into_view();
                     }

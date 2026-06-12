@@ -54,7 +54,7 @@ limtrack/
 │   │   ├── home.rs
 │   │   ├── login.rs
 │   │   ├── register.rs
-│   │   ├── mainpage.rs
+│   │   ├── mainpage.rs        ← signal `vehicles_loaded` + composant `OnboardingEmpty` (écran d'accueil si 0 véhicule)
 │   │   ├── fleet.rs           ← page gestion de flotte (admin entreprise)
 │   │   ├── profile.rs
 │   │   ├── about.rs           ← page À propos : version, description, contact mailto:, Ko-fi, GitHub Sponsors
@@ -361,6 +361,7 @@ fetch_json::<T>(&format!("{}/api/profile", crate::config::API_BASE), &token)
 - Bottom sheet mobile pour sélection véhicule
 - Safe areas iOS : CSS variable `--nav-top` définie dans `index.html`. En contexte Tauri (`tauri-ios` class), `max(env(safe-area-inset-top), 44px)` pour couvrir Dynamic Island. Usage : `style="padding-top: var(--nav-top)"` sur tous les `<nav>`.
 - `overscroll-behavior-y: none` sur `body` (index.html) — bloque le rubber-band iOS
+- **Onboarding** : si `vehicles_loaded && vehicles.is_empty()`, composant `OnboardingEmpty` remplace `VehicleDashboard` (desktop et mobile). La pill "Sélectionner un véhicule" est masquée pendant cet état (enveloppée dans `<Show when=!(loaded && empty)>`).
 - Bottom sheet : boutons Ajouter/Rejoindre en `flex-row` hors du container scrollable + spacer `height: env(safe-area-inset-bottom)` en bas du panneau
 - Notification bell : position panneau `top: calc(var(--nav-top) + 3.5rem)` + bouton ✕ explicite
 - Boutons icônes seuls mobile : `hidden md:inline` sur les textes

@@ -8,6 +8,10 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### UX — Onboarding nouvel utilisateur
+- **Écran d'accueil si aucun véhicule** : lorsqu'un utilisateur vient de s'inscrire (ou n'a aucun véhicule), la zone principale affiche un écran centré avec icône, message d'accueil et les deux boutons "Ajouter un véhicule" / "Rejoindre un véhicule partagé" — remplace un dashboard vide sans CTA. Sur mobile, la pill "Sélectionner un véhicule" est masquée pendant cet état. Signal `vehicles_loaded` dans `mainpage.rs` évite tout flash avant la fin du premier fetch. Composant `OnboardingEmpty` réutilise `AddVehicleButton` et `JoinVehicleButton` existants.
+- **États vides enrichis** : l'onglet "Contrats" explique désormais la différence LOA / Assurance quand aucun contrat n'est enregistré (visible owner/editor uniquement). L'onglet "Kilométrage" explique que le relevé alimente tous les contrats actifs du véhicule.
+
 ### UX iOS
 - **Pages `/privacy` et `/support`** : bouton "Fermer ✕" remplace le lien "Accueil" — empêche les utilisateurs iOS d'accéder à l'app web depuis ces pages. En contexte Tauri : `__TAURI_INTERNALS__.invoke('exit', {exitCode:0})`. En Safari : `window.close()` (best-effort). `padding-top: var(--nav-top)` ajouté sur `/privacy` (manquant). Import `leptos_router` supprimé de `privacy.rs`.
 

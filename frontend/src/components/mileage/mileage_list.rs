@@ -77,9 +77,20 @@ pub fn MileageList(vehicle_id: ReadSignal<Option<Uuid>>, can_edit: Memo<bool>) -
                 {move || {
                     let data = entries.get();
                     if data.is_empty() {
+                        let can = can_edit.get();
                         return view! {
-                            <div class="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
-                                <p class="text-sm text-gray-400 italic">"Aucun relevé kilométrique enregistré."</p>
+                            <div class="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center space-y-2">
+                                <p class="text-sm font-medium text-gray-600">"Aucun relevé kilométrique enregistré."</p>
+                                {if can {
+                                    view! {
+                                        <p class="text-xs text-gray-400 max-w-sm mx-auto">
+                                            "Saisissez votre premier relevé kilométrique pour alimenter vos contrats LOA et assurance. "
+                                            "Le relevé est automatiquement partagé entre tous les contrats actifs du véhicule."
+                                        </p>
+                                    }.into_view()
+                                } else {
+                                    view! { <></> }.into_view()
+                                }}
                             </div>
                         }.into_view();
                     }
