@@ -22,7 +22,7 @@ services:
       postgres:
         condition: service_healthy
     env_file: .env
-    # DATABASE_URL pointe sur le service postgres local (override Infisical si présent)
+    # DATABASE_URL pointe sur le service postgres local (override la valeur du .env)
     environment:
       DATABASE_URL: postgresql://limtrack:${POSTGRES_PASSWORD}@postgres:5432/limtrack
 

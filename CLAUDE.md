@@ -26,7 +26,7 @@ limtrack/
 │   ├── main.rs
 │   ├── auth.rs
 │   ├── state.rs
-│   ├── secrets.rs             ← chargement secrets Infisical au démarrage (fallback .env)
+│   ├── secrets.rs             ← chargement secrets via dotenvy (.env)
 │   ├── notifier.rs            ← envoi notifications email expiration licence (Resend noreply@limtrack.app)
 │   ├── handlers.rs            ← login, status, helpers généraux
 │   ├── lib.rs                 ← expose notifier + secrets aux binaires CLI
@@ -204,7 +204,7 @@ GET         /api/broadcasts/active                                ← message ac
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
 - Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/user/forgot-password`, `/api/user/reset-password`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/ios/activate`, `/api/admin/*`
 - **Dashboard admin** : routes `/api/admin/*` protégées par `AdminUser` extractor (vérifie `users.is_admin = true`). Activer avec `UPDATE public.users SET is_admin = TRUE WHERE email = '...'`
-- `AppState` contient `resend_api_key: String` (lu au démarrage depuis Infisical via `load_secrets()`)
+- `AppState` contient `resend_api_key: String` (lu au démarrage via `load_secrets()` → dotenvy `.env`)
 - **Mode lecture seule** : licence expirée → `GET` passe (lecture autorisée), `POST/PUT/DELETE/PATCH` → `402 Payment Required`
 - Jetons : format `XXXX-XXXX-XXXX-XXXX`, SHA-256 stocké (jamais en clair), cumulables
 - Durées disponibles : 30, 90, 180, 365 jours
@@ -215,7 +215,7 @@ GET         /api/broadcasts/active                                ← message ac
 ## iOS App Store — modèle payant
 - **Version web (PWA)** : gratuite, licences sur demande, dons Ko-fi/GitHub Sponsors
 - **Version App Store iOS** : payante (achat unique), accès lifetime inclus
-- **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (Infisical). Idempotent. Stocké `ios_activated` en localStorage. En cas de succès : écrit aussi `limtrack_is_ios = "1"` en localStorage ET met à jour les signaux Leptos `set_is_ios_user(true)` / `set_show_trial_modal(false)` immédiatement — évite le flash du modal d'essai au premier lancement.
+- **Activation iOS** : `POST /api/ios/activate` — accordé au premier lancement Tauri, vérifié par `IOS_ACTIVATION_KEY` (variable d'env VPS). Idempotent. Stocké `ios_activated` en localStorage. En cas de succès : écrit aussi `limtrack_is_ios = "1"` en localStorage ET met à jour les signaux Leptos `set_is_ios_user(true)` / `set_show_trial_modal(false)` immédiatement — évite le flash du modal d'essai au premier lancement.
 - **Détection Tauri** : `crate::config::is_tauri()` via `window.__TAURI__`. Fiable en production ; **peu fiable en dev Simulator** (ne pas s'y fier pour masquer du contenu).
 - **Détection compte iOS** : champ `users.is_ios` (migration 007) — source de vérité pour masquer Licence/Flotte dans le profil, les sections web-only dans À propos, et l'alerte d'expiration de licence dans la notification bell. Stocké dans `localStorage["limtrack_is_ios"]` dès le chargement de mainpage pour éviter le flash au rendu.
 - **Détection contexte Tauri** : `crate::config::is_tauri()` — utilisé à l'inscription (`register.rs`) pour masquer la notice et le message "3 mois d'essai" non pertinents sur iOS.
@@ -428,11 +428,11 @@ git push
 ```
 Le push déclenche automatiquement GitHub Actions → build image → SSH deploy sur VPS.
 
-## Infisical — gestion des secrets
-`backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Si `INFISICAL_TOKEN` est présent → appel `GET /api/v3/secrets/raw` et injection dans l'env. Sinon → fallback `dotenvy` (dev local).
-- Instance : EU cloud `https://eu.infisical.com` — **Service Token** (pas Machine Identity, incompatible E2EE)
-- **VPS** : secrets dans `/opt/limtrack/.env` (pas d'Infisical sur VPS — fallback dotenvy via variables Docker)
-- Les noms des secrets dans Infisical = noms des variables d'env (`DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`)
+## Gestion des secrets — `.env`
+`backend/src/secrets.rs` — `load_secrets()` async appelé au démarrage de tous les binaires. Charge le fichier `.env` via `dotenvy`.
+- **VPS OVH** : secrets dans `/opt/limtrack/.env`, injectés dans le container Docker via `env_file`
+- **Dev local** : `.env` à la racine du projet
+- Variables requises : `DATABASE_URL`, `JWT_SECRET`, `RESEND_API_KEY`, `IOS_ACTIVATION_KEY`
 
 ## Pièges SQLx connus
 

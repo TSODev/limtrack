@@ -30,7 +30,7 @@ async fn main() {
     let api_key = env::var("RESEND_API_KEY").unwrap_or_default();
 
     if api_key.is_empty() {
-        eprintln!("RESEND_API_KEY absente — vérifiez votre .env ou Infisical");
+        eprintln!("RESEND_API_KEY absente — vérifiez votre .env");
         std::process::exit(1);
     }
     println!("✓ RESEND_API_KEY présente");

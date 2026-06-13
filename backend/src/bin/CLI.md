@@ -1,6 +1,6 @@
 # CLIs LimTrack — Documentation
 
-Tous les utilitaires sont exécutés depuis le répertoire `backend/` et chargent automatiquement les secrets via Infisical (ou `.env` en local).
+Tous les utilitaires sont exécutés depuis le répertoire `backend/` et chargent automatiquement les secrets depuis le fichier `.env`.
 
 ```bash
 cd backend

@@ -46,7 +46,7 @@
 | Base de données | PostgreSQL (auto-hébergé, VPS OVH) via [SQLx](https://github.com/launchbadge/sqlx) |
 | Styles          | [Tailwind CSS](https://tailwindcss.com/)                            |
 | Auth            | JWT (jsonwebtoken) + bcrypt                                         |
-| Secrets         | [Infisical](https://infisical.com) (EU cloud)                       |
+| Secrets         | Fichier `.env` (VPS OVH) / `.env` local (dev)                       |
 | Build frontend  | [Trunk](https://trunkrs.dev/)                                       |
 | Mobile          | [Tauri](https://tauri.app/) v2 (iOS)                                |
 | Types partagés  | Crate `common` (workspace Cargo)                                    |
@@ -61,7 +61,7 @@ limtrack/
 │   ├── main.rs
 │   ├── auth.rs
 │   ├── state.rs                    # AppState (db, resend_api_key)
-│   ├── secrets.rs                  # chargement secrets Infisical (fallback .env)
+│   ├── secrets.rs                  # chargement secrets via dotenvy (.env)
 │   ├── notifier.rs                 # notifications email expiration (Resend)
 │   ├── user_handler.rs
 │   ├── vehicles_handler.rs
@@ -236,7 +236,7 @@ JWT_SECRET=votre_secret_jwt_tres_long_et_aleatoire
 RESEND_API_KEY=re_...   # Notifications email (Resend) — désactivé si absent
 ```
 
-> **Production (VPS OVH)** : les secrets sont définis dans `/opt/limtrack/.env` sur le serveur. Le backend les charge via les variables d'environnement Docker. Si `INFISICAL_TOKEN` est présent, les secrets sont chargés depuis [Infisical](https://infisical.com) à la place.
+> **Production (VPS OVH)** : les secrets sont définis dans `/opt/limtrack/.env` sur le serveur et chargés via les variables d'environnement Docker.
 
 ### 4. Base de données
 

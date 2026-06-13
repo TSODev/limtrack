@@ -129,7 +129,7 @@ pub fn PrivacyPage() -> impl IntoView {
                         <ul class="list-disc pl-5 space-y-1">
                             <li>"Mots de passe hashés avec bcrypt"</li>
                             <li>"Authentification par tokens JWT"</li>
-                            <li>"Secrets gérés via Infisical (chiffrement E2EE)"</li>
+                            <li>"Secrets gérés via variables d'environnement serveur"</li>
                             <li>"Communications chiffrées en TLS/HTTPS"</li>
                             <li>"Validation de la robustesse des mots de passe (zxcvbn, score ≥ 3/4)"</li>
                         </ul>

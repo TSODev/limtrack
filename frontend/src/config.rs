@@ -1,7 +1,7 @@
 pub const API_BASE: &str = "https://api.limtrack.app";
 pub const CONTACT_EMAIL: &str = "thierry.soulie@tsodev.fr";
 
-/// Clé d'activation iOS — vérifiée côté backend contre IOS_ACTIVATION_KEY (Infisical).
+/// Clé d'activation iOS — vérifiée côté backend contre IOS_ACTIVATION_KEY (variable d'env VPS).
 /// Injectée à la compilation via variable d'environnement, vide si non définie.
 pub const IOS_ACTIVATION_KEY: &str = match option_env!("IOS_ACTIVATION_KEY") {
     Some(k) => k,
