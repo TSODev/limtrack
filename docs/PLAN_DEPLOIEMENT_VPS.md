@@ -64,7 +64,7 @@
 - [x] Caddy a obtenu le certificat Let's Encrypt (tls-alpn-01)
 - [x] `curl https://api.limtrack.app/api/user/register` → HTTP 405 ✅
 - [x] Routes critiques testées en production (auth, vehicles, contracts, license, fleet)
-- [ ] Activer les snapshots automatiques OVH (Control Panel → Backup)
+- [x] Backup automatique OVH activé (quotidien, géré par OVH Control Panel) ✅
 
 ---
 
@@ -82,7 +82,7 @@
 - [x] **Fail2ban** installé (`sudo apt install fail2ban`)
 - [x] `/etc/fail2ban/jail.local` créé depuis `jail.conf` — section `[sshd]` : `backend = systemd`, `maxretry = 3`, `findtime = 5m`, `bantime = 30m`
 - [x] Jail SSH actif — 3 IPs bannies dès la mise en service (bots détectés immédiatement)
-- [ ] Snapshots automatiques OVH (Control Panel → Backup)
+- [x] Snapshots automatiques OVH (Control Panel → Backup) ✅
 - [~] Network Firewall OVHcloud — non activé (ufw + Fail2ban suffisants pour un projet solo)
 
 ---
