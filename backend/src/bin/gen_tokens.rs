@@ -57,7 +57,7 @@ async fn main() {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL manquante");
     let pool = PgPool::connect(&db_url)
         .await
-        .expect("Connexion NeonDB impossible");
+        .expect("Connexion PostgreSQL impossible");
 
     let dur_label = if args.lifetime {
         "∞ lifetime".to_string()

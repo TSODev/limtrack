@@ -16,6 +16,6 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
     exit 1
 fi
 
-echo "Import de seed_fleet_demo.sql vers NeonDB..."
+echo "Import de seed_fleet_demo.sql vers PostgreSQL..."
 psql "$DATABASE_URL" -f "$SCRIPT_DIR/seed_fleet_demo.sql"
 echo "Import terminé."

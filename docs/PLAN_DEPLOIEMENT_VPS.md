@@ -75,7 +75,7 @@
 - [x] Alertes email configurées via SMTP Resend (`noreply@limtrack.app` → `thierry.soulie@tsodev.fr`)
 - [x] `pg_dump` cron configuré — backup quotidien à 2h dans `/opt/limtrack/backups/`, rétention 30 jours
 - [x] Production stable — app en ligne depuis v1.2.0 (2026-06-09)
-- [ ] Résilier Railway + NeonDB (optionnel — comptes désactivés)
+- [x] Résilier Railway + NeonDB ✅ (2026-06-13)
 
 ## Phase 8 — Sécurité complémentaire ✅
 

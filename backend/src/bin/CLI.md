@@ -99,7 +99,7 @@ autre@example.com                    STUV-WXYZ-2345-6           ERREUR: Jeton d�
 
 Envoie un email de notification aux utilisateurs dont la licence expire dans **7**, **15** ou **30** jours. Un anti-doublon 24h empêche d'envoyer deux emails le même jour au même utilisateur.
 
-Utilisé normalement en tâche planifiée (cron Railway), mais peut être déclenché manuellement.
+Utilisé normalement en tâche planifiée (cron VPS), mais peut être déclenché manuellement.
 
 ### Options
 
@@ -109,7 +109,7 @@ Aucune option — lance directement les notifications.
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | URL de connexion NeonDB |
+| `DATABASE_URL` | URL de connexion PostgreSQL (VPS OVH) |
 | `RESEND_API_KEY` | Clé API Resend (expéditeur `noreply@limtrack.app`) |
 
 ### Exemple
@@ -122,7 +122,7 @@ cargo run --bin notify-expiry
 
 ```
 ✓ RESEND_API_KEY présente
-✓ Connexion NeonDB OK
+✓ Connexion PostgreSQL OK
   → Email envoyé à user@example.com (expire dans 7 jours)
 ✓ Terminé
 ```

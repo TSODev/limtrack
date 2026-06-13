@@ -1,7 +1,7 @@
 // Chargement des secrets via Infisical Service Token.
 // Un seul appel GET suffit — le service token gère E2EE côté serveur.
 //
-// Variables Railway en production :
+// Variables d'environnement (VPS OVH via .env, dev local via .env) :
 //   INFISICAL_TOKEN       — Service Token Infisical (commence par "st.")
 //   INFISICAL_PROJECT_ID  — ID du projet Infisical
 //   INFISICAL_ENVIRONMENT — slug d'environnement (défaut : "prod")

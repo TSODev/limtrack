@@ -85,7 +85,7 @@ limtrack/
 ├── docs/
 │   └── appstore-screenshots.md  ← guide screenshots App Store (credentials, checklist, tailles)
 ├── sql/
-│   ├── migrations/            ← SQL à appliquer manuellement sur NeonDB
+│   ├── migrations/            ← SQL à appliquer manuellement sur PostgreSQL VPS
 │   ├── schema/                ← Définition initiale des tables (neon_tables.sql)
 │   └── seed/
 │       ├── seed_fleet_demo.sql        ← données flotte (alice.martin / FleetAdmin2024!)

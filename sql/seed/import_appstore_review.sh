@@ -16,7 +16,7 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
     exit 1
 fi
 
-echo "Import de seed_appstore_review.sql vers NeonDB..."
+echo "Import de seed_appstore_review.sql vers PostgreSQL..."
 psql "$DATABASE_URL" -f "$SCRIPT_DIR/seed_appstore_review.sql"
 echo ""
 echo "Compte App Store Review créé :"

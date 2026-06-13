@@ -12,7 +12,7 @@ use std::env;
     long_about = "Envoie un email aux utilisateurs dont la licence expire dans 7, 15 ou 30 jours.\n\
                   Anti-doublon 24h : un utilisateur ne reçoit pas deux emails le même jour.\n\n\
                   Variables d'environnement requises :\n\
-                    DATABASE_URL    — connexion NeonDB\n\
+                    DATABASE_URL    — connexion PostgreSQL (VPS OVH)\n\
                     RESEND_API_KEY  — clé API Resend"
 )]
 struct Args {}
@@ -37,8 +37,8 @@ async fn main() {
 
     let pool = PgPool::connect(&db_url)
         .await
-        .expect("Connexion NeonDB impossible");
-    println!("✓ Connexion NeonDB OK");
+        .expect("Connexion PostgreSQL impossible");
+    println!("✓ Connexion PostgreSQL OK");
 
     run_notifications(&pool, &api_key).await;
     println!("✓ Terminé");

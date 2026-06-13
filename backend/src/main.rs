@@ -90,7 +90,7 @@ async fn main() {
 
     let pool = PgPool::connect(&db_url)
         .await
-        .expect("Impossible de se connecter à NeonDB");
+        .expect("Impossible de se connecter à PostgreSQL");
 
     let resend_api_key = std::env::var("RESEND_API_KEY").unwrap_or_default();
     let state = AppState { db: pool.clone(), resend_api_key: resend_api_key.clone() };
