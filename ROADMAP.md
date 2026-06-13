@@ -27,9 +27,18 @@
 
 ---
 
+## Versions livrées (suite)
+
+| Version | Date | Points clés |
+|---------|------|-------------|
+| [1.3.1] | 2026-06-11 | Correctif flash modal essai iOS au premier lancement — **APPROUVÉ App Store** |
+| [1.3.2] | 2026-06-13 | Race condition iOS, modal essai conditionné au statut licence, onboarding nouvel utilisateur — **PUBLIÉ App Store** ✅ |
+
+---
+
 ## En cours — [Unreleased]
 
-**Prochaine étape :** en attente de la réponse Apple (déblocage soumission build 4, soumis le 2026-06-11).
+**Prochaine étape :** à définir — notifications push natives ou documentation API Swagger/OpenAPI.
 
 ---
 
