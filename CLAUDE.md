@@ -533,6 +533,6 @@ const APP_VERSION: &str = env!("APP_VERSION");
 
 ## Version actuelle
 `1.3.2` — déployé en production (Cloudflare Pages + OVH VPS)
-iOS App Store : 1.3.2 build 1 — **APPROUVÉ** ✅ (2026-06-13), prêt pour distribution
+iOS App Store : 1.3.2 build 1 — **PUBLIÉ** ✅ (2026-06-13)
 
 

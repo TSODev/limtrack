@@ -10,7 +10,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
-## [1.3.2] iOS — APPROUVÉ App Store le 2026-06-13 (build 1)
+## [1.3.2] iOS — Publié sur l'App Store le 2026-06-13 (build 1)
 
 ### Corrigé
 - **Race condition au premier lancement iOS** : `fetch_profile_flags` et `POST /api/ios/activate` tournaient en parallèle au chargement de `mainpage`. Le fetch pouvait lire `is_ios=false` en base (avant que l'activation ne mette à jour la DB) et écraser `limtrack_is_ios="1"` avec `"0"` dans le localStorage, déclenchant le modal d'essai et affichant les sections Licence/Dons dans la page À propos. Fix : en contexte Tauri, le fetch de profil n'écrit jamais `"0"` pour `limtrack_is_ios` et ne déclenche jamais le modal d'essai, quelle que soit la réponse du serveur.
