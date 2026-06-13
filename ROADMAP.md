@@ -38,7 +38,7 @@
 
 ## En cours — [Unreleased]
 
-**Prochaine étape :** à définir — notifications push natives ou documentation API Swagger/OpenAPI.
+**Prochaine étape :** stabilisation & correction de bugs — pas de nouvelles fonctionnalités.
 
 ---
 
