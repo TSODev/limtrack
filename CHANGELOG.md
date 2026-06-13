@@ -8,6 +8,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Unreleased]
 
+### Supprimé
+- **Infisical** : intégration retirée — `secrets.rs` réduit à `dotenvy::dotenv()`. Les secrets sont désormais gérés exclusivement via `.env` (VPS OVH : `/opt/limtrack/.env`, dev local : `.env` racine). Railway étant résilié, `INFISICAL_TOKEN` n'était plus injecté nulle part.
+
+### Infra
+- **Railway + NeonDB résiliés** (2026-06-13) — infrastructure entièrement sur OVH VPS depuis v1.2.0. Nettoyage du code : `railway.json` supprimé, toutes les mentions Railway/NeonDB remplacées.
+- **Backup OVH quotidien activé** — double protection : `pg_dump` cron 2h + snapshot VPS OVH automatique.
+
 ---
 
 ## [1.3.2] iOS — Publié sur l'App Store le 2026-06-13 (build 1)
