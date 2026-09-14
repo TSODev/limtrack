@@ -172,12 +172,15 @@ pub async fn create_trip(
 
     let recurrence = payload.recurrence.clone().unwrap_or_else(|| "none".to_string());
     let recurrence_interval = payload.recurrence_interval.unwrap_or(1);
+    // Une occurrence récurrente dure 1 jour — seul un voyage ponctuel peut s'étaler sur
+    // plusieurs jours. `end_date` fourni par le payload est ignoré si recurrence != "none".
+    let end_date = if recurrence == "none" { payload.end_date } else { payload.start_date };
 
     if let Err(e) = validate_trip_fields(
         &payload.label,
         payload.estimated_km,
         payload.start_date,
-        payload.end_date,
+        end_date,
         &recurrence,
         recurrence_interval,
         payload.days_of_week.as_deref(),
@@ -201,7 +204,7 @@ pub async fn create_trip(
         payload.label.trim(),
         payload.estimated_km,
         payload.start_date,
-        payload.end_date,
+        end_date,
         recurrence,
         recurrence_interval,
         days_of_week.as_deref(),
@@ -299,8 +302,14 @@ pub async fn update_trip(
     let label = payload.label.clone().unwrap_or(current.label);
     let estimated_km = payload.estimated_km.unwrap_or(current.estimated_km);
     let start_date = payload.start_date.unwrap_or(current.start_date);
-    let end_date = payload.end_date.unwrap_or(current.end_date);
     let recurrence = payload.recurrence.clone().unwrap_or(current.recurrence);
+    // Une occurrence récurrente dure 1 jour — seul un voyage ponctuel peut s'étaler sur
+    // plusieurs jours. `end_date` fourni par le payload est ignoré si recurrence != "none".
+    let end_date = if recurrence == "none" {
+        payload.end_date.unwrap_or(current.end_date)
+    } else {
+        start_date
+    };
     let recurrence_interval = payload.recurrence_interval.unwrap_or(current.recurrence_interval);
     let days_of_week = payload.days_of_week.clone().or(current.days_of_week);
     let day_of_month = payload.day_of_month.or(current.day_of_month);

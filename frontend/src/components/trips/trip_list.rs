@@ -386,16 +386,23 @@ fn TripModal(
                         on:input=move |ev| set_estimated_km.set(event_target_value(&ev))
                         placeholder="ex: 800" class=input_class() />
                 </Field>
-                <div class="grid grid-cols-2 gap-3">
+                <div class=move || if recurrence.get() == "none" { "grid grid-cols-2 gap-3" } else { "grid grid-cols-1 gap-3" }>
                     <Field label="Date de début">
                         <input type="date" required prop:value=start_date
                             on:input=move |ev| set_start_date.set(event_target_value(&ev)) class=input_class() />
                     </Field>
-                    <Field label="Date de fin">
-                        <input type="date" required prop:value=end_date
-                            on:input=move |ev| set_end_date.set(event_target_value(&ev)) class=input_class() />
-                    </Field>
+                    <Show when=move || recurrence.get() == "none" fallback=|| ()>
+                        <Field label="Date de fin">
+                            <input type="date" required prop:value=end_date
+                                on:input=move |ev| set_end_date.set(event_target_value(&ev)) class=input_class() />
+                        </Field>
+                    </Show>
                 </div>
+                <Show when=move || recurrence.get() != "none" fallback=|| ()>
+                    <p class="text-xs text-gray-400 -mt-2">
+                        "Chaque occurrence dure 1 jour — utilisez \"Fin de la récurrence\" ci-dessous pour arrêter la répétition."
+                    </p>
+                </Show>
                 <Field label="Récurrence">
                     <select
                         prop:value=recurrence
