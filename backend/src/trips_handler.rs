@@ -548,7 +548,7 @@ fn build_forecast(metrics: &ContractMetrics, trips: &[TripRow], today: NaiveDate
     while d <= metrics.end_date {
         cumulative += daily_rate + planned_by_day.get(&d).copied().unwrap_or(0.0);
         if unavailable_from.is_none()
-            && (metrics.km_start as f64 + km_consumed as f64 + cumulative) >= metrics.km_allowed as f64
+            && (km_consumed as f64 + cumulative) >= metrics.km_allowed as f64
         {
             unavailable_from = Some(d);
         }
