@@ -59,7 +59,7 @@ pub fn HomePage() -> impl IntoView {
                             href="/register"
                             class="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition duration-150 shadow-lg shadow-indigo-500/30"
                         >
-                            "Commencer gratuitement"
+                            "Créer un compte"
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                             </svg>
