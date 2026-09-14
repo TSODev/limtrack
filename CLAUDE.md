@@ -360,6 +360,8 @@ Combine `daily_rate = km_consumed / days_elapsed` (même formule que `estimate_l
 
 **Distinction importante avec `contracts_handler.rs`** : `ContractLoa/Insurance.estimated_limit_date` (widget "Contrat actif") est calculé **sans** les voyages planifiés (rythme historique seul) — c'est volontaire, pour ne pas modifier la logique de risque existante (badges, `v_contract_status`). Les deux dates peuvent donc légitimement différer ; les libellés frontend précisent "(rythme actuel)" vs "(voyages inclus)" pour éviter la confusion.
 
+**Piège corrigé** : `km_allowed`/`km_annual_limit` sont des valeurs **relatives** (delta depuis `km_start`), pas des compteurs absolus. Le seuil de `unavailable_from` doit comparer `km_consumed + cumulative >= km_allowed` (tout en relatif) — ne jamais réintroduire `km_start` dans cette comparaison (bug corrigé qui déclenchait une fausse indisponibilité dès le jour 1 pour tout véhicule avec `km_start` non nul ; invisible en test local avec `km_start = 0`, donc **toujours tester avec un `km_start` réaliste non nul**).
+
 ### Frontend
 - Onglet "Voyages" dans `vehicle_dashboard.rs` (`DashboardTab::Trips`), `can_manage_trips` = owner|editor (comme `can_edit`, pas `can_manage_contracts` qui est owner-only)
 - `trip_list.rs` : CRUD + `TripModal` (récurrence avec champs conditionnels — jours de semaine si hebdo, jour du mois si mensuel). `Modal`/`Field`/`ModalActions` dupliqués localement (convention du projet — déjà dupliqués dans `contract_widget.rs`/`contract_list.rs`, pas de composants partagés)

@@ -32,6 +32,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ### Corrigé
 - **Rate limiter en 500 sans `X-Forwarded-For`** : `SmartIpKeyExtractor` (tower_governor) ne pouvait jamais retomber sur l'IP de connexion réelle (`ConnectInfo` absent), provoquant un 500 "Unable To Extract Key!" sur login/register dès que Cloudflare ne transmettait pas le header (accès direct au VPS, health-checks). `axum::serve` utilise désormais `into_make_service_with_connect_info::<SocketAddr>()`.
+- **Fausse alerte d'indisponibilité dans `usage-forecast`** : le seuil de déclenchement de `unavailable_from` additionnait à tort `km_start` à `km_consumed` (déjà relatif) avant de comparer à `km_allowed` (lui aussi relatif), déclenchant l'alerte dès le premier jour pour tout véhicule avec un `km_start` non nul à la souscription du contrat — donc quasiment tous les cas réels. Repéré en production sur un contrat assurance réel (`km_start = 34800`), masqué en test local par un `km_start = 0`. `km_per_day_available` n'était pas affecté (formule déjà correcte).
 
 ---
 
