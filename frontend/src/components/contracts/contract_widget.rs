@@ -230,12 +230,12 @@ fn ContractLoaSummary(contract: ContractLoa) -> impl IntoView {
                         <div class=format!("text-sm font-bold {}", if forecast_over { colors.text } else { "text-gray-800" })>
                             {forecast_display}
                         </div>
-                        <div class="text-xs text-gray-500">"estimés à l'échéance"</div>
+                        <div class="text-xs text-gray-500">"estimés à l'échéance (rythme actuel)"</div>
                     </div>
                     {limit_date_info.map(|(date, after_end)| view! {
                         <div class="bg-white/60 rounded-lg p-2 text-center">
                             <div class="text-sm font-bold text-gray-800">{date}</div>
-                            <div class="text-xs text-gray-500">{if after_end { "limite km après échéance" } else { "limite km atteinte" }}</div>
+                            <div class="text-xs text-gray-500">{if after_end { "plafond atteint après l'échéance (rythme actuel)" } else { "atteinte estimée du plafond (rythme actuel)" }}</div>
                         </div>
                     })}
                 </div>
@@ -314,12 +314,12 @@ fn ContractInsuranceSummary(contract: ContractInsurance) -> impl IntoView {
                         <div class=format!("text-sm font-bold {}", if forecast_over { colors.text } else { "text-gray-800" })>
                             {forecast_display}
                         </div>
-                        <div class="text-xs text-gray-500">"estimés à l'échéance"</div>
+                        <div class="text-xs text-gray-500">"estimés à l'échéance (rythme actuel)"</div>
                     </div>
                     {limit_date_info.map(|(date, after_end)| view! {
                         <div class="bg-white/60 rounded-lg p-2 text-center">
                             <div class="text-sm font-bold text-gray-800">{date}</div>
-                            <div class="text-xs text-gray-500">{if after_end { "limite km après échéance" } else { "limite km atteinte" }}</div>
+                            <div class="text-xs text-gray-500">{if after_end { "plafond atteint après l'échéance (rythme actuel)" } else { "atteinte estimée du plafond (rythme actuel)" }}</div>
                         </div>
                     })}
                 </div>

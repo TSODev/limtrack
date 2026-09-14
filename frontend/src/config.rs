@@ -1,6 +1,11 @@
 pub const API_BASE: &str = "https://api.limtrack.app";
 pub const CONTACT_EMAIL: &str = "thierry.soulie@tsodev.fr";
 
+/// App gratuite pour tout le monde — licence désactivée. Remettre à `true`
+/// pour réafficher les sections licence/essai (voir aussi
+/// `LICENSE_ENFORCEMENT_ENABLED` côté backend, à garder synchronisé).
+pub const LICENSE_ENABLED: bool = false;
+
 /// Clé d'activation iOS — vérifiée côté backend contre IOS_ACTIVATION_KEY (variable d'env VPS).
 /// Injectée à la compilation via variable d'environnement, vide si non définie.
 pub const IOS_ACTIVATION_KEY: &str = match option_env!("IOS_ACTIVATION_KEY") {

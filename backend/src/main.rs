@@ -14,6 +14,7 @@ mod request_license_handler;
 mod secrets;
 mod share_handler;
 mod state;
+mod trips_handler;
 mod user_handler;
 mod vehicles_handler;
 
@@ -22,6 +23,7 @@ use crate::contracts_handler::{
     renew_insurance, run_insurance_renewals, update_insurance, update_loa,
 };
 use crate::mileage_handler::{create_mileage, delete_mileage, list_mileage};
+use crate::trips_handler::{create_trip, delete_trip, list_trips, update_trip, usage_forecast};
 use crate::share_handler::{create_share_code, join_with_code};
 use crate::state::AppState;
 use crate::user_handler::{
@@ -160,6 +162,19 @@ async fn main() {
             "/api/vehicles/:vehicle_id/mileage/:entry_id",
             axum::routing::delete(delete_mileage),
         )
+        // Voyages planifiés
+        .route(
+            "/api/vehicles/:vehicle_id/trips",
+            get(list_trips).post(create_trip),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/trips/:trip_id",
+            axum::routing::patch(update_trip).delete(delete_trip),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/usage-forecast",
+            get(usage_forecast),
+        )
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))
         .route("/api/vehicles/:id", get(get_vehicle).delete(delete_vehicle))
@@ -259,7 +274,9 @@ async fn main() {
     // Tâche de fond : notifications email d'expiration + renouvellements assurance, à 8h UTC
     let notif_api_key = resend_api_key;
     let renewal_pool = notif_pool.clone();
-    if notif_api_key.is_empty() {
+    if !license_middleware::LICENSE_ENFORCEMENT_ENABLED {
+        info!("Licence désactivée (app gratuite) — notifications d'expiration désactivées");
+    } else if notif_api_key.is_empty() {
         info!("RESEND_API_KEY absente — notifications email désactivées");
     } else {
         tokio::spawn(async move {
@@ -296,5 +313,12 @@ async fn main() {
         .merge(app);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, root).await.unwrap();
+    // ConnectInfo requis pour que SmartIpKeyExtractor retombe sur l'IP de connexion
+    // réelle quand X-Forwarded-For est absent (sinon 500 "Unable To Extract Key!").
+    axum::serve(
+        listener,
+        root.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }

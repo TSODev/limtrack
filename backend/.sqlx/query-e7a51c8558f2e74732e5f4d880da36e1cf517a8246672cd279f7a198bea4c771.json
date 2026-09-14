@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM public.planned_trips WHERE id = $1 AND vehicle_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7a51c8558f2e74732e5f4d880da36e1cf517a8246672cd279f7a198bea4c771"
+}

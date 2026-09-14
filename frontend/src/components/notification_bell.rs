@@ -73,7 +73,7 @@ pub fn NotificationBell(vehicles: ReadSignal<Vec<common::Vehicle>>) -> impl Into
                 .map(|v| v == "true")
                 .unwrap_or(false);
 
-            if !is_ios {
+            if crate::config::LICENSE_ENABLED && !is_ios {
                 if let Ok(license) = api_get::<LicenseStatus>(
                     &format!("{}/api/profile/license", crate::config::API_BASE),
                     &token,

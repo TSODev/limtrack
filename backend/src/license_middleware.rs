@@ -35,11 +35,20 @@ const EXEMPT_PATHS: &[&str] = &[
 
 const EXEMPT_PREFIXES: &[&str] = &["/api/admin/"];
 
+/// App gratuite pour tout le monde — licence désactivée. Remettre à `true`
+/// pour réactiver le paywall 402 (voir aussi le gate des emails d'expiration
+/// dans main.rs, qui suit la même constante).
+pub const LICENSE_ENFORCEMENT_ENABLED: bool = false;
+
 pub async fn check_license(
     State(state): State<AppState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
+    if !LICENSE_ENFORCEMENT_ENABLED {
+        return next.run(request).await;
+    }
+
     let path = request.uri().path().to_string();
 
     // Laisser passer les routes exemptées

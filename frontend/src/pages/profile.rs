@@ -164,8 +164,8 @@ pub fn ProfilePage() -> impl IntoView {
                         <SharesSection shares=s on_change=reload_shares />
                     })}
 
-                    // Section Licence masquée pour les comptes iOS (accès lifetime inclus)
-                    <Show when=move || !is_ios_account.get() fallback=|| ()>
+                    // Section Licence masquée : app gratuite pour tout le monde (LICENSE_ENABLED)
+                    <Show when=move || crate::config::LICENSE_ENABLED && !is_ios_account.get() fallback=|| ()>
                         <LicenseSection />
                     </Show>
                     // Section Flotte masquée pour les comptes iOS Personal

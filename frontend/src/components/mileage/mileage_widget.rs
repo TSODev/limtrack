@@ -1,7 +1,7 @@
 // src/components/mileage/mileage_widget.rs
 use crate::api_client::api_get;
 use crate::components::ui::{format_date_fr, format_km, get_token};
-use common::{ContractInsurance, ContractLoa, MileageLog};
+use common::{ContractInsurance, ContractLoa, MileageLog, UsageForecast};
 use leptos::*;
 use uuid::Uuid;
 
@@ -10,6 +10,7 @@ struct WidgetData {
     entries: Vec<MileageLog>,
     loa: Vec<ContractLoa>,
     insurance: Vec<ContractInsurance>,
+    forecast: Option<UsageForecast>,
 }
 
 #[component]
@@ -43,10 +44,18 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                 .await
                 .unwrap_or_default();
 
+                let forecast = api_get::<UsageForecast>(
+                    &format!("{}/api/vehicles/{}/usage-forecast", crate::config::API_BASE, id),
+                    &token,
+                )
+                .await
+                .ok();
+
                 set_data.set(Some(WidgetData {
                     entries,
                     loa,
                     insurance,
+                    forecast,
                 }));
                 set_loading.set(false);
             });
@@ -100,12 +109,17 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
 
                     let km_values: Vec<i32> = recent.iter().map(|e| e.value).collect();
 
+                    let forecast_points: Vec<(chrono::NaiveDate, i32)> = d.forecast.as_ref()
+                        .map(|f| f.points.iter().map(|p| (p.date, p.cumulative_km)).collect())
+                        .unwrap_or_default();
+
                     let (km_min, km_max) = {
                         let mut all_vals = km_values.clone();
                         if let Some((km_start, km_allowed, _, _)) = active_contract {
                             all_vals.push(km_start);
                             all_vals.push(km_allowed);
                         }
+                        all_vals.extend(forecast_points.iter().map(|(_, km)| *km));
                         let mn = *all_vals.iter().min().unwrap_or(&0) as f64;
                         let mx = *all_vals.iter().max().unwrap_or(&1) as f64;
                         (mn, (mx - mn).max(1.0))
@@ -118,12 +132,15 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
 
                     let today = chrono::Local::now().date_naive();
 
-                    // Plage de dates — inclut la plage du contrat pour que la trajectoire idéale soit visible
+                    // Plage de dates — inclut la plage du contrat (début → fin) pour que la
+                    // trajectoire idéale complète et la projection future soient visibles
                     let date_range = {
                         let fd = first_date.unwrap_or(today);
                         let contract_start = active_contract.map(|(_, _, sd, _)| sd);
+                        let contract_end = active_contract.map(|(_, _, _, ed)| ed);
                         let range_start = contract_start.map(|cs| cs.min(fd)).unwrap_or(fd);
-                        let days = (today - range_start).num_days().max(1) as f64;
+                        let range_end = contract_end.map(|ed| ed.max(today)).unwrap_or(today);
+                        let days = (range_end - range_start).num_days().max(1) as f64;
                         days
                     };
 
@@ -148,17 +165,28 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                         String::new()
                     };
 
+                    // Trajectoire idéale complète : du début à la fin du contrat (pas seulement jusqu'à aujourd'hui)
                     let ideal_polyline: Option<String> = active_contract.map(|(km_start, km_allowed, start_date, end_date)| {
-                        let total_days = (end_date - start_date).num_days().max(1) as f64;
-                        let elapsed    = (today - start_date).num_days().max(0) as f64;
-                        let km_today   = km_start as f64 + (km_allowed - km_start) as f64 * (elapsed / total_days);
-
                         let x_start = ((start_date - effective_start).num_days() as f64 / date_range * svg_w).clamp(0.0, svg_w);
-                        let x_end   = ((today - effective_start).num_days() as f64 / date_range * svg_w).clamp(0.0, svg_w);
+                        let x_end   = ((end_date - effective_start).num_days() as f64 / date_range * svg_w).clamp(0.0, svg_w);
                         let y_start = svg_h - ((km_start as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
-                        let y_end   = svg_h - ((km_today - km_min) / km_max * (svg_h - 10.0)) - 5.0;
+                        let y_end   = svg_h - ((km_allowed as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
 
                         format!("{:.1},{:.1} {:.1},{:.1}", x_start, y_start, x_end, y_end)
+                    });
+
+                    // Projection future (usage réel + voyages planifiés), depuis le dernier relevé
+                    let forecast_polyline: Option<String> = (!forecast_points.is_empty()).then(|| {
+                        let mut pts = vec![(today, last.value)];
+                        pts.extend(forecast_points.iter().copied());
+                        pts.iter()
+                            .map(|(date, km)| {
+                                let x = ((*date - effective_start).num_days() as f64 / date_range * svg_w).clamp(0.0, svg_w);
+                                let y = svg_h - ((*km as f64 - km_min) / km_max * (svg_h - 10.0)) - 5.0;
+                                format!("{:.1},{:.1}", x, y)
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ")
                     });
 
                     let is_over_ideal = active_contract.map(|(km_start, km_allowed, start_date, end_date)| {
@@ -178,22 +206,35 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                         pts
                     )).unwrap_or_default();
 
+                    let forecast_svg = forecast_polyline.as_ref().map(|pts| format!(
+                        "<polyline points='{}' fill='none' stroke='#8b5cf6' stroke-width='1.5' stroke-dasharray='2 3' stroke-linejoin='round' stroke-linecap='round'/>",
+                        pts
+                    )).unwrap_or_default();
+
                     let last_point_svg = real_points.last().map(|(x, y)| format!(
                         "<circle cx='{:.1}' cy='{:.1}' r='3' fill='{}'/>",
                         x, y, line_color
                     )).unwrap_or_default();
 
                     let svg_html = format!(
-                        "<svg viewBox='0 0 {vw} {vh}' width='100%' height='60' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg' style='display:block'>{ideal}<polyline points='{pts}' fill='none' stroke='{color}' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>{dot}</svg>",
-                        vw    = svg_w as i32,
-                        vh    = svg_h as i32,
-                        ideal = ideal_svg,
-                        pts   = real_polyline,
-                        color = line_color,
-                        dot   = last_point_svg
+                        "<svg viewBox='0 0 {vw} {vh}' width='100%' height='60' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg' style='display:block'>{ideal}{forecast}<polyline points='{pts}' fill='none' stroke='{color}' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>{dot}</svg>",
+                        vw       = svg_w as i32,
+                        vh       = svg_h as i32,
+                        ideal    = ideal_svg,
+                        forecast = forecast_svg,
+                        pts      = real_polyline,
+                        color    = line_color,
+                        dot      = last_point_svg
                     );
 
                     let has_contract = active_contract.is_some();
+                    let has_forecast = forecast_polyline.is_some();
+
+                    let km_min_label = format_km(km_min.round() as i32);
+                    let km_max_label = format_km(km_max.round() as i32);
+                    let start_label = format_date_fr(effective_start);
+                    let today_label = format_date_fr(today);
+                    let end_label = active_contract.map(|(_, _, _, ed)| format_date_fr(ed));
 
                     view! {
                         <div class="space-y-3 md:space-y-4">
@@ -210,11 +251,26 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                             // Sparkline via innerHTML — compatibilité Android
                             <Show when=move || show_sparkline fallback=|| ()>
                                 <div class="space-y-1">
+                                    <div class="flex items-center justify-between text-[10px] text-gray-300">
+                                        <span>{km_max_label.clone()}</span>
+                                    </div>
                                     <div inner_html=svg_html.clone() />
+                                    <div class="flex items-center justify-between text-[10px] text-gray-300">
+                                        <span>{km_min_label.clone()}</span>
+                                    </div>
+
+                                    // Repères de dates (début / aujourd'hui / fin de contrat)
+                                    {has_contract.then(|| view! {
+                                        <div class="flex items-center justify-between text-[10px] text-gray-300">
+                                            <span>{start_label.clone()}</span>
+                                            <span>{today_label.clone()}</span>
+                                            {end_label.clone().map(|e| view! { <span>{e}</span> })}
+                                        </div>
+                                    })}
 
                                     // Légende
                                     <Show when=move || has_contract fallback=|| ()>
-                                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                                        <div class="flex items-center gap-4 text-xs text-gray-400 flex-wrap">
                                             <div class="flex items-center gap-1.5">
                                                 <svg width="16" height="8" xmlns="http://www.w3.org/2000/svg">
                                                     <line x1="0" y1="4" x2="16" y2="4"
@@ -231,6 +287,16 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                                                 </svg>
                                                 "Trajectoire idéale"
                                             </div>
+                                            <Show when=move || has_forecast fallback=|| ()>
+                                                <div class="flex items-center gap-1.5">
+                                                    <svg width="16" height="8" xmlns="http://www.w3.org/2000/svg">
+                                                        <line x1="0" y1="4" x2="16" y2="4"
+                                                            stroke="#8b5cf6" stroke-width="1.5"
+                                                            stroke-dasharray="2 3"/>
+                                                    </svg>
+                                                    "Projection (voyages inclus)"
+                                                </div>
+                                            </Show>
                                         </div>
                                     </Show>
                                 </div>

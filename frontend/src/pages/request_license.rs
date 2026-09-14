@@ -84,7 +84,24 @@ pub fn RequestLicensePage() -> impl IntoView {
 
             <div class="max-w-lg mx-auto px-4 py-8 space-y-6">
 
-                // ─── Formulaire ────────────────────────────────────
+                // ─── Formulaire — masqué : LimTrack est désormais gratuit pour tout le monde ───
+                <Show when=move || !crate::config::LICENSE_ENABLED fallback=|| ()>
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-center space-y-3">
+                        <h1 class="text-xl font-bold text-gray-900">"Plus besoin de licence !"</h1>
+                        <p class="text-sm text-gray-500 leading-relaxed">
+                            "LimTrack est désormais entièrement gratuit — aucun jeton n'est nécessaire. "
+                            "Connectez-vous et profitez de l'application sans restriction."
+                        </p>
+                        <A
+                            href="/"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition duration-150"
+                        >
+                            "Retour à l'accueil"
+                        </A>
+                    </div>
+                </Show>
+
+                <Show when=move || crate::config::LICENSE_ENABLED fallback=|| ()>
                 <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
                     <div class="text-center space-y-2">
                         <div class="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto">
@@ -159,6 +176,7 @@ pub fn RequestLicensePage() -> impl IntoView {
                         </div>
                     </Show>
                 </div>
+                </Show>
 
                 // ─── Don volontaire (masqué sur iOS/Tauri — règles App Store) ───
                 <Show when=move || !crate::config::is_tauri() fallback=|| ()>

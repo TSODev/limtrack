@@ -377,3 +377,80 @@ pub struct LicenseStatus {
 pub struct RedeemTokenPayload {
     pub token: String,
 }
+
+// ═══════════════════════════════════════════════════════════════
+// VOYAGES PLANIFIÉS
+// ═══════════════════════════════════════════════════════════════
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct PlannedTrip {
+    pub id: Uuid,
+    pub vehicle_id: Uuid,
+    pub label: String,
+    pub estimated_km: i32,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: chrono::NaiveDate,
+    /// "none" | "daily" | "weekly" | "monthly"
+    pub recurrence: String,
+    pub recurrence_interval: i32,
+    /// hebdo uniquement, 0=lundi..6=dimanche
+    pub days_of_week: Option<Vec<i16>>,
+    /// mensuel uniquement, 1-31
+    pub day_of_month: Option<i16>,
+    pub recurrence_end_date: Option<chrono::NaiveDate>,
+    pub active: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateTripPayload {
+    pub label: String,
+    pub estimated_km: i32,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: chrono::NaiveDate,
+    #[serde(default)]
+    pub recurrence: Option<String>, // défaut : "none"
+    #[serde(default)]
+    pub recurrence_interval: Option<i32>, // défaut : 1
+    #[serde(default)]
+    pub days_of_week: Option<Vec<i16>>,
+    #[serde(default)]
+    pub day_of_month: Option<i16>,
+    #[serde(default)]
+    pub recurrence_end_date: Option<chrono::NaiveDate>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTripPayload {
+    pub label: Option<String>,
+    pub estimated_km: Option<i32>,
+    pub start_date: Option<chrono::NaiveDate>,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub recurrence: Option<String>,
+    pub recurrence_interval: Option<i32>,
+    pub days_of_week: Option<Vec<i16>>,
+    pub day_of_month: Option<i16>,
+    pub recurrence_end_date: Option<chrono::NaiveDate>,
+    pub active: Option<bool>,
+}
+
+/// Point de la courbe de projection cumulée (échantillonnage hebdomadaire)
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ForecastPoint {
+    pub date: chrono::NaiveDate,
+    pub cumulative_km: i32,
+}
+
+/// Résultat de la projection d'usage future (mileage réel + voyages planifiés)
+/// vs le plafond du contrat LOA/assurance actif le plus restrictif.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct UsageForecast {
+    /// None si aucun contrat actif (rien à projeter)
+    pub km_per_day_available: Option<f64>,
+    /// Première date où l'usage projeté (réel + voyages) dépasserait le plafond
+    pub unavailable_from: Option<chrono::NaiveDate>,
+    /// Nombre de jours entre unavailable_from et la fin du contrat
+    pub unavailable_days: Option<i64>,
+    pub points: Vec<ForecastPoint>,
+}

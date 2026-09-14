@@ -4,6 +4,7 @@ pub mod contracts;
 pub mod join_vehicle_button;
 pub mod mileage;
 pub mod notification_bell;
+pub mod trips;
 pub mod ui;
 pub mod vehicle;
 pub mod vehicle_dashboard;

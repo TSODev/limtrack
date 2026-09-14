@@ -98,7 +98,11 @@ pub fn SupportPage() -> impl IntoView {
                                 "Rendez-vous sur "
                                 <a href="https://limtrack.app/register" class="text-indigo-600 hover:underline">"limtrack.app/register"</a>
                                 " et renseignez votre nom d'utilisateur, email et mot de passe. "
-                                "Une période d'essai gratuite de 3 mois est incluse à l'inscription."
+                                {if crate::config::LICENSE_ENABLED {
+                                    "Une période d'essai gratuite de 3 mois est incluse à l'inscription."
+                                } else {
+                                    "L'inscription est immédiate et gratuite."
+                                }}
                             </p>
                         </div>
 

@@ -72,8 +72,8 @@ pub fn MainPage() -> impl IntoView {
                         } else if !crate::config::is_tauri() {
                             let _ = storage.set_item("limtrack_is_ios", "0");
                         }
-                        // Modal d'essai — jamais en contexte Tauri (utilisateurs iOS App Store).
-                        if !ios && is_trial && !crate::config::is_tauri() {
+                        // Modal d'essai — désactivée (app gratuite) et jamais en contexte Tauri (utilisateurs iOS App Store).
+                        if crate::config::LICENSE_ENABLED && !ios && is_trial && !crate::config::is_tauri() {
                             let already_shown = storage
                                 .get_item("limtrack_trial_notice_shown")
                                 .ok()

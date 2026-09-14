@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT estimated_km, start_date, end_date, recurrence, recurrence_interval,\n               days_of_week, day_of_month, recurrence_end_date\n        FROM public.planned_trips\n        WHERE vehicle_id = $1 AND active = true\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "estimated_km",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "start_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 3,
+        "name": "recurrence",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "recurrence_interval",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "days_of_week",
+        "type_info": "Int2Array"
+      },
+      {
+        "ordinal": 6,
+        "name": "day_of_month",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 7,
+        "name": "recurrence_end_date",
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "d4eb04be6a5068edf84013303b988086da0b2700fbc8a06cd208f73c214bf181"
+}

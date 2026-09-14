@@ -33,12 +33,13 @@
 |---------|------|-------------|
 | [1.3.1] | 2026-06-11 | Correctif flash modal essai iOS au premier lancement — **APPROUVÉ App Store** |
 | [1.3.2] | 2026-06-13 | Race condition iOS, modal essai conditionné au statut licence, onboarding nouvel utilisateur — **PUBLIÉ App Store** ✅ |
+| [1.4.0] | 2026-09-14 | App gratuite pour tout le monde (licence masquée), planification de voyages futurs (ponctuels/récurrents), courbe de progression enrichie (trajectoire idéale complète + projection) |
 
 ---
 
 ## En cours — [Unreleased]
 
-**Prochaine étape :** stabilisation & correction de bugs — pas de nouvelles fonctionnalités.
+**Prochaine étape :** build & soumission App Store de la 1.4.0.
 
 ---
 
@@ -125,6 +126,7 @@
 ## Fonctionnalités
 
 - [x] **Export PDF/CSV** — contrats (rapport + relevés avec trajectoire idéale), flotte (membres + véhicules)
+- [x] **Planification de voyages** — voyages ponctuels ou récurrents (quotidien/hebdomadaire/mensuel), projection km/jour disponible et indisponibilité prévisible, overlay sur la courbe de progression
 - [ ] **Notifications push natives** — PWA / mobile
 
 ---
