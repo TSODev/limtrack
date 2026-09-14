@@ -251,17 +251,17 @@ pub fn MileageWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback
                             // Sparkline via innerHTML — compatibilité Android
                             <Show when=move || show_sparkline fallback=|| ()>
                                 <div class="space-y-1">
-                                    <div class="flex items-center justify-between text-[10px] text-gray-300">
+                                    <div class="flex items-center justify-between text-xs text-gray-400">
                                         <span>{km_max_label.clone()}</span>
                                     </div>
                                     <div inner_html=svg_html.clone() />
-                                    <div class="flex items-center justify-between text-[10px] text-gray-300">
+                                    <div class="flex items-center justify-between text-xs text-gray-400">
                                         <span>{km_min_label.clone()}</span>
                                     </div>
 
                                     // Repères de dates (début / aujourd'hui / fin de contrat)
                                     {has_contract.then(|| view! {
-                                        <div class="flex items-center justify-between text-[10px] text-gray-300">
+                                        <div class="flex items-center justify-between text-xs text-gray-400">
                                             <span>{start_label.clone()}</span>
                                             <span>{today_label.clone()}</span>
                                             {end_label.clone().map(|e| view! { <span>{e}</span> })}
