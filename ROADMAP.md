@@ -39,7 +39,11 @@
 
 ## En cours — [Unreleased]
 
-**Prochaine étape :** build & soumission App Store de la 1.4.0.
+**Prochaine étape :** build & soumission App Store de la 1.4.0 (web déjà déployée le 2026-09-14).
+
+- [x] Web (limtrack.app + api.limtrack.app) — déployé
+- [ ] Build iOS (`cargo tauri ios build`) + soumission via Transporter — **bloqué** : MacBook Pro en panne, pas de Mac disponible. Options envisagées : location cloud (MacinCloud pay-as-you-go) ou OpenCore Legacy Patcher sur un vieux MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026 pour toute soumission App Store).
+- [ ] Broadcast "nouvelle version" (texte prêt, `cargo run --bin send-broadcast`) — à envoyer une fois la version iOS validée
 
 ---
 

@@ -22,10 +22,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ### Ajouté
 - **Planification de voyages futurs** : nouvel onglet "Voyages planifiés" par véhicule — trajets ponctuels ou récurrents (quotidien / hebdomadaire avec jours de semaine / mensuel avec jour du mois) avec km estimé. Migration `014` — table `planned_trips`. Nouveau `backend/src/trips_handler.rs` : CRUD (`GET/POST/PATCH/DELETE /api/vehicles/:id/trips`) et moteur d'expansion des occurrences (calcul à la demande, sans job cron).
 - **Projection d'usage future** : `GET /api/vehicles/:id/usage-forecast` combine le rythme de consommation réel (km/jour) et les voyages planifiés pour estimer le km/jour encore disponible et la date à partir de laquelle le plafond LOA/assurance serait dépassé (`unavailable_from` / `unavailable_days`). Widget dashboard `TripsWidget`.
-- **Courbe de progression enrichie** (`mileage_widget.rs`) : la trajectoire idéale (pointillé gris) va désormais jusqu'à la fin du contrat au lieu de s'arrêter à aujourd'hui (correctif) ; nouvelle projection avec voyages planifiés superposée (pointillé violet) ; repères min/max km et dates début/aujourd'hui/fin affichés sous le graphique.
+- **Courbe de progression enrichie** (`mileage_widget.rs`) : la trajectoire idéale (pointillé gris) va désormais jusqu'à la fin du contrat au lieu de s'arrêter à aujourd'hui (correctif) ; nouvelle projection avec voyages planifiés superposée (pointillé violet) ; repères min/max km et dates début/aujourd'hui/fin affichés sous le graphique (taille alignée sur la légende, `text-xs text-gray-400`).
 
 ### Modifié
 - **Application gratuite pour tout le monde** : le système de licence/essai est désactivé (le code est conservé, réversible via une constante). Backend : `LICENSE_ENFORCEMENT_ENABLED = false` dans `license_middleware.rs` (plus de 402, plus d'emails d'expiration). Frontend : `LICENSE_ENABLED = false` dans `config.rs` masque la section Licence du profil, le modal de période d'essai, la section "Licence gratuite" de la page À propos, l'alerte d'expiration dans la cloche de notifications, et met à jour la FAQ et la page `/request-license` en conséquence.
+- **Widget "Capacité kilométrique"** (ex-"Voyages planifiés" sur le dashboard) : renommé pour refléter son contenu (km disponibles, pas la liste des voyages) ; affiche désormais 3 tuiles (par jour / par semaine / par mois) au lieu d'un seul chiffre.
+- **Distinction des libellés de projection** : le widget "Contrat actif" précise "(rythme actuel)" — calcul basé uniquement sur l'historique de conduite, sans les voyages planifiés — pour ne pas être confondu avec la date d'indisponibilité du widget "Capacité kilométrique", qui elle inclut les voyages planifiés ("voyages inclus").
+- **Bouton d'accueil** : "Commencer gratuitement" → "Créer un compte" (plus explicite).
+
+### Corrigé
+- **Rate limiter en 500 sans `X-Forwarded-For`** : `SmartIpKeyExtractor` (tower_governor) ne pouvait jamais retomber sur l'IP de connexion réelle (`ConnectInfo` absent), provoquant un 500 "Unable To Extract Key!" sur login/register dès que Cloudflare ne transmettait pas le header (accès direct au VPS, health-checks). `axum::serve` utilise désormais `into_make_service_with_connect_info::<SocketAddr>()`.
 
 ---
 

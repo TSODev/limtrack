@@ -12,7 +12,7 @@ Application web full-stack **entièrement en Rust** de gestion de flotte kilomé
 - **Backend** : Axum 0.7, SQLx 0.8, PostgreSQL (auto-hébergé sur VPS OVH)
 - **Auth** : JWT (jsonwebtoken) + bcrypt
 - **Sécurité mots de passe** : `zxcvbn` (score ≥ 3/4) à l'inscription et au changement de mot de passe
-- **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`, délivrance automatique via formulaire
+- **Licences** : jetons SHA-256, middleware `402`, CLI `gen-tokens`, délivrance automatique via formulaire — **désactivé depuis la v1.4.0** (app gratuite pour tout le monde, code conservé)
 - **Modèle** : open source AGPL v3, licences gratuites sur demande, dons Ko-fi / GitHub Sponsors
 - **Mobile** : Tauri v2 (iOS configuré, Android à faire), PWA installable
 - **Export** : PDF (contrats, flotte) et CSV (relevés avec trajectoire idéale, flotte) — génération 100% frontend (WASM, Blob API)
@@ -34,6 +34,7 @@ limtrack/
 │   ├── vehicles_handler.rs
 │   ├── contracts_handler.rs
 │   ├── mileage_handler.rs
+│   ├── trips_handler.rs       ← CRUD voyages planifiés + GET .../usage-forecast (projection km/jour)
 │   ├── share_handler.rs
 │   ├── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
 │   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
@@ -73,15 +74,18 @@ limtrack/
 │       ├── contracts/
 │       │   ├── contract_list.rs
 │       │   └── contract_widget.rs
-│       └── mileage/
-│           ├── mileage_list.rs
-│           └── mileage_widget.rs
+│       ├── mileage/
+│       │   ├── mileage_list.rs
+│       │   └── mileage_widget.rs      ← trajectoire idéale + overlay projection (usage-forecast)
+│       └── trips/
+│           ├── trip_list.rs           ← CRUD voyages + TripModal (récurrence)
+│           └── trip_widget.rs         ← widget dashboard "Capacité kilométrique" (jour/semaine/mois)
 ├── frontend/src-tauri/        ← Tauri iOS
 │   ├── tauri.conf.json
 │   ├── gen/apple/             ← Projet Xcode généré
 │   └── icons/                 ← Icônes toutes tailles
 ├── common/src/lib.rs
-├── Cargo.toml                 ← version = "1.2.0"
+├── Cargo.toml                 ← version = "1.4.0"
 ├── docs/
 │   └── appstore-screenshots.md  ← guide screenshots App Store (credentials, checklist, tailles)
 ├── sql/
@@ -120,6 +124,9 @@ company_members        -- user_id, company_id
 fleet_roles            -- user_id, company_id, org_id, role, granted_by
 license_tokens         -- token_hash (SHA-256), duration_days, used_at, used_by
 license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doublon formulaire public
+planned_trips          -- vehicle_id, label, estimated_km, start_date, end_date, recurrence
+                       -- (none/daily/weekly/monthly), recurrence_interval, days_of_week SMALLINT[],
+                       -- day_of_month, recurrence_end_date, active (ON DELETE CASCADE)
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
@@ -130,6 +137,7 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 -- contracts_insurance.auto_renew BOOLEAN NOT NULL DEFAULT FALSE — migration 011, renouvellement automatique J-7
 -- VIEW v_contract_status (vehicle_id, status) — migration 012, calcul danger/warning/ok centralisé (utilisé via LEFT JOIN dans vehicles_handler.rs)
 -- users.license_type TEXT NOT NULL DEFAULT 'personal' — migration 013, type de licence centralisé sur users (backfill depuis dernier jeton, éditable via PATCH /api/admin/users/:id)
+-- planned_trips (voir ci-dessus) — migration 014, voyages planifiés (ponctuels/récurrents) pour la projection d'usage futur
 ```
 
 ## Routes API
@@ -170,6 +178,11 @@ GET/POST    /api/vehicles/:id/mileage
 DELETE      /api/vehicles/:id/mileage/:entry_id
 POST/DELETE /api/vehicles/:id/fleet                           ← assigner/retirer d'une flotte
 
+# Voyages planifiés
+GET/POST    /api/vehicles/:id/trips
+PATCH/DELETE /api/vehicles/:id/trips/:trip_id
+GET         /api/vehicles/:id/usage-forecast                  ← km/jour disponible + date d'indisponibilité prévisible (voyages inclus)
+
 # Flotte
 GET/POST    /api/companies
 GET/DELETE  /api/companies/:id
@@ -199,7 +212,8 @@ GET         /api/admin/companies
 GET         /api/broadcasts/active                                ← message actif (filtré is_ios si exclude_ios)
 ```
 
-## Licences — système de jetons
+## Licences — système de jetons (désactivé depuis v1.4.0)
+> **App gratuite pour tout le monde** : `LICENSE_ENFORCEMENT_ENABLED = false` (`license_middleware.rs`) et `LICENSE_ENABLED = false` (`frontend/src/config.rs`) désactivent respectivement le 402 côté backend et toute l'UI licence côté frontend (profil, modal essai, à propos, cloche notif, FAQ, `/request-license`). Le code ci-dessous est **conservé intact** et réactivable en repassant les deux constantes à `true` (à garder synchronisées). La tâche de fond d'emails d'expiration (`notifier.rs`) est également désactivée tant que `LICENSE_ENFORCEMENT_ENABLED = false`.
 - Période d'essai : `trial_ends_at = NOW() + 3 mois` à l'inscription
 - Accès actif si `trial_ends_at > NOW() OR access_expires_at > NOW()`
 - Routes exemptées du middleware : `/login`, `/api/user/register`, `/api/user/forgot-password`, `/api/user/reset-password`, `/api/profile/license`, `/api/profile/redeem`, `/api/license/request`, `/api/ios/activate`, `/api/admin/*`
@@ -254,8 +268,10 @@ cargo run --bin send-broadcast -- --help
 ## Sécurité — protections anti-flood et limites métier
 
 ### Rate limiting — `tower_governor`
-Crate `tower_governor = { version = "0.4", features = ["axum"] }`, `SmartIpKeyExtractor` (lit `X-Forwarded-For` / Cloudflare en priorité). Sous-routeur `sensitive_public` limité à **1 req/s, burst 5** :
+Crate `tower_governor = { version = "0.4", features = ["axum"] }`, `SmartIpKeyExtractor` (lit `X-Forwarded-For` / Cloudflare en priorité, retombe sur `ConnectInfo<SocketAddr>` sinon). Sous-routeur `sensitive_public` limité à **1 req/s, burst 5** :
 `/login`, `/api/user/register`, `/api/user/forgot-password`, `/api/user/reset-password`, `/api/license/request`
+
+**Important** : `main.rs` doit servir l'app via `root.into_make_service_with_connect_info::<SocketAddr>()` (pas `axum::serve(listener, root)` seul), sinon `SmartIpKeyExtractor` ne peut jamais retomber sur l'IP de connexion réelle quand `X-Forwarded-For` est absent → 500 "Unable To Extract Key!" (touche tout accès direct au VPS sans passer par Cloudflare, ou tout test local).
 
 ### Taille du corps
 `DefaultBodyLimit::max(64 * 1024)` sur toutes les routes — bloque les requêtes > 64 Ko.
@@ -328,6 +344,27 @@ Lancée dans `tokio::spawn` au démarrage, se déclenche chaque jour à 8h UTC. 
   - `patch_json` helper + `parse_error_response` (lit `{"error": "..."}` avant "Erreur HTTP : N")
   - `InsuranceModal` : checkbox auto_renew à la création
 - **Dashboard (`contract_widget.rs`)** : `ContractInsuranceSummary` en lecture seule — badge ↻ statique si `auto_renew = true`, aucune action
+
+## Voyages planifiés — planification & projection d'usage
+
+### Modèle (`common::PlannedTrip`, migration 014)
+`recurrence` : `"none"` (ponctuel) / `"daily"` / `"weekly"` (+ `days_of_week: Vec<i16>`, 0=lundi..6=dimanche) / `"monthly"` (+ `day_of_month: i16`, clampé au dernier jour du mois). `recurrence_end_date` optionnel (`None` = expansion jusqu'à la fin du contrat actif). Écriture réservée owner|editor (`require_editor`, comme `mileage_handler.rs`), max `MAX_TRIPS_PER_VEHICLE = 20`.
+
+**Limite connue** : `recurrence_end_date` ne peut pas être explicitement effacée via `PATCH` (un `Option<T>` ne distingue pas "champ absent" de "`null`" côté serde) — supprimer/recréer le voyage pour repasser en récurrence sans date de fin.
+
+### Expansion des occurrences (`trips_handler.rs::expand_occurrences`)
+Fonction pure, calculée **à la demande** (pas de job cron) — répartit `estimated_km` uniformément sur les jours de chaque occurrence pour éviter les pics verticaux dans la projection. Horizon plafonné au plus tôt de : fin du contrat actif, `recurrence_end_date`, ou 3 ans (garde-fou anti-boucle infinie, `MAX_OCCURRENCES_GUARD`).
+
+### `GET /api/vehicles/:id/usage-forecast`
+Combine `daily_rate = km_consumed / days_elapsed` (même formule que `estimate_limit_date` dans `contracts_handler.rs`) avec les voyages planifiés actifs pour projeter jour par jour l'usage cumulé jusqu'à `end_date`. Retourne `km_per_day_available` (peut être négatif = dépassement déjà prévisible), `unavailable_from`/`unavailable_days` (première date où le cumul atteindrait le plafond), et `points` (échantillonnage hebdomadaire pour le graphique). Si LOA **et** assurance sont actifs simultanément, calcule les deux et retourne le plus restrictif (date d'indisponibilité la plus proche).
+
+**Distinction importante avec `contracts_handler.rs`** : `ContractLoa/Insurance.estimated_limit_date` (widget "Contrat actif") est calculé **sans** les voyages planifiés (rythme historique seul) — c'est volontaire, pour ne pas modifier la logique de risque existante (badges, `v_contract_status`). Les deux dates peuvent donc légitimement différer ; les libellés frontend précisent "(rythme actuel)" vs "(voyages inclus)" pour éviter la confusion.
+
+### Frontend
+- Onglet "Voyages" dans `vehicle_dashboard.rs` (`DashboardTab::Trips`), `can_manage_trips` = owner|editor (comme `can_edit`, pas `can_manage_contracts` qui est owner-only)
+- `trip_list.rs` : CRUD + `TripModal` (récurrence avec champs conditionnels — jours de semaine si hebdo, jour du mois si mensuel). `Modal`/`Field`/`ModalActions` dupliqués localement (convention du projet — déjà dupliqués dans `contract_widget.rs`/`contract_list.rs`, pas de composants partagés)
+- `trip_widget.rs` : widget dashboard "Capacité kilométrique" — 3 tuiles (par jour / semaine / mois) + badge "Indisponible à partir du [date] (voyages inclus)" si applicable
+- `mileage_widget.rs` : trajectoire idéale prolongée jusqu'à `end_date` (au lieu de s'arrêter à aujourd'hui) + overlay pointillé violet de la projection avec voyages (`GET .../usage-forecast`)
 
 ## Points importants Leptos
 ```rust
@@ -478,7 +515,7 @@ create_effect(move |_| {
 ```
 
 ## Navigation widgets → onglets
-`MileageWidget` et `ContractsWidget` reçoivent une prop `on_navigate: Callback<()>` passée depuis `vehicle_dashboard.rs`. Clic sur le titre → `set_tab.set(DashboardTab::Kilometrage / Contracts)`.
+`MileageWidget`, `ContractsWidget` et `TripsWidget` reçoivent une prop `on_navigate: Callback<()>` passée depuis `vehicle_dashboard.rs`. Clic sur le titre → `set_tab.set(DashboardTab::Kilometrage / Contracts / Trips)`.
 
 ## Client HTTP partagé — `api_client.rs`
 `frontend/src/api_client.rs` centralise tous les appels réseau du frontend. Ne jamais réécrire de helper HTTP local dans un composant — utiliser ces fonctions :
@@ -532,7 +569,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.3.2` — déployé en production (Cloudflare Pages + OVH VPS)
-iOS App Store : 1.3.2 build 1 — **PUBLIÉ** ✅ (2026-06-13)
+`1.4.0` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-14
+iOS App Store : soumission 1.4.0 **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 
