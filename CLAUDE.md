@@ -664,12 +664,14 @@ Après un déploiement Cloudflare Pages, Safari peut servir l'ancien WASM. Hard 
 `frontend/build.rs` exécute `git describe --tags --abbrev=0` à la compilation et expose la constante `APP_VERSION` dans le WASM via `env!("APP_VERSION")`. Fallback sur `CARGO_PKG_VERSION` si aucun tag n'existe. Se re-déclenche si `.git/HEAD` ou `.git/refs/tags` changent.
 
 ```rust
-// Utilisation dans about.rs
+// Utilisation dans about.rs / home.rs
 const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
+**En production, c'est presque toujours le fallback `CARGO_PKG_VERSION` qui s'applique** : `deploy-frontend.yml` utilise `actions/checkout@v4` sans `fetch-depth`, donc un clone superficiel (profondeur 1, aucun tag récupéré) — `git describe` échoue systématiquement en CI. Les tags (`v1.3.2` etc.) ne sont créés que pour les soumissions App Store iOS, pas pour les déploiements web, donc ce fallback est en réalité la source pertinente pour la version affichée sur le web (`Cargo.toml` → `workspace.package.version`, à jour à chaque commit versionné). **Piège** : `CARGO_PKG_VERSION` ne contient jamais de préfixe `v` (contrairement à un tag `git describe`) — les endroits qui affichent `APP_VERSION` doivent préfixer `"v"` eux-mêmes s'ils veulent ce format (voir `home.rs`), `about.rs` l'affiche brut sans préfixe. Vérifié en confrontant le WASM réellement servi en prod (`strings frontend-*.wasm`) à cette hypothèse.
+
 ## Version actuelle
-`1.5.8` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.9` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

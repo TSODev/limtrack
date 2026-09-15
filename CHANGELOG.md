@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.9] — 2026-09-15
+
+### Ajouté
+- **Numéro de version sur la page d'accueil** (avant connexion) : footer `© 2026 TSODev · LimTrack · v{APP_VERSION}`, à côté du copyright, en plus de la page "À propos" déjà existante.
+
+---
+
 ## [1.5.8] — 2026-09-15
 
 ### Corrigé (non confirmé — en attente de retour terrain)

@@ -1,5 +1,7 @@
 use leptos::*;
 
+const APP_VERSION: &str = env!("APP_VERSION");
+
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
@@ -91,7 +93,7 @@ pub fn HomePage() -> impl IntoView {
 
                 // Footer
                 <footer class="text-center py-5 text-white/30 text-xs">
-                    "© 2026 TSODev · LimTrack"
+                    "© 2026 TSODev · LimTrack · v" {APP_VERSION}
                 </footer>
             </div>
         </div>
