@@ -15,6 +15,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Railway + NeonDB résiliés** (2026-06-13) — infrastructure entièrement sur OVH VPS depuis v1.2.0. Nettoyage du code : `railway.json` supprimé, toutes les mentions Railway/NeonDB remplacées.
 - **Backup OVH quotidien activé** — double protection : `pg_dump` cron 2h + snapshot VPS OVH automatique.
 
+## [1.5.6] — 2026-09-15
+
+### Corrigé
+- **Bouton d'ajout de facture peu visible** : le champ `<input type="file">` du formulaire d'entretien ne s'appuyait que sur le style natif du bouton de sélection (classes Tailwind `file:*`), rendu trop discret pour ressembler à un bouton cliquable selon les navigateurs. Remplacé par un input caché déclenché par un vrai bouton stylé (cohérent avec les autres boutons de l'app), via `NodeRef` + `set_timeout`.
+- **Panique wasm-bindgen au clic** ("closure invoked recursively or after being dropped") : le premier essai appelait `.click()` sur l'input caché de façon synchrone dans le `on:click` du bouton, ce qui réentre dans le closure d'event delegation de Leptos encore actif pour ce même clic. Corrigé en différant l'appel via `set_timeout(..., Duration::ZERO)`. Repéré et vérifié via Chromium headless (Playwright).
+
 ---
 
 ## [1.5.5] — 2026-09-15

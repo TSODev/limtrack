@@ -448,7 +448,7 @@ Table `maintenance_attachments` (`entry_id` FK `ON DELETE CASCADE`, `vehicle_id`
 - `POST /api/vehicles/:id/maintenance-entries/:entry_id/attachments` — `axum::extract::Multipart` (feature `"multipart"` sur `axum` dans `Cargo.toml`). Limites : `MAX_ATTACHMENTS_PER_ENTRY = 5`, `MAX_FILE_SIZE = 8 Mo`, types autorisés `image/jpeg|png|webp`, `application/pdf`.
 - **Limite de corps dédiée** : cette route vit sur un `Router` imbriqué séparé avec son propre `DefaultBodyLimit::max(40 Mo)`, mergé dans `app` — un layer posé sur un router imbriqué prime sur celui du router englobant pour cette sous-arborescence, permettant de garder `DefaultBodyLimit::max(64 * 1024)` global pour le reste de l'API. Voir `main.rs` (`uploads_router`).
 - `GET /api/vehicles/:id/attachments/:attachment_id` renvoie les octets du fichier avec le bon `Content-Type` — jamais de `file_path` exposé au frontend (`common::MaintenanceAttachment`).
-- Frontend : `EntryModal` — `<input type="file" accept="..." capture="environment" multiple>` (déclenche l'appareil photo sur mobile sans plugin natif). Upload en 2ᵉ requête après création de l'entrée (JSON) via `FormData` + fetch brut (pas de helper `api_client.rs`, multipart). Téléchargement/visualisation via `open_attachment()` — fetch authentifié + `Blob` + `URL.createObjectURL` + `window.open` (un `<a href>` classique n'enverrait pas le header `Authorization`).
+- Frontend : `EntryModal` — `<input type="file" accept="..." capture="environment" multiple>` (déclenche l'appareil photo sur mobile sans plugin natif), **caché** (`class="hidden"`) et déclenché par un vrai bouton stylé (cohérent avec le reste de l'app) via `NodeRef` + `set_timeout` (voir piège Leptos ci-dessus — le style natif du bouton de sélection de fichier via les classes Tailwind `file:*` était trop discret/inconsistant selon les navigateurs, remplacé par un bouton explicite). Upload en 2ᵉ requête après création de l'entrée (JSON) via `FormData` + fetch brut (pas de helper `api_client.rs`, multipart). Téléchargement/visualisation via `open_attachment()` — fetch authentifié + `Blob` + `URL.createObjectURL` + `window.open` (un `<a href>` classique n'enverrait pas le header `Authorization`).
 
 ## Points importants Leptos
 ```rust
@@ -466,6 +466,20 @@ let is_pending = create_memo(move |_| action.pending().get());
 // PartialEq requis pour create_memo sur structs custom
 #[derive(Clone, PartialEq)]
 pub struct Vehicle { ... }
+
+// Déclencher .click() sur un <input type="file"> caché depuis un bouton stylé :
+// TOUJOURS différer via set_timeout, jamais appeler .click() en synchrone dans le
+// on:click qui a déclenché l'événement — sinon panique wasm-bindgen "closure invoked
+// recursively or after being dropped" (réentrance dans le closure d'event delegation
+// de Leptos, encore sur la pile d'appel pour CE click). Repéré via test Chromium
+// headless (Playwright) — invisible en dev normal car l'erreur n'interrompt que ce
+// clic précis, pas tout le reste de l'app.
+let file_input_ref = create_node_ref::<html::Input>();
+on:click=move |_| {
+    set_timeout(move || {
+        if let Some(input) = file_input_ref.get() { input.click(); }
+    }, std::time::Duration::ZERO);
+}
 ```
 
 ## API_BASE — pattern fetch
@@ -653,7 +667,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.5` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.6` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

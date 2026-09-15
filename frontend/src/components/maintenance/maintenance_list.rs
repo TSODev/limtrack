@@ -470,6 +470,7 @@ fn EntryModal(
     let (files, set_files) = create_signal(Vec::<web_sys::File>::new());
     let (compressing, set_compressing) = create_signal(false);
     let (error, set_error) = create_signal(String::new());
+    let file_input_ref = create_node_ref::<leptos::html::Input>();
 
     // Le libellé n'est requis que si aucun type n'est coché (entrée libre, ex: "Autre")
     let label_required = move || selected.get().is_empty();
@@ -724,11 +725,26 @@ fn EntryModal(
                 </Field>
                 <Field label="Facture (photo ou fichier, optionnel)">
                     <input type="file"
+                        node_ref=file_input_ref
                         accept="image/jpeg,image/png,image/webp,application/pdf"
                         capture="environment"
                         multiple
                         on:change=on_files_change
-                        class="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-gray-300 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50" />
+                        class="hidden" />
+                    <button type="button"
+                        on:click=move |_| {
+                            // Différé via set_timeout : appeler .click() de façon synchrone ici
+                            // réentre dans le closure d'event delegation de Leptos (encore en
+                            // cours d'exécution pour CE click) → panique wasm-bindgen
+                            // "closure invoked recursively or after being dropped".
+                            set_timeout(move || {
+                                if let Some(input) = file_input_ref.get() { input.click(); }
+                            }, std::time::Duration::ZERO);
+                        }
+                        class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
+                    >
+                        "📎 Ajouter une photo ou un document"
+                    </button>
                     <Show when=move || compressing.get() fallback=|| ()>
                         <p class="text-xs text-gray-400 animate-pulse">"Optimisation des photos..."</p>
                     </Show>
