@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT file_path FROM public.maintenance_attachments WHERE id = $1 AND vehicle_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "file_path",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "643b5e6ae9f66e120d0bacd66cad9ae4ea12a2b68d5eb1cc0c340b99d499505f"
+}

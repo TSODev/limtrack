@@ -25,6 +25,9 @@ services:
     # DATABASE_URL pointe sur le service postgres local (override la valeur du .env)
     environment:
       DATABASE_URL: postgresql://limtrack:${POSTGRES_PASSWORD}@postgres:5432/limtrack
+    # Pièces jointes du carnet d'entretien — persistant entre redéploiements
+    volumes:
+      - ./uploads:/app/uploads
 
   adminer:
     image: adminer:latest

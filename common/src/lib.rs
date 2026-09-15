@@ -503,6 +503,9 @@ pub struct MaintenanceEntry {
     pub provider: Option<String>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
+    /// Nombre de pièces jointes (calculé à la lecture, absent lors de la création)
+    #[serde(default)]
+    pub attachment_count: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -529,4 +532,18 @@ pub struct MaintenanceStatus {
     pub next_due_km: Option<i32>,
     pub next_due_date: Option<chrono::NaiveDate>,
     pub overdue: bool,
+}
+
+/// Pièce jointe (facture) d'une fiche d'entretien. `file_path` n'est jamais exposé
+/// au frontend — l'accès au contenu passe uniquement par l'endpoint de téléchargement.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct MaintenanceAttachment {
+    pub id: Uuid,
+    pub entry_id: Uuid,
+    pub vehicle_id: Uuid,
+    pub original_filename: String,
+    pub content_type: String,
+    pub size_bytes: i32,
+    pub created_at: DateTime<Utc>,
 }

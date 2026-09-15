@@ -399,10 +399,13 @@ pub async fn list_maintenance_entries(
     let rows = sqlx::query_as!(
         MaintenanceEntry,
         r#"
-        SELECT id, vehicle_id, maintenance_type_id, label, performed_at, km_at_service, cost, provider, notes, created_at
-        FROM public.maintenance_entries
-        WHERE vehicle_id = $1
-        ORDER BY performed_at DESC, created_at DESC
+        SELECT
+            e.id, e.vehicle_id, e.maintenance_type_id, e.label, e.performed_at,
+            e.km_at_service, e.cost, e.provider, e.notes, e.created_at,
+            (SELECT COUNT(*) FROM public.maintenance_attachments a WHERE a.entry_id = e.id) AS "attachment_count!"
+        FROM public.maintenance_entries e
+        WHERE e.vehicle_id = $1
+        ORDER BY e.performed_at DESC, e.created_at DESC
         "#,
         vehicle_id
     )
@@ -425,6 +428,17 @@ pub async fn delete_maintenance_entry(
     if let Err(e) = require_editor(&state.db, vehicle_id, user_id).await {
         return e.into_response();
     }
+
+    // Récupère les fichiers attachés avant suppression (la CASCADE SQL nettoie la table
+    // mais pas le filesystem — cleanup best-effort après le DELETE).
+    let attachment_paths = sqlx::query_scalar!(
+        "SELECT file_path FROM public.maintenance_attachments WHERE entry_id = $1",
+        entry_id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
+
     match sqlx::query!(
         "DELETE FROM public.maintenance_entries WHERE id = $1 AND vehicle_id = $2",
         entry_id,
@@ -434,7 +448,14 @@ pub async fn delete_maintenance_entry(
     .await
     {
         Ok(r) if r.rows_affected() == 0 => err(StatusCode::NOT_FOUND, "Entretien introuvable").into_response(),
-        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => {
+            for path in attachment_paths {
+                if let Err(e) = tokio::fs::remove_file(&path).await {
+                    tracing::error!("Erreur suppression fichier {} : {}", path, e);
+                }
+            }
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
     }
 }

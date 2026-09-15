@@ -2,9 +2,10 @@
 use crate::api_client::{api_delete, api_get, api_patch, api_post, api_post_response};
 use crate::components::maintenance::catalog::{GenericTemplate, CATEGORY_ORDER, GENERIC_CATALOG};
 use crate::components::ui::{format_date_fr, format_km, get_token, input_class};
-use common::{MaintenanceEntry, MaintenanceStatus, MaintenanceType};
+use common::{MaintenanceAttachment, MaintenanceEntry, MaintenanceStatus, MaintenanceType};
 use leptos::*;
 use uuid::Uuid;
+use wasm_bindgen::JsCast;
 
 fn interval_summary(t: &MaintenanceType) -> String {
     match (t.interval_km, t.interval_months) {
@@ -55,6 +56,7 @@ pub fn MaintenanceList(
     let (editing_type, set_editing_type) = create_signal(Option::<MaintenanceType>::None);
     let (show_entry_modal, set_show_entry_modal) = create_signal(false);
     let (confirm_delete, set_confirm_delete) = create_signal(Option::<(String, String)>::None); // (label, kind:type|entry)
+    let (viewing_attachments, set_viewing_attachments) = create_signal(Option::<(Uuid, String)>::None); // (entry_id, entry_label)
 
     let load = move |id: Uuid| {
         set_loading.set(true);
@@ -190,6 +192,7 @@ pub fn MaintenanceList(
                                         <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Coût"</th>
                                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Garage"</th>
                                         <th class="px-4 py-3"></th>
+                                        <th class="px-4 py-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -198,6 +201,9 @@ pub fn MaintenanceList(
                                         let can_manage = can_manage_maintenance.get();
                                         d.entries.into_iter().map(|e| {
                                             let label = e.label.clone();
+                                            let entry_id = e.id;
+                                            let entry_label = label.clone();
+                                            let attachment_count = e.attachment_count;
                                             view! {
                                                 <tr class="border-b border-gray-50 last:border-0">
                                                     <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{format_date_fr(e.performed_at)}</td>
@@ -207,6 +213,17 @@ pub fn MaintenanceList(
                                                         {e.cost.map(|c| format!("{:.2} €", c)).unwrap_or_else(|| "—".to_string())}
                                                     </td>
                                                     <td class="px-4 py-3 text-gray-500">{e.provider.clone().unwrap_or_else(|| "—".to_string())}</td>
+                                                    <td class="px-4 py-3 text-right">
+                                                        {(attachment_count > 0).then(|| view! {
+                                                            <button
+                                                                on:click=move |_| set_viewing_attachments.set(Some((entry_id, entry_label.clone())))
+                                                                class="text-xs text-gray-500 hover:text-indigo-600 transition duration-150"
+                                                                title="Voir les pièces jointes"
+                                                            >
+                                                                "📎 "{attachment_count}
+                                                            </button>
+                                                        })}
+                                                    </td>
                                                     <td class="px-4 py-3 text-right">
                                                         <Show when=move || can_manage fallback=|| ()>
                                                             <button
@@ -246,6 +263,22 @@ pub fn MaintenanceList(
                 on_close=Callback::new(move |_| set_show_entry_modal.set(false))
                 on_saved=Callback::new(move |_| on_saved())
             />
+        </Show>
+
+        <Show when=move || viewing_attachments.get().is_some() fallback=|| ()>
+            {move || viewing_attachments.get().map(|(entry_id, entry_label)| {
+                let can_manage = can_manage_maintenance.get();
+                view! {
+                    <AttachmentsModal
+                        vehicle_id=vehicle_id
+                        entry_id=entry_id
+                        entry_label=entry_label
+                        can_manage=can_manage
+                        on_close=Callback::new(move |_| set_viewing_attachments.set(None))
+                        on_changed=Callback::new(move |_| on_saved())
+                    />
+                }
+            })}
         </Show>
 
         <Show when=move || confirm_delete.get().is_some() fallback=|| ()>
@@ -434,9 +467,23 @@ fn EntryModal(
     let (cost, set_cost) = create_signal(String::new());
     let (provider, set_provider) = create_signal(String::new());
     let (notes, set_notes) = create_signal(String::new());
+    let (files, set_files) = create_signal(Vec::<web_sys::File>::new());
     let (error, set_error) = create_signal(String::new());
 
     let is_other = move || selected_type.get() == "other";
+
+    let on_files_change = move |ev: web_sys::Event| {
+        let input = ev.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+        let mut list = Vec::new();
+        if let Some(file_list) = input.files() {
+            for i in 0..file_list.length() {
+                if let Some(f) = file_list.get(i) {
+                    list.push(f);
+                }
+            }
+        }
+        set_files.set(list);
+    };
 
     let submit = create_action(move |_: &()| {
         let vid = vehicle_id.get();
@@ -447,6 +494,7 @@ fn EntryModal(
         let provider_v = provider.get();
         let notes_v = notes.get();
         let custom_label_v = custom_label.get();
+        let files_v = files.get();
 
         async move {
             let Some(vid) = vid else { return };
@@ -494,8 +542,24 @@ fn EntryModal(
                 "notes": if notes_v.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(notes_v) },
             });
 
-            match api_post(&format!("{}/api/vehicles/{}/maintenance-entries", crate::config::API_BASE, vid), &token, &body).await {
-                Ok(_) => { on_saved.call(()); on_close.call(()); }
+            match api_post_response::<serde_json::Value>(
+                &format!("{}/api/vehicles/{}/maintenance-entries", crate::config::API_BASE, vid),
+                &token, &body,
+            ).await {
+                Ok(created) => {
+                    if !files_v.is_empty() {
+                        if let Some(entry_id) = created["id"].as_str().and_then(|s| Uuid::parse_str(s).ok()) {
+                            if let Err(e) = upload_attachment_files(vid, entry_id, &files_v).await {
+                                // L'entretien est déjà créé — on prévient sans annuler la création
+                                set_error.set(format!("Entretien créé, mais échec de l'envoi des pièces jointes : {e}"));
+                                on_saved.call(());
+                                return;
+                            }
+                        }
+                    }
+                    on_saved.call(());
+                    on_close.call(());
+                }
                 Err(e) => set_error.set(e),
             }
         }
@@ -585,6 +649,17 @@ fn EntryModal(
                         on:input=move |ev| set_notes.set(event_target_value(&ev))
                         rows="2" class=input_class() />
                 </Field>
+                <Field label="Facture (photo ou fichier, optionnel)">
+                    <input type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        capture="environment"
+                        multiple
+                        on:change=on_files_change
+                        class="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-gray-300 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50" />
+                    <Show when=move || !files.get().is_empty() fallback=|| ()>
+                        <p class="text-xs text-gray-400">{move || format!("{} fichier(s) sélectionné(s)", files.get().len())}</p>
+                    </Show>
+                </Field>
                 <ModalActions
                     pending=submit.pending()
                     on_cancel=Callback::new(move |_| on_close.call(()))
@@ -592,6 +667,154 @@ fn EntryModal(
                     error=error
                 />
             </form>
+        </Modal>
+    }
+}
+
+// Upload multipart des pièces jointes vers une entrée déjà créée.
+async fn upload_attachment_files(vehicle_id: Uuid, entry_id: Uuid, files: &[web_sys::File]) -> Result<(), String> {
+    let token = get_token().unwrap_or_default();
+    let url = format!("{}/api/vehicles/{}/maintenance-entries/{}/attachments", crate::config::API_BASE, vehicle_id, entry_id);
+
+    let form = web_sys::FormData::new().map_err(|e| format!("{:?}", e))?;
+    for (i, file) in files.iter().enumerate() {
+        form.append_with_blob(&format!("file{i}"), file).map_err(|e| format!("{:?}", e))?;
+    }
+
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("POST");
+    opts.body(Some(form.as_ref()));
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers.set("Authorization", &format!("Bearer {}", token)).ok();
+    opts.headers(&headers);
+
+    let request = web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&request))
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+
+    if resp.ok() {
+        Ok(())
+    } else {
+        Err(format!("Erreur HTTP {}", resp.status()))
+    }
+}
+
+// Ouvre le fichier dans un nouvel onglet — fetch authentifié (Authorization: Bearer)
+// requis car un simple <a href> n'enverrait pas le token, contrairement à un window.open
+// classique sur une URL publique.
+fn open_attachment(vehicle_id: Uuid, attachment_id: Uuid) {
+    spawn_local(async move {
+        let Some(token) = get_token() else { return };
+        let url = format!("{}/api/vehicles/{}/attachments/{}", crate::config::API_BASE, vehicle_id, attachment_id);
+
+        let mut opts = web_sys::RequestInit::new();
+        opts.method("GET");
+        let Ok(headers) = web_sys::Headers::new() else { return };
+        let _ = headers.set("Authorization", &format!("Bearer {}", token));
+        opts.headers(&headers);
+
+        let Ok(request) = web_sys::Request::new_with_str_and_init(&url, &opts) else { return };
+        let Ok(resp_value) = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&request)).await else { return };
+        let Ok(resp) = resp_value.dyn_into::<web_sys::Response>() else { return };
+        if !resp.ok() { return; }
+        let Ok(blob_promise) = resp.blob() else { return };
+        let Ok(blob_value) = wasm_bindgen_futures::JsFuture::from(blob_promise).await else { return };
+        let Ok(blob) = blob_value.dyn_into::<web_sys::Blob>() else { return };
+        if let Ok(obj_url) = web_sys::Url::create_object_url_with_blob(&blob) {
+            let _ = leptos::window().open_with_url_and_target(&obj_url, "_blank");
+        }
+    });
+}
+
+#[component]
+fn AttachmentsModal(
+    vehicle_id: ReadSignal<Option<Uuid>>,
+    entry_id: Uuid,
+    entry_label: String,
+    can_manage: bool,
+    on_close: Callback<()>,
+    on_changed: Callback<()>,
+) -> impl IntoView {
+    let (attachments, set_attachments) = create_signal(Vec::<MaintenanceAttachment>::new());
+    let (loading, set_loading) = create_signal(true);
+
+    let load = move || {
+        let Some(vid) = vehicle_id.get_untracked() else { return };
+        set_loading.set(true);
+        spawn_local(async move {
+            let Some(token) = get_token() else { return };
+            let list = api_get::<Vec<MaintenanceAttachment>>(
+                &format!("{}/api/vehicles/{}/maintenance-entries/{}/attachments", crate::config::API_BASE, vid, entry_id),
+                &token,
+            ).await.unwrap_or_default();
+            set_attachments.set(list);
+            set_loading.set(false);
+        });
+    };
+
+    create_effect(move |_| load());
+
+    let delete_attachment = move |attachment_id: Uuid| {
+        let Some(vid) = vehicle_id.get_untracked() else { return };
+        spawn_local(async move {
+            let Some(token) = get_token() else { return };
+            let url = format!("{}/api/vehicles/{}/attachments/{}", crate::config::API_BASE, vid, attachment_id);
+            if api_delete(&url, &token).await.is_ok() {
+                load();
+                on_changed.call(());
+            }
+        });
+    };
+
+    view! {
+        <Modal title="Pièces jointes" on_close=on_close>
+            <p class="text-sm text-gray-500 -mt-2">{entry_label}</p>
+            <Show when=move || loading.get() fallback=|| ()>
+                <p class="text-sm text-gray-400 animate-pulse">"Chargement..."</p>
+            </Show>
+            <Show when=move || !loading.get() fallback=|| ()>
+                <div class="space-y-2">
+                    {move || attachments.get().into_iter().map(|a| {
+                        let att_id = a.id;
+                        let vid_for_open = vehicle_id;
+                        let size_kb = a.size_bytes / 1024;
+                        view! {
+                            <div class="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                                <button
+                                    on:click=move |_| {
+                                        if let Some(vid) = vid_for_open.get_untracked() {
+                                            open_attachment(vid, att_id);
+                                        }
+                                    }
+                                    class="text-sm text-indigo-600 hover:underline text-left truncate"
+                                >
+                                    "📎 "{a.original_filename.clone()}
+                                </button>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <span class="text-xs text-gray-400">{size_kb}" Ko"</span>
+                                    <Show when=move || can_manage fallback=|| ()>
+                                        <button
+                                            on:click=move |_| delete_attachment(att_id)
+                                            class="text-xs text-gray-400 hover:text-red-600 transition duration-150"
+                                        >
+                                            "Supprimer"
+                                        </button>
+                                    </Show>
+                                </div>
+                            </div>
+                        }
+                    }).collect_view()}
+                </div>
+            </Show>
+            <button
+                type="button"
+                on:click=move |_| on_close.call(())
+                class="w-full py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150"
+            >
+                "Fermer"
+            </button>
         </Modal>
     }
 }

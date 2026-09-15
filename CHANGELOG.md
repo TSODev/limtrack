@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.2] — 2026-09-15
+
+### Ajouté
+- **Pièces jointes sur les fiches d'entretien** : jusqu'à 5 fichiers par fiche (photo prise directement via `capture="environment"`, ou fichier existant — JPEG/PNG/WebP/PDF, 8 Mo max chacun). Stockage sur disque du VPS (`docker-compose.yml` — volume `./uploads:/app/uploads`, persistant entre redéploiements), migration `017` — table `maintenance_attachments`. Nouveau `backend/src/attachments_handler.rs` : upload multipart (`POST .../maintenance-entries/:id/attachments`, limite de corps dédiée à 40 Mo via un routeur imbriqué, indépendante des 64 Ko globaux), liste, téléchargement (`GET .../attachments/:id`), suppression. Supprimer une fiche ou une pièce jointe nettoie aussi le fichier sur disque (la CASCADE SQL ne fait que la base).
+
+---
+
 ## [1.5.1] — 2026-09-15
 
 ### Ajouté

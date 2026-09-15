@@ -1,6 +1,7 @@
 // src/main.rs
 
 mod admin_handler;
+mod attachments_handler;
 mod auth;
 mod broadcast_handler;
 mod ios_handler;
@@ -19,6 +20,7 @@ mod trips_handler;
 mod user_handler;
 mod vehicles_handler;
 
+use crate::attachments_handler::{delete_attachment, download_attachment, list_attachments, upload_attachments};
 use crate::contracts_handler::{
     create_insurance, create_loa, delete_insurance, delete_loa, list_insurance, list_loa,
     renew_insurance, run_insurance_renewals, update_insurance, update_loa,
@@ -132,8 +134,20 @@ async fn main() {
         .layer(GovernorLayer { config: strict_governor })
         .with_state(state.clone());
 
+    // Routeur dédié à l'upload de pièces jointes — limite de taille propre (40 Mo)
+    // au lieu des 64 Ko globaux ; le layer posé ici (plus proche du handler après
+    // fusion) prime sur le DefaultBodyLimit::max(64*1024) appliqué à `app` plus bas.
+    let uploads_router = Router::new()
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-entries/:entry_id/attachments",
+            post(upload_attachments),
+        )
+        .layer(DefaultBodyLimit::max(40 * 1024 * 1024))
+        .with_state(state.clone());
+
     let app = Router::new()
         .merge(sensitive_public)
+        .merge(uploads_router)
         // Vehicles (vehicles_handler — State<AppState>)
         .route("/api/vehicles", get(list_vehicles))
         .route("/api/vehicles", post(create_vehicle))
@@ -201,6 +215,15 @@ async fn main() {
         .route(
             "/api/vehicles/:vehicle_id/maintenance-status",
             get(maintenance_status),
+        )
+        // Pièces jointes (l'upload POST est sur un routeur séparé plus bas, avec sa propre limite de taille)
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-entries/:entry_id/attachments",
+            get(list_attachments),
+        )
+        .route(
+            "/api/vehicles/:id/attachments/:attachment_id",
+            get(download_attachment).delete(delete_attachment),
         )
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))

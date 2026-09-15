@@ -36,6 +36,7 @@
 | [1.4.0] | 2026-09-14 | App gratuite pour tout le monde (licence masquée), planification de voyages futurs (ponctuels/récurrents), courbe de progression enrichie (trajectoire idéale complète + projection) |
 | [1.5.0] | 2026-09-15 | Carnet d'entretien — types récurrents + journal d'interventions, échéances estimées à partir du rythme km réel |
 | [1.5.1] | 2026-09-15 | Catalogue générique d'entretien (thermique/électrique) + champ motorisation du véhicule |
+| [1.5.2] | 2026-09-15 | Pièces jointes (factures) sur les fiches d'entretien — stockage disque VPS, jusqu'à 5 fichiers |
 
 ---
 

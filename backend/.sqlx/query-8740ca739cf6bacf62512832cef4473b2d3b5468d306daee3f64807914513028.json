@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, vehicle_id, maintenance_type_id, label, performed_at, km_at_service, cost, provider, notes, created_at\n        FROM public.maintenance_entries\n        WHERE vehicle_id = $1\n        ORDER BY performed_at DESC, created_at DESC\n        ",
+  "query": "\n        SELECT\n            e.id, e.vehicle_id, e.maintenance_type_id, e.label, e.performed_at,\n            e.km_at_service, e.cost, e.provider, e.notes, e.created_at,\n            (SELECT COUNT(*) FROM public.maintenance_attachments a WHERE a.entry_id = e.id) AS \"attachment_count!\"\n        FROM public.maintenance_entries e\n        WHERE e.vehicle_id = $1\n        ORDER BY e.performed_at DESC, e.created_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -52,6 +52,11 @@
         "ordinal": 9,
         "name": "created_at",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "attachment_count!",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
@@ -69,8 +74,9 @@
       true,
       true,
       true,
-      false
+      false,
+      null
     ]
   },
-  "hash": "aa846342ff708f9ead46fa802ebed8d6db21ef478214aef08dbd483316cc3e14"
+  "hash": "8740ca739cf6bacf62512832cef4473b2d3b5468d306daee3f64807914513028"
 }

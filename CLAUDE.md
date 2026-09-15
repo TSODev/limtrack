@@ -36,6 +36,7 @@ limtrack/
 │   ├── mileage_handler.rs
 │   ├── trips_handler.rs       ← CRUD voyages planifiés + GET .../usage-forecast (projection km/jour)
 │   ├── maintenance_handler.rs ← CRUD carnet d'entretien + GET .../maintenance-status (échéances estimées)
+│   ├── attachments_handler.rs ← upload/téléchargement/suppression pièces jointes (stockage disque uploads/)
 │   ├── share_handler.rs
 │   ├── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
 │   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
@@ -136,6 +137,7 @@ maintenance_types      -- vehicle_id, label, interval_km, interval_months, activ
 maintenance_entries    -- vehicle_id, maintenance_type_id (ON DELETE SET NULL), label (snapshot),
                        -- performed_at, km_at_service, cost, provider, notes
 -- vehicles.fuel_type TEXT NULL ('thermique'|'electrique'|'hybride') — migration 016, filtre le catalogue générique d'entretien
+maintenance_attachments -- entry_id (ON DELETE CASCADE), vehicle_id, file_path, original_filename, content_type, size_bytes -- migration 017
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
@@ -199,6 +201,8 @@ PATCH/DELETE /api/vehicles/:id/maintenance-types/:type_id
 GET/POST    /api/vehicles/:id/maintenance-entries
 DELETE      /api/vehicles/:id/maintenance-entries/:entry_id
 GET         /api/vehicles/:id/maintenance-status               ← échéance estimée (km/date) + statut "en retard" par type actif
+GET/POST    /api/vehicles/:id/maintenance-entries/:entry_id/attachments  ← POST = multipart, limite de corps dédiée 40 Mo
+GET/DELETE  /api/vehicles/:id/attachments/:attachment_id       ← GET = octets du fichier + Content-Type
 
 # Flotte
 GET/POST    /api/companies
@@ -417,6 +421,15 @@ Pour chaque type **actif**, cherche sa dernière entrée (`ORDER BY performed_at
 - `maintenance_list.rs` : section "Types" (badge À jour/Bientôt/En retard/Jamais fait calculé côté client depuis `maintenance-status`) + section "Historique" (tableau chronologique). `TypeModal`/`EntryModal`/`Modal`/`Field`/`ModalActions` dupliqués localement (convention du projet).
 - `maintenance_widget.rs` : résumé dashboard de l'échéance la plus urgente (en retard prioritaire, sinon date la plus proche).
 
+### Pièces jointes (migration 017)
+Table `maintenance_attachments` (`entry_id` FK `ON DELETE CASCADE`, `vehicle_id` dénormalisé). **Le fichier sur disque n'est jamais nettoyé par la CASCADE SQL** — `attachments_handler.rs::delete_attachment` et `maintenance_handler.rs::delete_maintenance_entry` font l'unlink explicitement (best-effort, log si échec).
+
+- Stockage : `uploads/{vehicle_id}/{entry_id}/{uuid}.{ext}` (nom généré, jamais le nom original — évite path traversal). **`docker-compose.yml`** monte `./uploads:/app/uploads` sur le service `backend` — répertoire à créer une fois sur le VPS (`mkdir -p /opt/limtrack/uploads`) avant tout déploiement touchant l'infra, sinon les fichiers sont perdus au prochain redéploiement (conteneur recréé à chaque push).
+- `POST /api/vehicles/:id/maintenance-entries/:entry_id/attachments` — `axum::extract::Multipart` (feature `"multipart"` sur `axum` dans `Cargo.toml`). Limites : `MAX_ATTACHMENTS_PER_ENTRY = 5`, `MAX_FILE_SIZE = 8 Mo`, types autorisés `image/jpeg|png|webp`, `application/pdf`.
+- **Limite de corps dédiée** : cette route vit sur un `Router` imbriqué séparé avec son propre `DefaultBodyLimit::max(40 Mo)`, mergé dans `app` — un layer posé sur un router imbriqué prime sur celui du router englobant pour cette sous-arborescence, permettant de garder `DefaultBodyLimit::max(64 * 1024)` global pour le reste de l'API. Voir `main.rs` (`uploads_router`).
+- `GET /api/vehicles/:id/attachments/:attachment_id` renvoie les octets du fichier avec le bon `Content-Type` — jamais de `file_path` exposé au frontend (`common::MaintenanceAttachment`).
+- Frontend : `EntryModal` — `<input type="file" accept="..." capture="environment" multiple>` (déclenche l'appareil photo sur mobile sans plugin natif). Upload en 2ᵉ requête après création de l'entrée (JSON) via `FormData` + fetch brut (pas de helper `api_client.rs`, multipart). Téléchargement/visualisation via `open_attachment()` — fetch authentifié + `Blob` + `URL.createObjectURL` + `window.open` (un `<a href>` classique n'enverrait pas le header `Authorization`).
+
 ## Points importants Leptos
 ```rust
 // Callbacks — toujours Callback<T>
@@ -620,7 +633,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.1` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.2` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 
