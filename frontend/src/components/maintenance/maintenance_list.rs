@@ -890,31 +890,34 @@ async fn upload_attachment_files(vehicle_id: Uuid, entry_id: Uuid, files: &[web_
     }
 }
 
-// Ouvre le fichier dans un nouvel onglet — fetch authentifié (Authorization: Bearer)
-// requis car un simple <a href> n'enverrait pas le token, contrairement à un window.open
-// classique sur une URL publique.
-fn open_attachment(vehicle_id: Uuid, attachment_id: Uuid) {
-    spawn_local(async move {
-        let Some(token) = get_token() else { return };
-        let url = format!("{}/api/vehicles/{}/attachments/{}", crate::config::API_BASE, vehicle_id, attachment_id);
+// Récupère le fichier via fetch authentifié (Authorization: Bearer — un simple <a href>
+// n'enverrait pas le token) et retourne une URL Blob locale. Affichée dans un visualiseur
+// intégré à l'app (ViewerModal) plutôt qu'avec window.open(url, "_blank") : sur mobile,
+// notamment en PWA installée (mode standalone), "_blank" navigue souvent dans la MÊME
+// fenêtre au lieu d'ouvrir un nouvel onglet — fermer la vue résultante ferme alors
+// l'application entière, faute de page app à laquelle revenir.
+async fn fetch_attachment_object_url(vehicle_id: Uuid, attachment_id: Uuid) -> Result<String, String> {
+    let token = get_token().ok_or("Non authentifié")?;
+    let url = format!("{}/api/vehicles/{}/attachments/{}", crate::config::API_BASE, vehicle_id, attachment_id);
 
-        let mut opts = web_sys::RequestInit::new();
-        opts.method("GET");
-        let Ok(headers) = web_sys::Headers::new() else { return };
-        let _ = headers.set("Authorization", &format!("Bearer {}", token));
-        opts.headers(&headers);
+    let mut opts = web_sys::RequestInit::new();
+    opts.method("GET");
+    let headers = web_sys::Headers::new().map_err(|e| format!("{:?}", e))?;
+    headers.set("Authorization", &format!("Bearer {}", token)).ok();
+    opts.headers(&headers);
 
-        let Ok(request) = web_sys::Request::new_with_str_and_init(&url, &opts) else { return };
-        let Ok(resp_value) = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&request)).await else { return };
-        let Ok(resp) = resp_value.dyn_into::<web_sys::Response>() else { return };
-        if !resp.ok() { return; }
-        let Ok(blob_promise) = resp.blob() else { return };
-        let Ok(blob_value) = wasm_bindgen_futures::JsFuture::from(blob_promise).await else { return };
-        let Ok(blob) = blob_value.dyn_into::<web_sys::Blob>() else { return };
-        if let Ok(obj_url) = web_sys::Url::create_object_url_with_blob(&blob) {
-            let _ = leptos::window().open_with_url_and_target(&obj_url, "_blank");
-        }
-    });
+    let request = web_sys::Request::new_with_str_and_init(&url, &opts).map_err(|e| format!("{:?}", e))?;
+    let resp_value = wasm_bindgen_futures::JsFuture::from(leptos::window().fetch_with_request(&request))
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    if !resp.ok() {
+        return Err(format!("Erreur HTTP {}", resp.status()));
+    }
+    let blob_promise = resp.blob().map_err(|e| format!("{:?}", e))?;
+    let blob_value = wasm_bindgen_futures::JsFuture::from(blob_promise).await.map_err(|e| format!("{:?}", e))?;
+    let blob: web_sys::Blob = blob_value.dyn_into().map_err(|e| format!("{:?}", e))?;
+    web_sys::Url::create_object_url_with_blob(&blob).map_err(|e| format!("{:?}", e))
 }
 
 #[component]
@@ -928,6 +931,9 @@ fn AttachmentsModal(
 ) -> impl IntoView {
     let (attachments, set_attachments) = create_signal(Vec::<MaintenanceAttachment>::new());
     let (loading, set_loading) = create_signal(true);
+    // (url blob, content_type, filename) du fichier actuellement affiché dans ViewerModal
+    let (viewing, set_viewing) = create_signal(Option::<(String, String, String)>::None);
+    let (viewer_error, set_viewer_error) = create_signal(String::new());
 
     let load = move || {
         let Some(vid) = vehicle_id.get_untracked() else { return };
@@ -968,14 +974,23 @@ fn AttachmentsModal(
                     {move || attachments.get().into_iter().map(|a| {
                         let att_id = a.id;
                         let vid_for_open = vehicle_id;
+                        let content_type = a.content_type.clone();
+                        let filename = a.original_filename.clone();
                         let size_kb = a.size_bytes / 1024;
                         view! {
                             <div class="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
                                 <button
                                     on:click=move |_| {
-                                        if let Some(vid) = vid_for_open.get_untracked() {
-                                            open_attachment(vid, att_id);
-                                        }
+                                        let Some(vid) = vid_for_open.get_untracked() else { return };
+                                        let content_type = content_type.clone();
+                                        let filename = filename.clone();
+                                        set_viewer_error.set(String::new());
+                                        spawn_local(async move {
+                                            match fetch_attachment_object_url(vid, att_id).await {
+                                                Ok(obj_url) => set_viewing.set(Some((obj_url, content_type, filename))),
+                                                Err(e) => set_viewer_error.set(e),
+                                            }
+                                        });
                                     }
                                     class="text-sm text-indigo-600 hover:underline text-left truncate"
                                 >
@@ -997,6 +1012,9 @@ fn AttachmentsModal(
                     }).collect_view()}
                 </div>
             </Show>
+            <Show when=move || !viewer_error.get().is_empty() fallback=|| ()>
+                <p class="text-sm text-center text-red-600">{move || viewer_error.get()}</p>
+            </Show>
             <button
                 type="button"
                 on:click=move |_| on_close.call(())
@@ -1005,6 +1023,60 @@ fn AttachmentsModal(
                 "Fermer"
             </button>
         </Modal>
+
+        <Show when=move || viewing.get().is_some() fallback=|| ()>
+            {move || viewing.get().map(|(url, content_type, filename)| {
+                let url_for_close = url.clone();
+                view! {
+                    <ViewerModal
+                        url=url
+                        content_type=content_type
+                        filename=filename
+                        on_close=Callback::new(move |_| {
+                            web_sys::Url::revoke_object_url(&url_for_close).ok();
+                            set_viewing.set(None);
+                        })
+                    />
+                }
+            })}
+        </Show>
+    }
+}
+
+// Visualiseur intégré à l'app (image ou PDF) — reste dans la même page SPA plutôt que de
+// naviguer/ouvrir une nouvelle fenêtre, pour éviter tout risque de fermeture de l'app sur
+// mobile (voir fetch_attachment_object_url).
+#[component]
+fn ViewerModal(url: String, content_type: String, filename: String, on_close: Callback<()>) -> impl IntoView {
+    let is_image = content_type.starts_with("image/");
+    let is_pdf = content_type == "application/pdf";
+    let url_for_body = url.clone();
+    let url_for_download = url.clone();
+
+    view! {
+        <button type="button" class="fixed inset-0 z-[60] bg-black bg-opacity-70 w-full cursor-default" on:click=move |_| on_close.call(()) />
+        <div class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between gap-3 p-4 border-b border-gray-100">
+                    <span class="text-sm font-medium text-gray-700 truncate">{filename.clone()}</span>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <a href=url_for_download download=filename class="text-xs text-indigo-600 hover:underline font-medium">"Télécharger"</a>
+                        <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-auto bg-gray-50 flex items-center justify-center p-2 min-h-[50vh]">
+                    {move || {
+                        if is_image {
+                            view! { <img src=url_for_body.clone() class="max-w-full max-h-[75vh] object-contain" /> }.into_view()
+                        } else if is_pdf {
+                            view! { <iframe src=url_for_body.clone() class="w-full h-[75vh] border-0" /> }.into_view()
+                        } else {
+                            view! { <p class="text-sm text-gray-500 p-8 text-center">"Aperçu non disponible pour ce type de fichier — utilisez Télécharger."</p> }.into_view()
+                        }
+                    }}
+                </div>
+            </div>
+        </div>
     }
 }
 

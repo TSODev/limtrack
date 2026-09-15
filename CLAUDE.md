@@ -448,7 +448,8 @@ Table `maintenance_attachments` (`entry_id` FK `ON DELETE CASCADE`, `vehicle_id`
 - `POST /api/vehicles/:id/maintenance-entries/:entry_id/attachments` — `axum::extract::Multipart` (feature `"multipart"` sur `axum` dans `Cargo.toml`). Limites : `MAX_ATTACHMENTS_PER_ENTRY = 5`, `MAX_FILE_SIZE = 8 Mo`, types autorisés `image/jpeg|png|webp`, `application/pdf`.
 - **Limite de corps dédiée** : cette route vit sur un `Router` imbriqué séparé avec son propre `DefaultBodyLimit::max(40 Mo)`, mergé dans `app` — un layer posé sur un router imbriqué prime sur celui du router englobant pour cette sous-arborescence, permettant de garder `DefaultBodyLimit::max(64 * 1024)` global pour le reste de l'API. Voir `main.rs` (`uploads_router`).
 - `GET /api/vehicles/:id/attachments/:attachment_id` renvoie les octets du fichier avec le bon `Content-Type` — jamais de `file_path` exposé au frontend (`common::MaintenanceAttachment`).
-- Frontend : `EntryModal` — `<input type="file" accept="..." capture="environment" multiple>` (déclenche l'appareil photo sur mobile sans plugin natif), **caché** (`class="hidden"`) et déclenché par un vrai bouton stylé (cohérent avec le reste de l'app) via `NodeRef` + `set_timeout` (voir piège Leptos ci-dessus — le style natif du bouton de sélection de fichier via les classes Tailwind `file:*` était trop discret/inconsistant selon les navigateurs, remplacé par un bouton explicite). Upload en 2ᵉ requête après création de l'entrée (JSON) via `FormData` + fetch brut (pas de helper `api_client.rs`, multipart). Téléchargement/visualisation via `open_attachment()` — fetch authentifié + `Blob` + `URL.createObjectURL` + `window.open` (un `<a href>` classique n'enverrait pas le header `Authorization`).
+- Frontend : `EntryModal` — `<input type="file" accept="..." capture="environment" multiple>` (déclenche l'appareil photo sur mobile sans plugin natif), **caché** (`class="hidden"`) et déclenché par un vrai bouton stylé (cohérent avec le reste de l'app) via `NodeRef` + `set_timeout` (voir piège Leptos ci-dessus — le style natif du bouton de sélection de fichier via les classes Tailwind `file:*` était trop discret/inconsistant selon les navigateurs, remplacé par un bouton explicite). Upload en 2ᵉ requête après création de l'entrée (JSON) via `FormData` + fetch brut (pas de helper `api_client.rs`, multipart).
+- **Visualisation** : `fetch_attachment_object_url()` — fetch authentifié (`Authorization: Bearer`, un `<a href>` classique n'enverrait pas le token) + `Blob` + `URL.createObjectURL`, affiché dans `ViewerModal` **intégré à l'app** (image via `<img>`, PDF via `<iframe>`, fallback "Télécharger" pour les autres types) — jamais via `window.open(url, "_blank")`. **Piège corrigé (2026-09-15)** : sur mobile, notamment en PWA installée (mode standalone), `window.open(..., "_blank")` navigue souvent dans la **même fenêtre** au lieu d'ouvrir un nouvel onglet — fermer la vue résultante fermait alors l'application entière (aucune page app à laquelle revenir). `URL.revokeObjectURL()` appelé à la fermeture de `ViewerModal`.
 
 ## Points importants Leptos
 ```rust
@@ -667,7 +668,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.6` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.7` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

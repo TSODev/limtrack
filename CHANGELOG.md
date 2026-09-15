@@ -15,6 +15,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Railway + NeonDB résiliés** (2026-06-13) — infrastructure entièrement sur OVH VPS depuis v1.2.0. Nettoyage du code : `railway.json` supprimé, toutes les mentions Railway/NeonDB remplacées.
 - **Backup OVH quotidien activé** — double protection : `pg_dump` cron 2h + snapshot VPS OVH automatique.
 
+## [1.5.7] — 2026-09-15
+
+### Corrigé
+- **Fermer une pièce jointe fermait l'application sur mobile** : la visualisation d'un document attaché à une fiche d'entretien passait par `window.open(url, "_blank")`. Sur mobile, notamment en PWA installée (mode standalone), `"_blank"` navigue souvent dans la **même fenêtre** au lieu d'ouvrir un nouvel onglet — fermer la vue résultante fermait alors l'app entière, faute de page app à laquelle revenir. Remplacé par un visualiseur intégré à l'app (`ViewerModal` — image via `<img>`, PDF via `<iframe>`, fallback "Télécharger" pour les autres types), qui ne quitte jamais la SPA. Vérifié via Chromium headless (aucune navigation, aucun `window.open`, app toujours vivante après fermeture).
+
+---
+
 ## [1.5.6] — 2026-09-15
 
 ### Corrigé
