@@ -109,6 +109,17 @@ pub fn AboutPage() -> impl IntoView {
                     </p>
                 </div>
 
+                // ─── Fonctionnalités ────────────────────────────────────
+                <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">
+                    <h2 class="text-base font-bold text-gray-900">"Fonctionnalités"</h2>
+                    <ul class="text-sm text-gray-600 leading-relaxed space-y-1.5 list-disc list-inside">
+                        <li>"Suivi kilométrique et contrats LOA / assurance avec alertes de dépassement"</li>
+                        <li><span class="font-medium text-gray-800">"Voyages planifiés"</span>" : anticipez vos déplacements à venir (ponctuels ou récurrents) pour projeter votre capacité kilométrique restante"</li>
+                        <li><span class="font-medium text-gray-800">"Carnet d'entretien"</span>" : plusieurs types d'intervention sur une même fiche (ex. révision = vidange + filtres), avec photos de facture jointes"</li>
+                        <li>"Partage de véhicule entre plusieurs utilisateurs, export PDF/CSV"</li>
+                    </ul>
+                </div>
+
                 // ─── Licence gratuite — masquée : app gratuite pour tout le monde (LICENSE_ENABLED) ───
                 <Show when=move || crate::config::LICENSE_ENABLED && !is_ios_account.get() fallback=|| ()>
                     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-3">

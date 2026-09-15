@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.10] — 2026-09-15
+
+### Ajouté
+- **Section "Fonctionnalités" sur la page À propos** : description rapide des voyages planifiés et du carnet d'entretien (multi-points, photos de facture), en plus des fonctionnalités déjà existantes (kilométrage, contrats, partage, export).
+
+---
+
 ## [1.5.9] — 2026-09-15
 
 ### Ajouté
