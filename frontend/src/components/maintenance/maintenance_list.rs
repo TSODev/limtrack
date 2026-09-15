@@ -1,6 +1,6 @@
 // src/components/maintenance/maintenance_list.rs
 use crate::api_client::{api_delete, api_get, api_patch, api_post, api_post_response};
-use crate::components::maintenance::catalog::{GenericTemplate, GENERIC_CATALOG};
+use crate::components::maintenance::catalog::{GenericTemplate, CATEGORY_ORDER, GENERIC_CATALOG};
 use crate::components::ui::{format_date_fr, format_km, get_token, input_class};
 use common::{MaintenanceEntry, MaintenanceStatus, MaintenanceType};
 use leptos::*;
@@ -516,22 +516,36 @@ fn EntryModal(
                         on:change=move |ev| set_selected_type.set(event_target_value(&ev))
                         class=input_class()
                     >
-                        {types.iter().map(|t| {
-                            let value = format!("type:{}", t.id);
-                            let label = t.label.clone();
-                            view! { <option value=value>{label}</option> }
-                        }).collect_view()}
-                        {available_generic.iter().map(|(i, tpl)| {
-                            let value = format!("generic:{}", i);
-                            let tag = if show_fuel_tag {
-                                match tpl.fuel_type {
-                                    Some("thermique") => " · ⛽ thermique",
-                                    Some("electrique") => " · 🔋 électrique",
-                                    _ => "",
-                                }
-                            } else { "" };
-                            let label = format!("{}{}", tpl.label, tag);
-                            view! { <option value=value>{label}</option> }
+                        {(!types.is_empty()).then(|| view! {
+                            <optgroup label="Vos types">
+                                {types.iter().map(|t| {
+                                    let value = format!("type:{}", t.id);
+                                    let label = t.label.clone();
+                                    view! { <option value=value>{label}</option> }
+                                }).collect_view()}
+                            </optgroup>
+                        })}
+                        {CATEGORY_ORDER.iter().map(|cat| {
+                            let items: Vec<_> = available_generic.iter().filter(|(_, tpl)| tpl.category == *cat).collect();
+                            if items.is_empty() {
+                                return view! { <></> }.into_view();
+                            }
+                            view! {
+                                <optgroup label=*cat>
+                                    {items.into_iter().map(|(i, tpl)| {
+                                        let value = format!("generic:{}", i);
+                                        let tag = if show_fuel_tag {
+                                            match tpl.fuel_type {
+                                                Some("thermique") => " · ⛽ thermique",
+                                                Some("electrique") => " · 🔋 électrique",
+                                                _ => "",
+                                            }
+                                        } else { "" };
+                                        let label = format!("{}{}", tpl.label, tag);
+                                        view! { <option value=value>{label}</option> }
+                                    }).collect_view()}
+                                </optgroup>
+                            }.into_view()
                         }).collect_view()}
                         <option value="other">"Autre (type spécifique)..."</option>
                     </select>
