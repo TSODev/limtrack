@@ -82,6 +82,7 @@ limtrack/
 │       │   ├── trip_list.rs           ← CRUD voyages + TripModal (récurrence)
 │       │   └── trip_widget.rs         ← widget dashboard "Capacité kilométrique" (jour/semaine/mois)
 │       └── maintenance/
+│           ├── catalog.rs             ← catalogue générique statique (thermique/électrique)
 │           ├── maintenance_list.rs    ← CRUD types + journal d'interventions
 │           └── maintenance_widget.rs  ← widget dashboard échéance la plus urgente
 ├── frontend/src-tauri/        ← Tauri iOS
@@ -134,6 +135,7 @@ planned_trips          -- vehicle_id, label, estimated_km, start_date, end_date,
 maintenance_types      -- vehicle_id, label, interval_km, interval_months, active (ON DELETE CASCADE)
 maintenance_entries    -- vehicle_id, maintenance_type_id (ON DELETE SET NULL), label (snapshot),
                        -- performed_at, km_at_service, cost, provider, notes
+-- vehicles.fuel_type TEXT NULL ('thermique'|'electrique'|'hybride') — migration 016, filtre le catalogue générique d'entretien
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
@@ -390,7 +392,17 @@ Deux tables : `maintenance_types` (définition récurrente — label + `interval
 
 **Seed par défaut** (`vehicles_handler.rs::create_vehicle`) : à la création d'un véhicule, deux types sont insérés automatiquement (best-effort, ne bloque pas la création si l'insert échoue) — "Vidange" (15 000 km / 12 mois) et "Contrôle technique" (24 mois). Éditables/supprimables ensuite normalement.
 
-**Pas d'API constructeur** : aucune API publique/gratuite n'existe pour les recommandations d'entretien OEM (les offres commerciales type Vehicle Databases/CarScan/MOTOR sont centrées marché US, couverture Europe faible) — l'utilisateur déclare lui-même ses intervalles.
+**Pas d'API constructeur** : aucune API publique/gratuite n'existe pour les recommandations d'entretien OEM (les offres commerciales type Vehicle Databases/CarScan/MOTOR sont centrées marché US, couverture Europe faible) — à la place, un **catalogue générique statique** embarqué dans le frontend (`frontend/src/components/maintenance/catalog.rs::GENERIC_CATALOG`) propose des valeurs indicatives éditables, filtrées par motorisation.
+
+### Motorisation du véhicule (migration 016)
+`vehicles.fuel_type` (`TEXT NULL`, `thermique`/`electrique`/`hybride`) — éditable **uniquement à la création** du véhicule (`add_vehicle_button.rs`) : il n'existe pas de formulaire d'édition véhicule dans le frontend aujourd'hui (`update_vehicle` dans `vehicles_handler.rs` existe côté backend mais n'est appelé par aucune page — warning de compilation "never used" à ne pas confondre avec du code mort à supprimer). Les véhicules existants restent `fuel_type = NULL` : c'est le cas de repli explicitement voulu, pas un bug — le catalogue générique affiche alors tous les items avec une étiquette (⛽/🔋) au lieu de filtrer.
+
+### Catalogue générique (`components/maintenance/catalog.rs`)
+`GENERIC_CATALOG: &[GenericTemplate]` — liste statique (label, `fuel_type: Option<&str>` où `None` = commun aux deux motorisations, `interval_km`, `interval_months`). `GenericTemplate::is_periodic()` = au moins un intervalle défini. Proposé dans le sélecteur "Type" d'`EntryModal` (`maintenance_list.rs`), en plus des types déjà créés pour le véhicule et de l'option "Autre" :
+- Valeurs du `<select>` préfixées pour lever l'ambiguïté : `type:<uuid>` (type existant), `generic:<index>` (item du catalogue), `other`.
+- Dédoublonnage : un item générique déjà instancié (label identique, insensible à la casse, à un type existant du véhicule) disparaît de la liste.
+- Filtrage : si `vehicle_fuel_type` est renseigné, seuls les items `None` ou de la même motorisation sont proposés (sans étiquette) ; sinon tous les items sont montrés avec suffixe " · ⛽ thermique"/" · 🔋 électrique".
+- À la soumission : `generic:<index>` **périodique** → `POST .../maintenance-types` (instancie le template comme type réutilisable pour ce véhicule) **puis** création de l'entrée avec ce `maintenance_type_id` ; `generic:<index>` **ponctuel** (aucun intervalle, ex. Pneus) → entrée directe avec `label` du template, `maintenance_type_id: null`, jamais transformé en type — comportement identique à "Autre" mais label pré-rempli.
 
 ### `GET /api/vehicles/:id/maintenance-status`
 Pour chaque type **actif**, cherche sa dernière entrée (`ORDER BY performed_at DESC, created_at DESC LIMIT 1`). Sans entrée → `last_performed_at: null`, pas d'échéance calculable. Avec entrée :
@@ -608,7 +620,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.0` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.6.0` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

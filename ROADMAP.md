@@ -35,6 +35,7 @@
 | [1.3.2] | 2026-06-13 | Race condition iOS, modal essai conditionné au statut licence, onboarding nouvel utilisateur — **PUBLIÉ App Store** ✅ |
 | [1.4.0] | 2026-09-14 | App gratuite pour tout le monde (licence masquée), planification de voyages futurs (ponctuels/récurrents), courbe de progression enrichie (trajectoire idéale complète + projection) |
 | [1.5.0] | 2026-09-15 | Carnet d'entretien — types récurrents + journal d'interventions, échéances estimées à partir du rythme km réel |
+| [1.6.0] | 2026-09-15 | Catalogue générique d'entretien (thermique/électrique) + champ motorisation du véhicule |
 
 ---
 

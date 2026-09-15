@@ -24,6 +24,8 @@ pub struct Vehicle {
     pub archived_at: Option<DateTime<Utc>>,
     pub role: Option<String>,
     pub contract_status: Option<String>, // "ok" | "warning" | "danger" | None
+    /// "thermique" | "electrique" | "hybride" | None (non renseigné)
+    pub fuel_type: Option<String>,
 }
 
 // --- MODÈLE CONTRAT ---
@@ -71,6 +73,8 @@ pub struct VehicleWithAccess {
     pub archived_at: Option<DateTime<Utc>>,
     #[serde(rename = "my_role", alias = "role")]
     pub my_role: AccessRole,
+    #[serde(default)]
+    pub fuel_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

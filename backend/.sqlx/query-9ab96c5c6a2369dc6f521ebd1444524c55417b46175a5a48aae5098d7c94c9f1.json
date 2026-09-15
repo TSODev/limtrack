@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            v.id,\n            v.owner_id,\n            v.make,\n            v.model,\n            v.plate_number,\n            v.year,\n            v.vin,\n            v.created_at,\n            v.archived_at,\n            va.role,\n            vcs.status AS \"contract_status?\"\n        FROM public.vehicles v\n        JOIN public.vehicle_access va\n          ON va.vehicle_id = v.id\n         AND va.user_id = $1\n        LEFT JOIN public.v_contract_status vcs ON vcs.vehicle_id = v.id\n        WHERE v.id = $2\n        ",
+  "query": "\n        UPDATE public.vehicles SET\n            make         = COALESCE($1, make),\n            model        = COALESCE($2, model),\n            plate_number = COALESCE($3, plate_number),\n            year         = COALESCE($4, year),\n            vin          = COALESCE($5, vin),\n            fuel_type    = COALESCE($6, fuel_type)\n        WHERE id = $7\n        RETURNING\n            id,\n            owner_id,\n            make,\n            model,\n            plate_number,\n            year,\n            vin,\n            created_at,\n            archived_at,\n            $8 AS role,\n            NULL::TEXT AS \"contract_status?\",\n            fuel_type\n        ",
   "describe": {
     "columns": [
       {
@@ -57,12 +57,23 @@
         "ordinal": 10,
         "name": "contract_status?",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "fuel_type",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int2",
+        "Text",
+        "Text",
         "Uuid",
-        "Uuid"
+        "Text"
       ]
     },
     "nullable": [
@@ -75,9 +86,10 @@
       true,
       false,
       true,
-      false,
+      null,
+      null,
       true
     ]
   },
-  "hash": "9766c9a17dc45b42e1dbca9e0d048c47fc4e28fb2ba1ada95422e5af279e3dec"
+  "hash": "9ab96c5c6a2369dc6f521ebd1444524c55417b46175a5a48aae5098d7c94c9f1"
 }

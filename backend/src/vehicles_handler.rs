@@ -23,6 +23,7 @@ pub struct CreateVehiclePayload {
     pub plate_number: String,
     pub year: Option<i16>,
     pub vin: Option<String>,
+    pub fuel_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,6 +33,17 @@ pub struct UpdateVehiclePayload {
     pub plate_number: Option<String>,
     pub year: Option<i16>,
     pub vin: Option<String>,
+    pub fuel_type: Option<String>,
+}
+
+fn validate_fuel_type(fuel_type: &Option<String>) -> Result<(), (StatusCode, Json<ApiError>)> {
+    match fuel_type.as_deref() {
+        None | Some("thermique") | Some("electrique") | Some("hybride") => Ok(()),
+        Some(_) => Err(err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "fuel_type doit être : thermique, electrique ou hybride",
+        )),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,7 +90,8 @@ pub async fn list_vehicles(
             v.created_at,
             v.archived_at,
             va.role,
-            vcs.status AS "contract_status?"
+            vcs.status AS "contract_status?",
+            v.fuel_type
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id
@@ -119,7 +132,8 @@ pub async fn get_vehicle(
             v.created_at,
             v.archived_at,
             va.role,
-            vcs.status AS "contract_status?"
+            vcs.status AS "contract_status?",
+            v.fuel_type
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id
@@ -173,6 +187,9 @@ pub async fn create_vehicle(
     if payload.vin.as_deref().map(|v| v.len()).unwrap_or(0) > MAX_LEN_VIN {
         return err(StatusCode::UNPROCESSABLE_ENTITY, format!("vin : {MAX_LEN_VIN} caractères max")).into_response();
     }
+    if let Err(e) = validate_fuel_type(&payload.fuel_type) {
+        return e.into_response();
+    }
 
     // Limite : MAX_VEHICLES_PER_USER véhicules actifs par propriétaire
     let owned_count = sqlx::query_scalar!(
@@ -200,8 +217,8 @@ pub async fn create_vehicle(
     let row = sqlx::query_as!(
         Vehicle,
         r#"
-        INSERT INTO public.vehicles (owner_id, make, model, plate_number, year, vin)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO public.vehicles (owner_id, make, model, plate_number, year, vin, fuel_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING
             id,
             owner_id,
@@ -213,7 +230,8 @@ pub async fn create_vehicle(
             created_at,
             archived_at,
             'owner' AS role,
-            NULL::TEXT AS "contract_status?"
+            NULL::TEXT AS "contract_status?",
+            fuel_type
         "#,
         user_id,
         payload.make.trim(),
@@ -221,6 +239,7 @@ pub async fn create_vehicle(
         plate, // <-- variable, pas temporaire
         payload.year,
         payload.vin.as_deref().map(str::trim),
+        payload.fuel_type,
     )
     .fetch_one(&state.db)
     .await;
@@ -290,6 +309,9 @@ pub async fn update_vehicle(
     if role == "viewer" {
         return err(StatusCode::FORBIDDEN, "droits insuffisants").into_response();
     }
+    if let Err(e) = validate_fuel_type(&payload.fuel_type) {
+        return e.into_response();
+    }
 
     // Normalisation de la plaque AVANT la macro
     let plate = payload
@@ -305,8 +327,9 @@ pub async fn update_vehicle(
             model        = COALESCE($2, model),
             plate_number = COALESCE($3, plate_number),
             year         = COALESCE($4, year),
-            vin          = COALESCE($5, vin)
-        WHERE id = $6
+            vin          = COALESCE($5, vin),
+            fuel_type    = COALESCE($6, fuel_type)
+        WHERE id = $7
         RETURNING
             id,
             owner_id,
@@ -317,14 +340,16 @@ pub async fn update_vehicle(
             vin,
             created_at,
             archived_at,
-            $7 AS role,
-            NULL::TEXT AS "contract_status?"
+            $8 AS role,
+            NULL::TEXT AS "contract_status?",
+            fuel_type
         "#,
         payload.make.as_deref().map(str::trim),
         payload.model.as_deref().map(str::trim),
         plate.as_deref(), // <-- variable, pas temporaire
         payload.year,
         payload.vin.as_deref().map(str::trim),
+        payload.fuel_type,
         vehicle_id,
         role,
     )
@@ -429,7 +454,8 @@ pub async fn list_archived_vehicles(
             v.created_at,
             v.archived_at,
             va.role,
-            NULL::TEXT AS "contract_status?"
+            NULL::TEXT AS "contract_status?",
+            v.fuel_type
         FROM public.vehicles v
         JOIN public.vehicle_access va
           ON va.vehicle_id = v.id

@@ -42,6 +42,8 @@ pub fn VehicleDashboard(
             .unwrap_or(false)
     });
 
+    let vehicle_fuel_type = Signal::derive(move || vehicle.get().and_then(|v| v.fuel_type));
+
     let can_manage_contracts = create_memo(move |_| {
         vehicle
             .get()
@@ -248,6 +250,7 @@ pub fn VehicleDashboard(
                             <MaintenanceList
                                 vehicle_id=selected_id
                                 can_manage_maintenance=can_manage_maintenance
+                                vehicle_fuel_type=vehicle_fuel_type
                             />
                         }.into_view(),
                     }}

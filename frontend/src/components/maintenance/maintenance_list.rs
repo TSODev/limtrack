@@ -1,5 +1,6 @@
 // src/components/maintenance/maintenance_list.rs
-use crate::api_client::{api_delete, api_get, api_patch, api_post};
+use crate::api_client::{api_delete, api_get, api_patch, api_post, api_post_response};
+use crate::components::maintenance::catalog::{GenericTemplate, GENERIC_CATALOG};
 use crate::components::ui::{format_date_fr, format_km, get_token, input_class};
 use common::{MaintenanceEntry, MaintenanceStatus, MaintenanceType};
 use leptos::*;
@@ -43,7 +44,11 @@ struct MaintenanceData {
 }
 
 #[component]
-pub fn MaintenanceList(vehicle_id: ReadSignal<Option<Uuid>>, can_manage_maintenance: Memo<bool>) -> impl IntoView {
+pub fn MaintenanceList(
+    vehicle_id: ReadSignal<Option<Uuid>>,
+    can_manage_maintenance: Memo<bool>,
+    vehicle_fuel_type: Signal<Option<String>>,
+) -> impl IntoView {
     let (data, set_data) = create_signal(Option::<MaintenanceData>::None);
     let (loading, set_loading) = create_signal(false);
     let (show_type_modal, set_show_type_modal) = create_signal(false);
@@ -237,6 +242,7 @@ pub fn MaintenanceList(vehicle_id: ReadSignal<Option<Uuid>>, can_manage_maintena
             <EntryModal
                 vehicle_id=vehicle_id
                 types=data.get().map(|d| d.types).unwrap_or_default()
+                vehicle_fuel_type=vehicle_fuel_type.get()
                 on_close=Callback::new(move |_| set_show_entry_modal.set(false))
                 on_saved=Callback::new(move |_| on_saved())
             />
@@ -401,12 +407,27 @@ fn TypeModal(
 fn EntryModal(
     vehicle_id: ReadSignal<Option<Uuid>>,
     types: Vec<MaintenanceType>,
+    vehicle_fuel_type: Option<String>,
     on_close: Callback<()>,
     on_saved: Callback<()>,
 ) -> impl IntoView {
-    let (selected_type, set_selected_type) = create_signal(
-        types.first().map(|t| t.id.to_string()).unwrap_or_default(),
-    );
+    // Items du catalogue générique pas encore instanciés pour ce véhicule (dédoublonnage
+    // insensible à la casse), filtrés par motorisation si elle est renseignée.
+    let available_generic: Vec<(usize, &'static GenericTemplate)> = GENERIC_CATALOG
+        .iter()
+        .enumerate()
+        .filter(|(_, tpl)| !types.iter().any(|t| t.label.eq_ignore_ascii_case(tpl.label)))
+        .filter(|(_, tpl)| match (&vehicle_fuel_type, tpl.fuel_type) {
+            (Some(vft), Some(tft)) => vft == tft,
+            _ => true,
+        })
+        .collect();
+    let show_fuel_tag = vehicle_fuel_type.is_none();
+
+    let default_selection = types.first().map(|t| format!("type:{}", t.id))
+        .or_else(|| available_generic.first().map(|(i, _)| format!("generic:{}", i)))
+        .unwrap_or_else(|| "other".to_string());
+    let (selected_type, set_selected_type) = create_signal(default_selection);
     let (custom_label, set_custom_label) = create_signal(String::new());
     let (performed_at, set_performed_at) = create_signal(chrono::Local::now().date_naive().to_string());
     let (km_at_service, set_km_at_service) = create_signal(String::new());
@@ -419,20 +440,53 @@ fn EntryModal(
 
     let submit = create_action(move |_: &()| {
         let vid = vehicle_id.get();
-        let type_id = if is_other() { None } else { Uuid::parse_str(&selected_type.get()).ok() };
-        let label_v = if is_other() { Some(custom_label.get()) } else { None };
+        let selection = selected_type.get();
         let date_v = performed_at.get();
         let km_v = km_at_service.get().trim().parse::<i32>().unwrap_or(0);
         let cost_v = cost.get().trim().parse::<f64>().ok();
         let provider_v = provider.get();
         let notes_v = notes.get();
+        let custom_label_v = custom_label.get();
 
         async move {
             let Some(vid) = vid else { return };
             let token = get_token().unwrap_or_default();
+
+            // Résout maintenance_type_id + label selon la sélection : type existant,
+            // item générique (instancié en type si périodique), ou entrée libre.
+            let (type_id, label): (Option<Uuid>, Option<String>) = if let Some(uuid_str) = selection.strip_prefix("type:") {
+                (Uuid::parse_str(uuid_str).ok(), None)
+            } else if let Some(idx_str) = selection.strip_prefix("generic:") {
+                let Some(tpl) = idx_str.parse::<usize>().ok().and_then(|i| GENERIC_CATALOG.get(i)) else {
+                    set_error.set("Élément du catalogue introuvable".to_string());
+                    return;
+                };
+                if tpl.is_periodic() {
+                    let create_type_body = serde_json::json!({
+                        "label": tpl.label,
+                        "interval_km": tpl.interval_km,
+                        "interval_months": tpl.interval_months,
+                    });
+                    match api_post_response::<serde_json::Value>(
+                        &format!("{}/api/vehicles/{}/maintenance-types", crate::config::API_BASE, vid),
+                        &token, &create_type_body,
+                    ).await {
+                        Ok(v) => {
+                            let new_id = v["id"].as_str().and_then(|s| Uuid::parse_str(s).ok());
+                            (new_id, None)
+                        }
+                        Err(e) => { set_error.set(e); return; }
+                    }
+                } else {
+                    (None, Some(tpl.label.to_string()))
+                }
+            } else {
+                (None, Some(custom_label_v))
+            };
+
             let body = serde_json::json!({
                 "maintenance_type_id": type_id,
-                "label": label_v,
+                "label": label,
                 "performed_at": date_v,
                 "km_at_service": km_v,
                 "cost": cost_v,
@@ -463,11 +517,23 @@ fn EntryModal(
                         class=input_class()
                     >
                         {types.iter().map(|t| {
-                            let id = t.id.to_string();
+                            let value = format!("type:{}", t.id);
                             let label = t.label.clone();
-                            view! { <option value=id.clone()>{label}</option> }
+                            view! { <option value=value>{label}</option> }
                         }).collect_view()}
-                        <option value="other">"Autre..."</option>
+                        {available_generic.iter().map(|(i, tpl)| {
+                            let value = format!("generic:{}", i);
+                            let tag = if show_fuel_tag {
+                                match tpl.fuel_type {
+                                    Some("thermique") => " · ⛽ thermique",
+                                    Some("electrique") => " · 🔋 électrique",
+                                    _ => "",
+                                }
+                            } else { "" };
+                            let label = format!("{}{}", tpl.label, tag);
+                            view! { <option value=value>{label}</option> }
+                        }).collect_view()}
+                        <option value="other">"Autre (type spécifique)..."</option>
                     </select>
                 </Field>
                 <Show when=move || is_other() fallback=|| ()>

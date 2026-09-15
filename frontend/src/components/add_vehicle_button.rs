@@ -67,6 +67,7 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
     let (make, set_make) = create_signal(String::new());
     let (model, set_model) = create_signal(String::new());
     let (plate_number, set_plate_number) = create_signal(String::new());
+    let (fuel_type, set_fuel_type) = create_signal(String::new());
     let (country, set_country) = create_signal("FR".to_string());
     let (status, set_status) = create_signal(String::new());
 
@@ -96,10 +97,11 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
         _ => r"[A-Z]{2}-[0-9]{3}-[A-Z]{2}",
     });
 
-    let create_action = create_action(move |(mk, mo, plate): &(String, String, String)| {
+    let create_action = create_action(move |(mk, mo, plate, fuel): &(String, String, String, String)| {
         let mk = mk.clone();
         let mo = mo.clone();
         let plate = plate.clone();
+        let fuel = fuel.clone();
 
         async move {
             let token = if let Ok(Some(storage)) = leptos::window().local_storage() {
@@ -128,6 +130,7 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
                 "make": mk,
                 "model": mo,
                 "plate_number": plate,
+                "fuel_type": if fuel.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(fuel) },
             });
             opts.body(Some(&wasm_bindgen::JsValue::from_str(&body.to_string())));
 
@@ -147,6 +150,7 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
                         set_make.set(String::new());
                         set_model.set(String::new());
                         set_plate_number.set(String::new());
+                        set_fuel_type.set(String::new());
 
                         if let Ok(Some(storage)) = leptos::window().local_storage() {
                             if let Ok(Some(t)) = storage.get_item("jwt_token") {
@@ -169,7 +173,7 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
     let on_submit = move |ev: web_sys::SubmitEvent| {
         ev.prevent_default();
         set_status.set(String::new());
-        create_action.dispatch((make.get(), model.get(), plate_number.get()));
+        create_action.dispatch((make.get(), model.get(), plate_number.get(), fuel_type.get()));
     };
 
     let on_plate_input = move |ev: web_sys::Event| {
@@ -278,6 +282,21 @@ pub fn AddVehicleButton(set_vehicles: WriteSignal<Vec<Vehicle>>) -> impl IntoVie
                                 />
                             </div>
                             <p class="text-xs text-gray-400">{move || plate_hint.get()}</p>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-sm font-medium text-gray-700 block">"Motorisation (optionnel)"</label>
+                            <select
+                                prop:value=fuel_type
+                                on:change=move |ev| set_fuel_type.set(event_target_value(&ev))
+                                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white transition duration-150"
+                            >
+                                <option value="">"Non renseignée"</option>
+                                <option value="thermique">"⛽ Thermique"</option>
+                                <option value="electrique">"🔋 Électrique"</option>
+                                <option value="hybride">"⛽🔋 Hybride"</option>
+                            </select>
+                            <p class="text-xs text-gray-400">"Utilisée pour filtrer les suggestions du carnet d'entretien."</p>
                         </div>
 
                         // Message d'erreur
