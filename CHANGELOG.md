@@ -17,6 +17,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.3] — 2026-09-15
+
+### Ajouté
+- **Entretien multi-points** : une fiche d'entretien peut désormais couvrir plusieurs types à la fois (ex. une révision = vidange + filtre à air + filtre à huile en une seule entrée, une seule facture, un seul jeu de photos). Le sélecteur "Type" devient une liste de cases à cocher (vos types + catalogue générique par catégorie), avec un champ libellé toujours disponible (requis seulement si aucun type n'est coché). Migration `018` — nouvelle table `maintenance_entry_types` (many-to-many, `ON DELETE CASCADE` des deux côtés), remplace la colonne mono-type `maintenance_entries.maintenance_type_id` (supprimée). `GET .../maintenance-status` propage désormais la date de dernière intervention à chacun des types couverts par une même entrée.
+- **Compression des photos avant envoi** : les photos de facture sont redimensionnées (1920px max) et ré-encodées en JPEG (qualité 0.75) côté client via `<canvas>` avant l'upload — réduit typiquement une photo de smartphone de plusieurs Mo à quelques centaines de Ko. Les fichiers déjà petits (< 300 Ko) ou les PDF ne sont pas touchés ; l'original est conservé si la compression n'apporte aucun gain.
+
+---
+
 ## [1.5.2] — 2026-09-15
 
 ### Ajouté

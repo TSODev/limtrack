@@ -5,7 +5,8 @@ use crate::components::ui::{format_date_fr, format_km, get_token, input_class};
 use common::{MaintenanceAttachment, MaintenanceEntry, MaintenanceStatus, MaintenanceType};
 use leptos::*;
 use uuid::Uuid;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::{JsCast, JsValue};
 
 fn interval_summary(t: &MaintenanceType) -> String {
     match (t.interval_km, t.interval_months) {
@@ -426,7 +427,7 @@ fn TypeModal(
                 </div>
                 <p class="text-xs text-gray-400">"Au moins un des deux intervalles est requis — le plus proche des deux déclenche le rappel."</p>
                 <ModalActions
-                    pending=submit.pending()
+                    pending=submit.pending().into()
                     on_cancel=Callback::new(move |_| on_close.call(()))
                     label_submit=if is_edit { "Enregistrer" } else { "Créer le type" }
                     error=error
@@ -457,10 +458,9 @@ fn EntryModal(
         .collect();
     let show_fuel_tag = vehicle_fuel_type.is_none();
 
-    let default_selection = types.first().map(|t| format!("type:{}", t.id))
-        .or_else(|| available_generic.first().map(|(i, _)| format!("generic:{}", i)))
-        .unwrap_or_else(|| "other".to_string());
-    let (selected_type, set_selected_type) = create_signal(default_selection);
+    // Sélection multiple (une "révision" peut couvrir plusieurs types) — Vec plutôt que
+    // HashSet pour conserver l'ordre de sélection, réutilisé pour construire le libellé auto.
+    let (selected, set_selected) = create_signal(Vec::<String>::new());
     let (custom_label, set_custom_label) = create_signal(String::new());
     let (performed_at, set_performed_at) = create_signal(chrono::Local::now().date_naive().to_string());
     let (km_at_service, set_km_at_service) = create_signal(String::new());
@@ -468,10 +468,26 @@ fn EntryModal(
     let (provider, set_provider) = create_signal(String::new());
     let (notes, set_notes) = create_signal(String::new());
     let (files, set_files) = create_signal(Vec::<web_sys::File>::new());
+    let (compressing, set_compressing) = create_signal(false);
     let (error, set_error) = create_signal(String::new());
 
-    let is_other = move || selected_type.get() == "other";
+    // Le libellé n'est requis que si aucun type n'est coché (entrée libre, ex: "Autre")
+    let label_required = move || selected.get().is_empty();
 
+    let toggle_selected = move |key: String| {
+        set_selected.update(|s| {
+            if let Some(pos) = s.iter().position(|k| k == &key) {
+                s.remove(pos);
+            } else {
+                s.push(key);
+            }
+        });
+    };
+
+    // Compresse les photos côté client avant l'envoi (redimensionnement + ré-encodage JPEG) —
+    // réduit une photo de smartphone de plusieurs Mo à quelques centaines de Ko sans passer
+    // par un format intermédiaire type PDF (qui n'apporterait aucun gain). Les PDF (factures
+    // scannées) passent inchangés.
     let on_files_change = move |ev: web_sys::Event| {
         let input = ev.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
         let mut list = Vec::new();
@@ -482,58 +498,97 @@ fn EntryModal(
                 }
             }
         }
-        set_files.set(list);
+        set_compressing.set(true);
+        spawn_local(async move {
+            let mut compressed = Vec::with_capacity(list.len());
+            for file in list {
+                if file.type_().starts_with("image/") {
+                    match compress_image(&file).await {
+                        Ok(f) => compressed.push(f),
+                        Err(_) => compressed.push(file),
+                    }
+                } else {
+                    compressed.push(file);
+                }
+            }
+            set_files.set(compressed);
+            set_compressing.set(false);
+        });
     };
 
+    let types_for_submit = types.clone();
     let submit = create_action(move |_: &()| {
+        let types = types_for_submit.clone();
         let vid = vehicle_id.get();
-        let selection = selected_type.get();
+        let selection = selected.get();
         let date_v = performed_at.get();
         let km_v = km_at_service.get().trim().parse::<i32>().unwrap_or(0);
         let cost_v = cost.get().trim().parse::<f64>().ok();
         let provider_v = provider.get();
         let notes_v = notes.get();
-        let custom_label_v = custom_label.get();
+        let custom_label_v = custom_label.get().trim().to_string();
         let files_v = files.get();
 
         async move {
             let Some(vid) = vid else { return };
             let token = get_token().unwrap_or_default();
 
-            // Résout maintenance_type_id + label selon la sélection : type existant,
-            // item générique (instancié en type si périodique), ou entrée libre.
-            let (type_id, label): (Option<Uuid>, Option<String>) = if let Some(uuid_str) = selection.strip_prefix("type:") {
-                (Uuid::parse_str(uuid_str).ok(), None)
-            } else if let Some(idx_str) = selection.strip_prefix("generic:") {
-                let Some(tpl) = idx_str.parse::<usize>().ok().and_then(|i| GENERIC_CATALOG.get(i)) else {
-                    set_error.set("Élément du catalogue introuvable".to_string());
-                    return;
-                };
-                if tpl.is_periodic() {
-                    let create_type_body = serde_json::json!({
-                        "label": tpl.label,
-                        "interval_km": tpl.interval_km,
-                        "interval_months": tpl.interval_months,
-                    });
-                    match api_post_response::<serde_json::Value>(
-                        &format!("{}/api/vehicles/{}/maintenance-types", crate::config::API_BASE, vid),
-                        &token, &create_type_body,
-                    ).await {
-                        Ok(v) => {
-                            let new_id = v["id"].as_str().and_then(|s| Uuid::parse_str(s).ok());
-                            (new_id, None)
+            if selection.is_empty() && custom_label_v.is_empty() {
+                set_error.set("Sélectionnez au moins un type, ou saisissez un libellé".to_string());
+                return;
+            }
+
+            // Résout maintenance_type_ids + libellés selon la sélection (plusieurs types
+            // possibles pour une révision) : types existants, items générique (instanciés en
+            // type si périodique, sinon libellé seul), ou entrée libre.
+            let mut type_ids: Vec<Uuid> = Vec::new();
+            let mut labels: Vec<String> = Vec::new();
+
+            for key in &selection {
+                if let Some(uuid_str) = key.strip_prefix("type:") {
+                    let Some(id) = Uuid::parse_str(uuid_str).ok() else { continue };
+                    let label = types.iter().find(|t| t.id == id).map(|t| t.label.clone()).unwrap_or_default();
+                    type_ids.push(id);
+                    labels.push(label);
+                } else if let Some(idx_str) = key.strip_prefix("generic:") {
+                    let Some(tpl) = idx_str.parse::<usize>().ok().and_then(|i| GENERIC_CATALOG.get(i)) else {
+                        set_error.set("Élément du catalogue introuvable".to_string());
+                        return;
+                    };
+                    if tpl.is_periodic() {
+                        let create_type_body = serde_json::json!({
+                            "label": tpl.label,
+                            "interval_km": tpl.interval_km,
+                            "interval_months": tpl.interval_months,
+                        });
+                        match api_post_response::<serde_json::Value>(
+                            &format!("{}/api/vehicles/{}/maintenance-types", crate::config::API_BASE, vid),
+                            &token, &create_type_body,
+                        ).await {
+                            Ok(v) => {
+                                if let Some(new_id) = v["id"].as_str().and_then(|s| Uuid::parse_str(s).ok()) {
+                                    type_ids.push(new_id);
+                                }
+                                labels.push(tpl.label.to_string());
+                            }
+                            Err(e) => { set_error.set(e); return; }
                         }
-                        Err(e) => { set_error.set(e); return; }
+                    } else {
+                        labels.push(tpl.label.to_string());
                     }
-                } else {
-                    (None, Some(tpl.label.to_string()))
                 }
+            }
+
+            let label = if !custom_label_v.is_empty() {
+                Some(custom_label_v)
+            } else if !labels.is_empty() {
+                Some(labels.join(", "))
             } else {
-                (None, Some(custom_label_v))
+                None
             };
 
             let body = serde_json::json!({
-                "maintenance_type_id": type_id,
+                "maintenance_type_ids": type_ids,
                 "label": label,
                 "performed_at": date_v,
                 "km_at_service": km_v,
@@ -574,20 +629,30 @@ fn EntryModal(
     view! {
         <Modal title="Nouvel entretien" on_close=on_close>
             <form on:submit=on_submit class="space-y-4">
-                <Field label="Type">
-                    <select
-                        prop:value=selected_type
-                        on:change=move |ev| set_selected_type.set(event_target_value(&ev))
-                        class=input_class()
-                    >
-                        {(!types.is_empty()).then(|| view! {
-                            <optgroup label="Vos types">
-                                {types.iter().map(|t| {
-                                    let value = format!("type:{}", t.id);
-                                    let label = t.label.clone();
-                                    view! { <option value=value>{label}</option> }
-                                }).collect_view()}
-                            </optgroup>
+                <Field label="Types concernés (un ou plusieurs — ex: révision = vidange + filtres)">
+                    <div class="space-y-3 max-h-56 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                        {(!types.is_empty()).then(|| {
+                            let items = types.clone();
+                            view! {
+                                <div class="space-y-1">
+                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">"Vos types"</p>
+                                    {items.into_iter().map(|t| {
+                                        let value = format!("type:{}", t.id);
+                                        let value_for_checked = value.clone();
+                                        let value_for_toggle = value.clone();
+                                        let label = t.label.clone();
+                                        view! {
+                                            <label class="flex items-center gap-2 text-sm text-gray-700 py-0.5 cursor-pointer">
+                                                <input type="checkbox"
+                                                    prop:checked=move || selected.get().contains(&value_for_checked)
+                                                    on:change=move |_| toggle_selected(value_for_toggle.clone())
+                                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                {label}
+                                            </label>
+                                        }
+                                    }).collect_view()}
+                                </div>
+                            }
                         })}
                         {CATEGORY_ORDER.iter().map(|cat| {
                             let items: Vec<_> = available_generic.iter().filter(|(_, tpl)| tpl.category == *cat).collect();
@@ -595,9 +660,12 @@ fn EntryModal(
                                 return view! { <></> }.into_view();
                             }
                             view! {
-                                <optgroup label=*cat>
+                                <div class="space-y-1">
+                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">{*cat}</p>
                                     {items.into_iter().map(|(i, tpl)| {
                                         let value = format!("generic:{}", i);
+                                        let value_for_checked = value.clone();
+                                        let value_for_toggle = value.clone();
                                         let tag = if show_fuel_tag {
                                             match tpl.fuel_type {
                                                 Some("thermique") => " · ⛽ thermique",
@@ -606,21 +674,26 @@ fn EntryModal(
                                             }
                                         } else { "" };
                                         let label = format!("{}{}", tpl.label, tag);
-                                        view! { <option value=value>{label}</option> }
+                                        view! {
+                                            <label class="flex items-center gap-2 text-sm text-gray-700 py-0.5 cursor-pointer">
+                                                <input type="checkbox"
+                                                    prop:checked=move || selected.get().contains(&value_for_checked)
+                                                    on:change=move |_| toggle_selected(value_for_toggle.clone())
+                                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                                {label}
+                                            </label>
+                                        }
                                     }).collect_view()}
-                                </optgroup>
+                                </div>
                             }.into_view()
                         }).collect_view()}
-                        <option value="other">"Autre (type spécifique)..."</option>
-                    </select>
+                    </div>
                 </Field>
-                <Show when=move || is_other() fallback=|| ()>
-                    <Field label="Nom de l'entretien">
-                        <input type="text" required prop:value=custom_label
-                            on:input=move |ev| set_custom_label.set(event_target_value(&ev))
-                            placeholder="ex: Remplacement batterie" class=input_class() />
-                    </Field>
-                </Show>
+                <Field label="Libellé (optionnel si un type est sélectionné ci-dessus)">
+                    <input type="text" prop:required=label_required prop:value=custom_label
+                        on:input=move |ev| set_custom_label.set(event_target_value(&ev))
+                        placeholder="ex: Révision 30 000 km" class=input_class() />
+                </Field>
                 <div class="grid grid-cols-2 gap-3">
                     <Field label="Date">
                         <input type="date" required prop:value=performed_at
@@ -656,12 +729,15 @@ fn EntryModal(
                         multiple
                         on:change=on_files_change
                         class="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-gray-300 file:text-sm file:font-medium file:bg-white file:text-gray-700 hover:file:bg-gray-50" />
-                    <Show when=move || !files.get().is_empty() fallback=|| ()>
+                    <Show when=move || compressing.get() fallback=|| ()>
+                        <p class="text-xs text-gray-400 animate-pulse">"Optimisation des photos..."</p>
+                    </Show>
+                    <Show when=move || !compressing.get() && !files.get().is_empty() fallback=|| ()>
                         <p class="text-xs text-gray-400">{move || format!("{} fichier(s) sélectionné(s)", files.get().len())}</p>
                     </Show>
                 </Field>
                 <ModalActions
-                    pending=submit.pending()
+                    pending=Signal::derive(move || submit.pending().get() || compressing.get())
                     on_cancel=Callback::new(move |_| on_close.call(()))
                     label_submit="Enregistrer"
                     error=error
@@ -669,6 +745,103 @@ fn EntryModal(
             </form>
         </Modal>
     }
+}
+
+// Redimensionne (max 1920px de long côté) et ré-encode en JPEG qualité 0.75 via un
+// <canvas> hors-DOM — réduit typiquement une photo de smartphone de plusieurs Mo à
+// quelques centaines de Ko avant l'upload. Ne touche pas aux fichiers déjà petits
+// (< 300 Ko) ni ne dégrade si la compression n'apporte aucun gain (garde l'original).
+const COMPRESS_MAX_DIMENSION: f64 = 1920.0;
+const COMPRESS_QUALITY: f64 = 0.75;
+const COMPRESS_MIN_SIZE_BYTES: f64 = 300.0 * 1024.0;
+
+async fn compress_image(file: &web_sys::File) -> Result<web_sys::File, String> {
+    if file.size() < COMPRESS_MIN_SIZE_BYTES {
+        return Ok(file.clone());
+    }
+
+    let window = leptos::window();
+    let obj_url = web_sys::Url::create_object_url_with_blob(file).map_err(|e| format!("{:?}", e))?;
+
+    let img = web_sys::HtmlImageElement::new().map_err(|e| format!("{:?}", e))?;
+    let img_for_events = img.clone();
+    let load_promise = js_sys::Promise::new(&mut |resolve, reject| {
+        let resolve = resolve.clone();
+        let onload = Closure::once(move || {
+            let _ = resolve.call0(&JsValue::NULL);
+        });
+        img_for_events.set_onload(Some(onload.as_ref().unchecked_ref()));
+        onload.forget();
+
+        let reject = reject.clone();
+        let onerror = Closure::once(move || {
+            let _ = reject.call0(&JsValue::NULL);
+        });
+        img_for_events.set_onerror(Some(onerror.as_ref().unchecked_ref()));
+        onerror.forget();
+    });
+    img.set_src(&obj_url);
+    let load_result = wasm_bindgen_futures::JsFuture::from(load_promise).await;
+    web_sys::Url::revoke_object_url(&obj_url).ok();
+    load_result.map_err(|_| "échec de lecture de l'image".to_string())?;
+
+    let (w, h) = (img.natural_width() as f64, img.natural_height() as f64);
+    if w <= 0.0 || h <= 0.0 {
+        return Ok(file.clone());
+    }
+    let scale = (COMPRESS_MAX_DIMENSION / w.max(h)).min(1.0);
+    let (target_w, target_h) = (w * scale, h * scale);
+
+    let document = window.document().ok_or("pas de document")?;
+    let canvas: web_sys::HtmlCanvasElement = document
+        .create_element("canvas")
+        .map_err(|e| format!("{:?}", e))?
+        .dyn_into()
+        .map_err(|_| "échec de création du canvas".to_string())?;
+    canvas.set_width(target_w as u32);
+    canvas.set_height(target_h as u32);
+
+    let ctx: web_sys::CanvasRenderingContext2d = canvas
+        .get_context("2d")
+        .map_err(|e| format!("{:?}", e))?
+        .ok_or("pas de contexte 2d")?
+        .dyn_into()
+        .map_err(|_| "échec de cast du contexte 2d".to_string())?;
+    ctx.draw_image_with_html_image_element_and_dw_and_dh(&img, 0.0, 0.0, target_w, target_h)
+        .map_err(|e| format!("{:?}", e))?;
+
+    let blob_promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        let resolve = resolve.clone();
+        let callback = Closure::once(move |blob: Option<web_sys::Blob>| {
+            let _ = resolve.call1(&JsValue::NULL, &blob.into());
+        });
+        let _ = canvas.to_blob_with_type_and_encoder_options(
+            callback.as_ref().unchecked_ref(),
+            "image/jpeg",
+            &JsValue::from_f64(COMPRESS_QUALITY),
+        );
+        callback.forget();
+    });
+    let blob_value = wasm_bindgen_futures::JsFuture::from(blob_promise)
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+    let blob: web_sys::Blob = blob_value.dyn_into().map_err(|_| "échec de cast du blob".to_string())?;
+
+    if blob.size() >= file.size() {
+        return Ok(file.clone());
+    }
+
+    let original_name = file.name();
+    let new_name = match original_name.rsplit_once('.') {
+        Some((stem, _ext)) => format!("{stem}.jpg"),
+        None => format!("{original_name}.jpg"),
+    };
+    let parts = js_sys::Array::new();
+    parts.push(&blob);
+    let mut opts = web_sys::FilePropertyBag::new();
+    opts.type_("image/jpeg");
+    web_sys::File::new_with_blob_sequence_and_options(&parts, &new_name, &opts)
+        .map_err(|e| format!("{:?}", e))
 }
 
 // Upload multipart des pièces jointes vers une entrée déjà créée.
@@ -847,7 +1020,7 @@ fn Field(label: &'static str, children: Children) -> impl IntoView {
 
 #[component]
 fn ModalActions(
-    pending: ReadSignal<bool>,
+    pending: Signal<bool>,
     on_cancel: Callback<()>,
     label_submit: &'static str,
     error: ReadSignal<String>,

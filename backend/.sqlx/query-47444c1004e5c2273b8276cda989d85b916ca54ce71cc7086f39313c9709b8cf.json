@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO public.maintenance_entry_types (entry_id, maintenance_type_id) VALUES ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "47444c1004e5c2273b8276cda989d85b916ca54ce71cc7086f39313c9709b8cf"
+}

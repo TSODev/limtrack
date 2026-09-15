@@ -495,7 +495,6 @@ pub struct UpdateMaintenanceTypePayload {
 pub struct MaintenanceEntry {
     pub id: Uuid,
     pub vehicle_id: Uuid,
-    pub maintenance_type_id: Option<Uuid>,
     pub label: String,
     pub performed_at: chrono::NaiveDate,
     pub km_at_service: i32,
@@ -503,6 +502,10 @@ pub struct MaintenanceEntry {
     pub provider: Option<String>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
+    /// Types d'entretien rattachés (une révision peut en couvrir plusieurs). Vide pour une
+    /// entrée libre ("Autre").
+    #[serde(default)]
+    pub type_ids: Vec<Uuid>,
     /// Nombre de pièces jointes (calculé à la lecture, absent lors de la création)
     #[serde(default)]
     pub attachment_count: i64,
@@ -510,8 +513,10 @@ pub struct MaintenanceEntry {
 
 #[derive(Debug, Deserialize)]
 pub struct CreateMaintenanceEntryPayload {
-    pub maintenance_type_id: Option<Uuid>,
-    /// Requis si maintenance_type_id est absent (entrée "Autre" libre)
+    /// Un ou plusieurs types d'entretien couverts par cette entrée (ex: révision = vidange + filtres)
+    #[serde(default)]
+    pub maintenance_type_ids: Vec<Uuid>,
+    /// Requis si maintenance_type_ids est vide (entrée "Autre" libre)
     pub label: Option<String>,
     pub performed_at: chrono::NaiveDate,
     pub km_at_service: i32,

@@ -21,6 +21,7 @@ use common::{
 // ─── Limites métier ──────────────────────────────────────────────
 
 const MAX_MAINTENANCE_TYPES_PER_VEHICLE: i64 = 20;
+const MAX_TYPES_PER_ENTRY: usize = 10;
 const MAX_LEN_LABEL: usize = 100;
 const MAX_LEN_PROVIDER: usize = 200;
 const MAX_LEN_NOTES: usize = 2000;
@@ -317,26 +318,62 @@ pub async fn create_maintenance_entry(
         return err(StatusCode::UNPROCESSABLE_ENTITY, format!("notes : {MAX_LEN_NOTES} caractères max")).into_response();
     }
 
-    // Label : copié depuis le type sélectionné (snapshot), ou fourni librement pour une entrée "Autre"
-    let label = if let Some(type_id) = payload.maintenance_type_id {
-        let type_label = sqlx::query_scalar!(
-            "SELECT label FROM public.maintenance_types WHERE id = $1 AND vehicle_id = $2",
-            type_id,
-            vehicle_id,
+    // Dédoublonne en conservant l'ordre de sélection (sert à générer le label auto ci-dessous)
+    let mut type_ids: Vec<Uuid> = Vec::with_capacity(payload.maintenance_type_ids.len());
+    for id in &payload.maintenance_type_ids {
+        if !type_ids.contains(id) {
+            type_ids.push(*id);
+        }
+    }
+    if type_ids.len() > MAX_TYPES_PER_ENTRY {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            format!("Maximum {} types par entretien", MAX_TYPES_PER_ENTRY),
         )
-        .fetch_optional(&state.db)
+        .into_response();
+    }
+
+    // Label : fourni librement (ex. "Révision 30 000 km"), ou généré depuis les types
+    // sélectionnés (snapshot) s'il est absent. Requis si aucun type n'est sélectionné
+    // (entrée "Autre" libre).
+    let label = if !type_ids.is_empty() {
+        let rows = sqlx::query!(
+            "SELECT id, label FROM public.maintenance_types WHERE vehicle_id = $1 AND id = ANY($2)",
+            vehicle_id,
+            &type_ids,
+        )
+        .fetch_all(&state.db)
         .await;
 
-        match type_label {
-            Ok(Some(l)) => l,
-            Ok(None) => {
-                return err(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    "maintenance_type_id invalide ou n'appartient pas à ce véhicule",
-                )
-                .into_response()
-            }
+        let rows = match rows {
+            Ok(r) => r,
             Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+        };
+
+        if rows.len() != type_ids.len() {
+            return err(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "maintenance_type_ids invalide ou n'appartient pas à ce véhicule",
+            )
+            .into_response();
+        }
+
+        match payload.label.as_deref().map(str::trim) {
+            Some(l) if !l.is_empty() => {
+                if l.len() > MAX_LEN_LABEL {
+                    return err(StatusCode::UNPROCESSABLE_ENTITY, format!("label : {MAX_LEN_LABEL} caractères max")).into_response();
+                }
+                l.to_string()
+            }
+            _ => {
+                let mut labels_by_id: std::collections::HashMap<Uuid, String> =
+                    rows.into_iter().map(|r| (r.id, r.label)).collect();
+                type_ids
+                    .iter()
+                    .filter_map(|id| labels_by_id.remove(id))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            }
         }
     } else {
         match payload.label.as_deref().map(str::trim) {
@@ -349,22 +386,26 @@ pub async fn create_maintenance_entry(
             _ => {
                 return err(
                     StatusCode::UNPROCESSABLE_ENTITY,
-                    "label requis quand maintenance_type_id est absent",
+                    "label requis quand maintenance_type_ids est vide",
                 )
                 .into_response()
             }
         }
     };
 
-    let result = sqlx::query!(
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    };
+
+    let entry_id = match sqlx::query_scalar!(
         r#"
         INSERT INTO public.maintenance_entries
-            (vehicle_id, maintenance_type_id, label, performed_at, km_at_service, cost, provider, notes)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (vehicle_id, label, performed_at, km_at_service, cost, provider, notes)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
         "#,
         vehicle_id,
-        payload.maintenance_type_id,
         label,
         payload.performed_at,
         payload.km_at_service,
@@ -372,17 +413,41 @@ pub async fn create_maintenance_entry(
         payload.provider.as_deref().map(str::trim),
         payload.notes.as_deref().map(str::trim),
     )
-    .fetch_one(&state.db)
-    .await;
+    .fetch_one(&mut *tx)
+    .await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            return err(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Erreur création entretien : {}", e),
+            )
+            .into_response()
+        }
+    };
 
-    match result {
-        Ok(row) => (StatusCode::CREATED, Json(serde_json::json!({ "id": row.id }))).into_response(),
-        Err(e) => err(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Erreur création entretien : {}", e),
+    for type_id in &type_ids {
+        if let Err(e) = sqlx::query!(
+            "INSERT INTO public.maintenance_entry_types (entry_id, maintenance_type_id) VALUES ($1, $2)",
+            entry_id,
+            type_id,
         )
-        .into_response(),
+        .execute(&mut *tx)
+        .await
+        {
+            return err(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Erreur rattachement type d'entretien : {}", e),
+            )
+            .into_response();
+        }
     }
+
+    if tx.commit().await.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response();
+    }
+
+    (StatusCode::CREATED, Json(serde_json::json!({ "id": entry_id }))).into_response()
 }
 
 // ─── GET /vehicles/:vehicle_id/maintenance-entries ───────────────
@@ -400,11 +465,17 @@ pub async fn list_maintenance_entries(
         MaintenanceEntry,
         r#"
         SELECT
-            e.id, e.vehicle_id, e.maintenance_type_id, e.label, e.performed_at,
+            e.id, e.vehicle_id, e.label, e.performed_at,
             e.km_at_service, e.cost, e.provider, e.notes, e.created_at,
+            COALESCE(
+                ARRAY_AGG(met.maintenance_type_id) FILTER (WHERE met.maintenance_type_id IS NOT NULL),
+                '{}'
+            ) AS "type_ids!: Vec<Uuid>",
             (SELECT COUNT(*) FROM public.maintenance_attachments a WHERE a.entry_id = e.id) AS "attachment_count!"
         FROM public.maintenance_entries e
+        LEFT JOIN public.maintenance_entry_types met ON met.entry_id = e.id
         WHERE e.vehicle_id = $1
+        GROUP BY e.id
         ORDER BY e.performed_at DESC, e.created_at DESC
         "#,
         vehicle_id
@@ -540,8 +611,10 @@ pub async fn maintenance_status(
 
     for t in types {
         let last_entry = sqlx::query!(
-            r#"SELECT performed_at, km_at_service FROM public.maintenance_entries
-               WHERE maintenance_type_id = $1 ORDER BY performed_at DESC, created_at DESC LIMIT 1"#,
+            r#"SELECT e.performed_at, e.km_at_service FROM public.maintenance_entries e
+               JOIN public.maintenance_entry_types met ON met.entry_id = e.id
+               WHERE met.maintenance_type_id = $1
+               ORDER BY e.performed_at DESC, e.created_at DESC LIMIT 1"#,
             t.id,
         )
         .fetch_optional(&state.db)

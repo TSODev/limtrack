@@ -134,10 +134,13 @@ planned_trips          -- vehicle_id, label, estimated_km, start_date, end_date,
                        -- (none/daily/weekly/monthly), recurrence_interval, days_of_week SMALLINT[],
                        -- day_of_month, recurrence_end_date, active (ON DELETE CASCADE)
 maintenance_types      -- vehicle_id, label, interval_km, interval_months, active (ON DELETE CASCADE)
-maintenance_entries    -- vehicle_id, maintenance_type_id (ON DELETE SET NULL), label (snapshot),
-                       -- performed_at, km_at_service, cost, provider, notes
+maintenance_entries    -- vehicle_id, label (snapshot/libre), performed_at, km_at_service, cost, provider, notes
 -- vehicles.fuel_type TEXT NULL ('thermique'|'electrique'|'hybride') — migration 016, filtre le catalogue générique d'entretien
 maintenance_attachments -- entry_id (ON DELETE CASCADE), vehicle_id, file_path, original_filename, content_type, size_bytes -- migration 017
+maintenance_entry_types -- entry_id + maintenance_type_id (ON DELETE CASCADE sur les deux, PK composite) — migration 018,
+                       -- relation many-to-many : une entrée (une facture, un jeu de photos, un coût) peut couvrir plusieurs
+                       -- types (ex. révision = vidange + filtres). Remplace l'ancienne colonne mono-type
+                       -- maintenance_entries.maintenance_type_id (supprimée par cette migration).
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
@@ -150,6 +153,7 @@ maintenance_attachments -- entry_id (ON DELETE CASCADE), vehicle_id, file_path, 
 -- users.license_type TEXT NOT NULL DEFAULT 'personal' — migration 013, type de licence centralisé sur users (backfill depuis dernier jeton, éditable via PATCH /api/admin/users/:id)
 -- planned_trips (voir ci-dessus) — migration 014, voyages planifiés (ponctuels/récurrents) pour la projection d'usage futur
 -- maintenance_types / maintenance_entries (voir ci-dessus) — migration 015, carnet d'entretien
+-- maintenance_entry_types (voir ci-dessus) — migration 018, entretien multi-points (une entrée ↔ plusieurs types)
 ```
 
 ## Routes API
@@ -391,8 +395,14 @@ Combine `daily_rate = km_consumed / days_elapsed` (même formule que `estimate_l
 
 ## Carnet d'entretien
 
-### Modèle (migration 015)
-Deux tables : `maintenance_types` (définition récurrente — label + `interval_km` et/ou `interval_months`, au moins un des deux requis) et `maintenance_entries` (journal — une intervention réelle, avec `label` **copié/snapshot** du type au moment de la création pour que l'historique reste lisible même si le type est renommé ou supprimé). `maintenance_type_id` est en `ON DELETE SET NULL` (pas CASCADE) : supprimer un type ne doit jamais effacer l'historique des interventions déjà loggées.
+### Modèle (migration 015, multi-points depuis migration 018)
+Deux tables : `maintenance_types` (définition récurrente — label + `interval_km` et/ou `interval_months`, au moins un des deux requis) et `maintenance_entries` (journal — une intervention réelle, avec `label` **copié/snapshot** ou libre). Une entrée reste un événement unique (une facture, un jeu de photos, un coût) mais peut être rattachée à **plusieurs** types via la table de jointure `maintenance_entry_types` (ex. une révision = vidange + filtre à air + filtre à huile en une seule entrée) — `ON DELETE CASCADE` des deux côtés : supprimer un type ne retire que le rattachement (la ligne du pivot), jamais l'entrée ni son historique.
+
+**Résolution du label côté backend** (`maintenance_handler.rs::create_maintenance_entry`) : le payload `CreateMaintenanceEntryPayload.maintenance_type_ids: Vec<Uuid>` peut être vide (entrée "Autre" libre, `label` alors requis) ou contenir 1..`MAX_TYPES_PER_ENTRY` (10) ids. Si `label` est fourni, il prime toujours (override utilisateur, ex. "Révision 30 000 km") ; sinon il est généré en joignant les labels des types sélectionnés avec `", "`. L'insertion (entry + lignes du pivot) est faite dans une transaction (`state.db.begin()`).
+
+**`GET .../maintenance-entries`** retourne `type_ids: Vec<Uuid>` par entrée via `ARRAY_AGG(...) FILTER (...)` + `LEFT JOIN maintenance_entry_types` + `GROUP BY e.id` (`COALESCE(..., '{}')` pour éviter `NULL` quand l'entrée n'a aucun type rattaché).
+
+**`maintenance-status`** : la recherche de la dernière entrée par type passe par un `JOIN maintenance_entry_types` (au lieu d'un filtre direct sur une colonne) — une entrée multi-types met donc à jour l'échéance de **chacun** des types qu'elle couvre.
 
 **Seed par défaut** (`vehicles_handler.rs::create_vehicle`) : à la création d'un véhicule, deux types sont insérés automatiquement (best-effort, ne bloque pas la création si l'insert échoue) — "Vidange" (15 000 km / 12 mois) et "Contrôle technique" (24 mois). Éditables/supprimables ensuite normalement.
 
@@ -402,11 +412,12 @@ Deux tables : `maintenance_types` (définition récurrente — label + `interval
 `vehicles.fuel_type` (`TEXT NULL`, `thermique`/`electrique`/`hybride`) — éditable **uniquement à la création** du véhicule (`add_vehicle_button.rs`) : il n'existe pas de formulaire d'édition véhicule dans le frontend aujourd'hui (`update_vehicle` dans `vehicles_handler.rs` existe côté backend mais n'est appelé par aucune page — warning de compilation "never used" à ne pas confondre avec du code mort à supprimer). Les véhicules existants restent `fuel_type = NULL` : c'est le cas de repli explicitement voulu, pas un bug — le catalogue générique affiche alors tous les items avec une étiquette (⛽/🔋) au lieu de filtrer.
 
 ### Catalogue générique (`components/maintenance/catalog.rs`)
-`GENERIC_CATALOG: &[GenericTemplate]` — liste statique (label, `fuel_type: Option<&str>` où `None` = commun aux deux motorisations, `interval_km`, `interval_months`). `GenericTemplate::is_periodic()` = au moins un intervalle défini. Proposé dans le sélecteur "Type" d'`EntryModal` (`maintenance_list.rs`), en plus des types déjà créés pour le véhicule et de l'option "Autre" :
-- Valeurs du `<select>` préfixées pour lever l'ambiguïté : `type:<uuid>` (type existant), `generic:<index>` (item du catalogue), `other`.
+`GENERIC_CATALOG: &[GenericTemplate]` — liste statique (label, `fuel_type: Option<&str>` où `None` = commun aux deux motorisations, `interval_km`, `interval_months`). `GenericTemplate::is_periodic()` = au moins un intervalle défini. Proposé en **cases à cocher** (multi-sélection) dans `EntryModal` (`maintenance_list.rs`), groupées par catégorie, en plus des types déjà créés pour le véhicule :
+- Clés préfixées pour lever l'ambiguïté : `type:<uuid>` (type existant), `generic:<index>` (item du catalogue). Sélection maintenue dans un `Vec<String>` (pas un `HashSet`) pour préserver l'ordre de coche et générer un libellé auto reproductible.
 - Dédoublonnage : un item générique déjà instancié (label identique, insensible à la casse, à un type existant du véhicule) disparaît de la liste.
 - Filtrage : si `vehicle_fuel_type` est renseigné, seuls les items `None` ou de la même motorisation sont proposés (sans étiquette) ; sinon tous les items sont montrés avec suffixe " · ⛽ thermique"/" · 🔋 électrique".
-- À la soumission : `generic:<index>` **périodique** → `POST .../maintenance-types` (instancie le template comme type réutilisable pour ce véhicule) **puis** création de l'entrée avec ce `maintenance_type_id` ; `generic:<index>` **ponctuel** (aucun intervalle, ex. Pneus) → entrée directe avec `label` du template, `maintenance_type_id: null`, jamais transformé en type — comportement identique à "Autre" mais label pré-rempli.
+- Un champ "Libellé" texte est toujours visible (pas seulement pour "Autre") — `prop:required` dynamique : requis uniquement si aucune case n'est cochée. Rempli par l'utilisateur → override envoyé tel quel ; vide → le frontend calcule lui-même le libellé auto (join des labels résolus, types existants + génériques, avec `", "`) plutôt que de compter sur la génération côté backend, pour couvrir le cas des items génériques **ponctuels** cochés (qui ne créent pas de type, donc absents de tout `maintenance_type_ids` renvoyé par le backend).
+- À la soumission, pour chaque item coché : `type:<uuid>` → ajouté tel quel à `maintenance_type_ids` ; `generic:<index>` **périodique** → `POST .../maintenance-types` (instancie le template comme type réutilisable) **puis** son id ajouté à `maintenance_type_ids` ; `generic:<index>` **ponctuel** (aucun intervalle, ex. Pneus) → contribue seulement son label au libellé auto, jamais transformé en type ni ajouté à `maintenance_type_ids`.
 
 ### `GET /api/vehicles/:id/maintenance-status`
 Pour chaque type **actif**, cherche sa dernière entrée (`ORDER BY performed_at DESC, created_at DESC LIMIT 1`). Sans entrée → `last_performed_at: null`, pas d'échéance calculable. Avec entrée :
@@ -633,7 +644,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.2` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.3` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 
