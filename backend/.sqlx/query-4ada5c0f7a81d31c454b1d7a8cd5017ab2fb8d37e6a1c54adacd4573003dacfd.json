@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO public.maintenance_types (vehicle_id, label, interval_km, interval_months)\n        VALUES\n            ($1, 'Vidange', 15000, 12),\n            ($1, 'Contrôle technique', NULL, 24)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ada5c0f7a81d31c454b1d7a8cd5017ab2fb8d37e6a1c54adacd4573003dacfd"
+}

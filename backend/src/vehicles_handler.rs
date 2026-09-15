@@ -214,6 +214,14 @@ pub async fn create_vehicle(
     // Normalisation de la plaque AVANT la macro (évite le temporary value dropped)
     let plate = payload.plate_number.trim().to_uppercase();
 
+    // Insertion du véhicule + octroi de l'accès owner dans une même transaction : sans la
+    // ligne vehicle_access, le véhicule est invisible à son propre propriétaire (list_vehicles
+    // et tous les handlers de sous-ressources vérifient l'accès exclusivement via cette table).
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+    };
+
     let row = sqlx::query_as!(
         Vehicle,
         r#"
@@ -241,38 +249,55 @@ pub async fn create_vehicle(
         payload.vin.as_deref().map(str::trim),
         payload.fuel_type,
     )
-    .fetch_one(&state.db)
+    .fetch_one(&mut *tx)
     .await;
 
-    match row {
-        Ok(vehicle) => {
-            // Types d'entretien par défaut — best-effort, ne bloque pas la création du véhicule
-            if let Err(e) = sqlx::query!(
-                r#"
-                INSERT INTO public.maintenance_types (vehicle_id, label, interval_km, interval_months)
-                VALUES
-                    ($1, 'Vidange', 15000, 12),
-                    ($1, 'Contrôle technique', NULL, 24)
-                "#,
-                vehicle.id,
-            )
-            .execute(&state.db)
-            .await
-            {
-                tracing::error!("Échec du seed des types d'entretien par défaut pour {} : {}", vehicle.id, e);
-            }
-
-            (StatusCode::CREATED, Json(vehicle)).into_response()
-        }
+    let vehicle = match row {
+        Ok(vehicle) => vehicle,
         Err(sqlx::Error::Database(e)) if e.constraint() == Some("vehicles_plate_number_key") => {
-            err(
+            return err(
                 StatusCode::CONFLICT,
                 "cette plaque d'immatriculation existe déjà",
             )
-            .into_response()
+            .into_response();
         }
-        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response(),
+    };
+
+    if sqlx::query!(
+        "INSERT INTO public.vehicle_access (vehicle_id, user_id, role) VALUES ($1, $2, 'owner')",
+        vehicle.id,
+        user_id,
+    )
+    .execute(&mut *tx)
+    .await
+    .is_err()
+    {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response();
     }
+
+    if tx.commit().await.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "erreur base de données").into_response();
+    }
+
+    // Types d'entretien par défaut — best-effort, hors transaction : un échec ici ne doit
+    // pas annuler la création du véhicule.
+    if let Err(e) = sqlx::query!(
+        r#"
+        INSERT INTO public.maintenance_types (vehicle_id, label, interval_km, interval_months)
+        VALUES
+            ($1, 'Vidange', 15000, 12),
+            ($1, 'Contrôle technique', NULL, 24)
+        "#,
+        vehicle.id,
+    )
+    .execute(&state.db)
+    .await
+    {
+        tracing::error!("Échec du seed des types d'entretien par défaut pour {} : {}", vehicle.id, e);
+    }
+
+    (StatusCode::CREATED, Json(vehicle)).into_response()
 }
 
 // ─── PATCH /vehicles/:id ─────────────────────────────────────────

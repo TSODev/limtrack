@@ -290,6 +290,15 @@ cargo run --bin notify-expiry -- --help
 cargo run --bin send-broadcast -- --help
 ```
 
+## Accès véhicules — `vehicle_access`
+
+**Source de vérité unique** : tous les handlers (véhicules, kilométrage, contrats, voyages, entretien, pièces jointes) vérifient l'accès exclusivement via `SELECT role FROM vehicle_access WHERE vehicle_id = $1 AND user_id = $2` — jamais via `vehicles.owner_id` directement. `list_vehicles` fait un `JOIN` (pas un `LEFT JOIN`) dessus : sans ligne `vehicle_access`, un véhicule est invisible à son propre propriétaire, y compris dans sa propre liste.
+
+**Bug corrigé (migration 019, 2026-09-15)** : `create_vehicle` n'a jamais inséré cette ligne depuis son tout premier commit — seul `share_handler.rs::join_vehicle` insère dans `vehicle_access` (rejoindre via code de partage). Conséquence en production : tout véhicule créé via `POST /api/vehicles` (hors seeds SQL, qui insèrent `vehicle_access` à la main) était orphelin — invisible dans la liste, inutilisable pour kilométrage/contrats/entretien/voyages — et la limite `MAX_VEHICLES_PER_USER = 10` (comptée via `JOIN vehicle_access WHERE role = 'owner'`) n'était jamais atteinte puisque ce compteur était toujours à 0.
+- **Fix** : `create_vehicle` insère désormais `vehicles` + `vehicle_access (role='owner')` dans la même transaction (`state.db.begin()`), avant le seed best-effort des types d'entretien par défaut (qui reste hors transaction, non bloquant).
+- **Backfill** : migration `019` — `INSERT ... SELECT ... WHERE NOT EXISTS (...)`, idempotente, comble la ligne manquante pour tout véhicule existant déjà en base (à appliquer manuellement sur le VPS comme les autres migrations).
+- **Piège à ne pas réintroduire** : toute nouvelle route qui insère dans `vehicles` (import, duplication, etc.) doit insérer `vehicle_access (role='owner')` dans la même transaction — ne pas se fier à un trigger DB, il n'en existe aucun (vérifié : `SELECT * FROM pg_trigger WHERE NOT tgisinternal` ne renvoie rien).
+
 ## Sécurité — protections anti-flood et limites métier
 
 ### Rate limiting — `tower_governor`
@@ -644,7 +653,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.3` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.4` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

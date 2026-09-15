@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO public.vehicle_access (vehicle_id, user_id, role) VALUES ($1, $2, 'owner')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ae3632d39cb8563a1f0ef2c6bf36de2a03ca19d3bcd492ed655a8ef29436ac5"
+}

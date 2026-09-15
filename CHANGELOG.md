@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.4] — 2026-09-15
+
+### Corrigé
+- **Véhicules orphelins à la création** : `create_vehicle` n'a jamais inséré la ligne `vehicle_access` du propriétaire depuis son tout premier commit — un véhicule créé via `POST /api/vehicles` était invisible dans la liste (`list_vehicles` fait un `JOIN`, pas un `LEFT JOIN`, sur `vehicle_access`) et inutilisable pour kilométrage/contrats/entretien/voyages, tous vérifiant l'accès exclusivement via cette table. La limite de 10 véhicules actifs par propriétaire n'était par conséquent jamais atteinte non plus (compteur toujours à 0). Fix : insertion `vehicles` + `vehicle_access` dans la même transaction. Migration `019` : backfill idempotent pour les véhicules déjà en base.
+
+---
+
 ## [1.5.3] — 2026-09-15
 
 ### Ajouté
