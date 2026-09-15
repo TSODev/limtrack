@@ -37,6 +37,15 @@
 | [1.5.0] | 2026-09-15 | Carnet d'entretien — types récurrents + journal d'interventions, échéances estimées à partir du rythme km réel |
 | [1.5.1] | 2026-09-15 | Catalogue générique d'entretien (thermique/électrique) + champ motorisation du véhicule |
 | [1.5.2] | 2026-09-15 | Pièces jointes (factures) sur les fiches d'entretien — stockage disque VPS, jusqu'à 5 fichiers |
+| [1.5.3] | 2026-09-15 | Entretien multi-points (une fiche = plusieurs types, ex. révision = vidange + filtres), migration 018 ; compression photo côté client avant upload |
+| [1.5.4] | 2026-09-15 | Fix `vehicle_access` jamais accordé au propriétaire à la création d'un véhicule (bug présent depuis le tout premier commit) — migration 019 backfill |
+| [1.5.5] | 2026-09-15 | Fix modal "Nouvel entretien" bloqué par un scroll imbriqué |
+| [1.5.6] | 2026-09-15 | Fix bouton d'ajout de facture peu visible (remplacé par un vrai bouton stylé) + panique wasm-bindgen au clic (réentrance closure Leptos) |
+| [1.5.7] | 2026-09-15 | Fix fermeture de l'app sur mobile PWA en fermant une pièce jointe (`window.open` → visualiseur intégré `ViewerModal`) |
+| [1.5.8] | 2026-09-15 | Tentative de fix scroll tactile bloqué en PWA Android (non reproduit, correctif défensif `overscroll-contain touch-pan-y`) |
+| [1.5.9] | 2026-09-15 | Numéro de version affiché sur la page d'accueil (avant connexion) |
+| [1.5.10] | 2026-09-15 | Section "Fonctionnalités" sur la page À propos (voyages planifiés, carnet d'entretien) |
+| [1.5.11] | 2026-09-15 | Impression PDF des fiches d'entretien et du carnet complet, avec photos jointes intégrées |
 
 ---
 
@@ -134,7 +143,9 @@
 
 - [x] **Export PDF/CSV** — contrats (rapport + relevés avec trajectoire idéale), flotte (membres + véhicules)
 - [x] **Planification de voyages** — voyages ponctuels ou récurrents (quotidien/hebdomadaire/mensuel), projection km/jour disponible et indisponibilité prévisible, overlay sur la courbe de progression
+- [x] **Carnet d'entretien** — types récurrents, catalogue générique thermique/électrique, entretien multi-points, pièces jointes (compression photo côté client), impression PDF (fiche unique ou carnet complet)
 - [ ] **Notifications push natives** — PWA / mobile
+- [ ] Migrer `open_print_window()` (`contract_list.rs`/`fleet.rs`, `window.open`) vers le pattern iframe caché de `print_html_in_iframe()` (`maintenance_list.rs`) — même risque théorique de fermeture d'app sur mobile PWA que celui corrigé pour les pièces jointes en v1.5.7, jamais rapporté mais pas testé sur ces exports
 
 ---
 
@@ -148,6 +159,11 @@ Chaque composant Leptos définit ses propres `fetch_json` / `post_json` / `patch
 ### Calculs métier dupliqués SQL / Rust ✅
 Le statut des contrats (`exceeded` / `active` / `closed`) et le calcul `overage_risk` existaient à la fois en Rust (`contracts_handler.rs`) et reconstitués en SQL (`vehicles_handler.rs`). Une divergence avait causé un bug (badge toujours vert).
 - [x] Vue SQL `v_contract_status` (migration 012) — source de vérité unique, référencée via `LEFT JOIN` dans `vehicles_handler.rs`
+
+### `vehicle_access` jamais accordé au propriétaire ✅ (v1.5.4)
+`create_vehicle` n'insérait jamais la ligne `vehicle_access` du owner — présent depuis le tout premier commit de la fonction. Conséquence : un véhicule créé via `POST /api/vehicles` était invisible dans `list_vehicles` (`JOIN`, pas `LEFT JOIN`) et inutilisable pour kilométrage/contrats/entretien/voyages, tous vérifiant l'accès exclusivement via cette table (jamais via `vehicles.owner_id`). La limite de 10 véhicules actifs par propriétaire n'était par conséquent jamais atteinte non plus (comptée via le même join).
+- [x] Insertion `vehicles` + `vehicle_access` dans la même transaction
+- [x] Migration 019 — backfill idempotent pour les véhicules déjà en base
 
 ---
 

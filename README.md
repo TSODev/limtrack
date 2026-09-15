@@ -6,7 +6,7 @@
 
 > **Gestion de flotte kilométrique** — Suivez vos contrats LOA et assurance, surveillez vos kilométrages et recevez des alertes avant de dépasser vos limites.
 
-![Version](https://img.shields.io/badge/version-1.3.2-indigo)
+![Version](https://img.shields.io/badge/version-1.5.11-indigo)
 ![Rust](https://img.shields.io/badge/Rust-2021-orange)
 ![Leptos](https://img.shields.io/badge/Leptos-0.6-purple)
 ![Axum](https://img.shields.io/badge/Axum-0.7-blue)
@@ -30,10 +30,12 @@
 - Gérer leurs véhicules et partager leur accès avec d'autres utilisateurs
 - Suivre leurs contrats **LOA** et **Assurance** avec calculs de projection kilométrique et **estimation du coût de dépassement** (prix/km configurable)
 - Enregistrer leurs relevés kilométriques et visualiser leur trajectoire vs l'idéale
+- Planifier des **voyages futurs** (ponctuels ou récurrents) et projeter leur impact sur la capacité kilométrique restante
+- Tenir un **carnet d'entretien** : types récurrents, historique multi-points (ex. révision = vidange + filtres en une seule fiche), photos de facture jointes, échéances estimées, impression PDF (fiche unique ou carnet complet)
 - Recevoir des **alertes** personnalisées avant de dépasser les limites contractuelles
 - Gérer une **flotte d'entreprise** : organisations, membres, rôles et véhicules assignés
-- **Exporter** les données en PDF (rapport de contrat ou de flotte) et CSV (relevés kilométriques)
-- Utiliser l'application sur **iOS** via Tauri Mobile (App Store, version payante) ou en **PWA** sur tout appareil (gratuite)
+- **Exporter** les données en PDF (contrat, flotte, entretien) et CSV (relevés kilométriques)
+- Utiliser l'application sur **iOS** via Tauri Mobile (App Store, version payante) ou en **PWA** sur tout appareil — **application gratuite pour tout le monde** depuis la v1.4.0 (système de licences par jetons conservé dans le code mais désactivé)
 
 ---
 
@@ -67,28 +69,33 @@ limtrack/
 │   ├── vehicles_handler.rs
 │   ├── contracts_handler.rs
 │   ├── mileage_handler.rs
+│   ├── trips_handler.rs            # voyages planifiés + projection d'usage
+│   ├── maintenance_handler.rs      # carnet d'entretien (types + entrées multi-points)
+│   ├── attachments_handler.rs      # pièces jointes (factures) sur les fiches d'entretien
 │   ├── share_handler.rs
 │   ├── company_handler.rs          # flotte : entreprises, orgs, membres, rôles
 │   ├── license_handler.rs          # GET /api/profile/license + POST /api/profile/redeem
-│   ├── license_middleware.rs       # middleware 402 si licence expirée
+│   ├── license_middleware.rs       # middleware 402 — désactivé depuis v1.4.0 (app gratuite)
 │   ├── request_license_handler.rs  # POST /api/license/request (public, délivrance auto)
 │   ├── admin_handler.rs            # /api/admin/* — dashboard admin
+│   ├── broadcast_handler.rs        # messages broadcast admin → utilisateurs
 │   └── bin/
 │       ├── gen_tokens.rs           # CLI génération jetons
 │       ├── assign_license.rs       # CLI assignation jetons (manuel/batch CSV)
-│       └── notify_expiry.rs        # CLI notifications email manuelles
+│       ├── notify_expiry.rs        # CLI notifications email manuelles
+│       └── send_broadcast.rs       # CLI envoi broadcast
 ├── frontend/src/
 │   ├── config.rs                   # API_BASE, CONTACT_EMAIL
-│   ├── build.rs                    # APP_VERSION depuis git describe --tags
+│   ├── build.rs                    # APP_VERSION depuis git describe --tags (fallback Cargo.toml)
 │   ├── pages/
-│   │   ├── home.rs
+│   │   ├── home.rs                 # page d'accueil publique (version affichée en footer)
 │   │   ├── login.rs
 │   │   ├── register.rs
 │   │   ├── mainpage.rs
 │   │   ├── fleet.rs                # gestion de flotte + export PDF/CSV
 │   │   ├── profile.rs
-│   │   ├── about.rs                # À propos, Ko-fi, GitHub Sponsors
-│   │   ├── request_license.rs      # /request-license : formulaire licence gratuite
+│   │   ├── about.rs                # À propos, fonctionnalités, Ko-fi, GitHub Sponsors
+│   │   ├── request_license.rs      # /request-license : formulaire licence gratuite (masqué, app gratuite)
 │   │   ├── forgot_password.rs      # /forgot-password : demande de réinitialisation
 │   │   ├── reset_password.rs       # /reset-password?token= : nouveau mot de passe
 │   │   └── admin.rs                # /admin : dashboard administrateur
@@ -103,15 +110,23 @@ limtrack/
 │       ├── contracts/
 │       │   ├── contract_list.rs    # export PDF contrat + CSV relevés
 │       │   └── contract_widget.rs
-│       └── mileage/
-│           ├── mileage_list.rs
-│           └── mileage_widget.rs
+│       ├── mileage/
+│       │   ├── mileage_list.rs
+│       │   └── mileage_widget.rs
+│       ├── trips/
+│       │   ├── trip_list.rs        # CRUD voyages (récurrence quotidien/hebdo/mensuel)
+│       │   └── trip_widget.rs
+│       └── maintenance/
+│           ├── catalog.rs          # catalogue générique thermique/électrique
+│           ├── maintenance_list.rs # CRUD types + historique + impression PDF
+│           └── maintenance_widget.rs
 ├── frontend/src-tauri/             # Tauri iOS
 ├── common/src/lib.rs               # Types partagés backend/frontend
-├── Cargo.toml                      # Workspace (version 0.7.0)
-├── sql/migrations/                 # Migrations SQL (001→008)
+├── Cargo.toml                      # Workspace (version 1.5.11)
+├── sql/migrations/                 # Migrations SQL (001→019)
 ├── .github/workflows/
-│   └── deploy-frontend.yml         # CI/CD Cloudflare Pages
+│   ├── deploy-frontend.yml         # CI/CD Cloudflare Pages
+│   └── deploy-backend.yml          # CI/CD OVH VPS (build Docker + SSH deploy)
 └── Trunk.toml
 ```
 
@@ -142,6 +157,20 @@ limtrack/
 - ✅ Sparkline avec courbe réelle vs trajectoire idéale du contrat
 - ✅ Indicateur visuel : en avance / en retard sur la trajectoire
 
+### Voyages planifiés
+- ✅ Voyages ponctuels ou récurrents (quotidien / hebdomadaire / mensuel)
+- ✅ Projection de la capacité kilométrique restante (par jour / semaine / mois) en tenant compte des voyages à venir
+- ✅ Détection d'une indisponibilité prévisible avant l'échéance du contrat
+- ✅ Overlay dédié sur la courbe de kilométrage (trajectoire idéale + projection avec voyages)
+
+### Carnet d'entretien
+- ✅ Types d'entretien récurrents (intervalle km et/ou mois), deux types pré-remplis à la création d'un véhicule (Vidange, Contrôle technique)
+- ✅ Catalogue générique d'entretien (thermique/électrique) proposé à la saisie, filtré selon la motorisation du véhicule
+- ✅ **Entretien multi-points** : une même fiche peut couvrir plusieurs types (ex. révision = vidange + filtre à air + filtre à huile), libellé auto-généré ou personnalisable
+- ✅ Échéances estimées (km et date) à partir du rythme kilométrique réel du véhicule, statut "en retard" automatique
+- ✅ Pièces jointes (photos de facture, PDF) — compression automatique des photos côté client avant l'envoi
+- ✅ **Impression PDF** — fiche individuelle ou carnet complet (types + statuts + historique), photos jointes intégrées au document
+
 ### Notifications
 - ✅ Icône cloche dans la navbar avec badge
 - ✅ Alertes sur seuil kilométrique et proximité d'échéance
@@ -156,25 +185,29 @@ limtrack/
 - ✅ Vue flotte complète : véhicules par entreprise et par organisation
 - ✅ Suppression de compte utilisateur
 
-### Licences
-- ✅ Période d'essai gratuite de **3 mois** à l'inscription
-- ✅ Activation par **jetons** (`XXXX-XXXX-XXXX-XXXX`) de 30, 90, 180 ou 365 jours
-- ✅ Jetons cumulables (extension à partir de la date d'expiration courante)
-- ✅ **Jetons lifetime** (`--lifetime`) pour accès illimité (~100 ans)
-- ✅ **Deux types de licence** : `personal` (véhicules personnels) et `fleet` (accès gestion de flotte)
-- ✅ Accès bloqué (`402 Payment Required`) si essai et licence expirés
-- ✅ Mode lecture seule à l'expiration (`GET` autorisés, écritures bloquées)
-- ✅ Affichage du statut licence dans le Profil (`trial` / `active` / `expired`)
-- ✅ CLI `gen-tokens` : génère des jetons (`--days`, `--lifetime`, `--fleet`)
-- ✅ CLI `assign-license` : assigne un jeton à un utilisateur (manuel ou batch CSV)
-- ✅ **Alertes d'expiration in-app** dans la cloche (J-7/J-15/J-30 selon durée du jeton)
-- ✅ **Notifications email** via Resend, envoyées automatiquement à 8h UTC quotidiennement
+### Licences — désactivées depuis la v1.4.0 (app gratuite pour tout le monde)
+> Le code ci-dessous est **conservé intact** dans le projet (réactivable via deux constantes) mais **inactif en production** : `LICENSE_ENFORCEMENT_ENABLED = false` côté backend et `LICENSE_ENABLED = false` côté frontend masquent tout le système (402, UI licence, notifications d'expiration).
+
+- Période d'essai gratuite de **3 mois** à l'inscription
+- Activation par **jetons** (`XXXX-XXXX-XXXX-XXXX`) de 30, 90, 180 ou 365 jours
+- Jetons cumulables (extension à partir de la date d'expiration courante)
+- **Jetons lifetime** (`--lifetime`) pour accès illimité (~100 ans)
+- **Deux types de licence** : `personal` (véhicules personnels) et `fleet` (accès gestion de flotte)
+- Accès bloqué (`402 Payment Required`) si essai et licence expirés
+- Mode lecture seule à l'expiration (`GET` autorisés, écritures bloquées)
+- Affichage du statut licence dans le Profil (`trial` / `active` / `expired`)
+- CLI `gen-tokens` : génère des jetons (`--days`, `--lifetime`, `--fleet`)
+- CLI `assign-license` : assigne un jeton à un utilisateur (manuel ou batch CSV)
+- **Alertes d'expiration in-app** dans la cloche (J-7/J-15/J-30 selon durée du jeton)
+- **Notifications email** via Resend, envoyées automatiquement à 8h UTC quotidiennement
 
 ### Sécurité
 - ✅ Vérification de la solidité des mots de passe via [`zxcvbn`](https://github.com/shssoichiro/zxcvbn-rs) (score ≥ 3/4) à l'inscription et au changement de mot de passe
 - ✅ Feedback explicite retourné si le mot de passe est trop faible
 - ✅ Détection des mots de passe dérivés du username ou de l'email
 - ✅ **Réinitialisation du mot de passe** par email (token SHA-256, expiry 1h, via Resend)
+- ✅ Rate limiting (`tower_governor`) sur les routes sensibles (login, inscription, mot de passe oublié) — 1 req/s, burst 5
+- ✅ Limites métier : véhicules actifs par propriétaire, contrats par véhicule, relevés/jour, taux km/jour cohérent entre relevés
 
 ### Profil
 - ✅ Modification du mot de passe
@@ -238,17 +271,15 @@ RESEND_API_KEY=re_...   # Notifications email (Resend) — désactivé si absent
 
 > **Production (VPS OVH)** : les secrets sont définis dans `/opt/limtrack/.env` sur le serveur et chargés via les variables d'environnement Docker.
 
-### 4. Base de données
+### 3. Base de données
 
-Appliquer les migrations SQL dans `sql/migrations/` dans l'ordre :
+Appliquer le schéma initial (`sql/schema/neon_tables.sql`) puis toutes les migrations SQL dans `sql/migrations/` **dans l'ordre numérique** (001 à 019 à ce jour) :
 
 ```bash
-psql $DATABASE_URL -f sql/migrations/001_license_tokens.sql
-psql $DATABASE_URL -f sql/migrations/002_license_type.sql
-psql $DATABASE_URL -f sql/migrations/003_expiry_notif.sql
+for f in sql/migrations/0*.sql; do psql $DATABASE_URL -f "$f"; done
 ```
 
-Tables créées : `users` (+ `trial_ends_at`, `access_expires_at`, `expiry_notif_sent_at`), `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`, `license_tokens` (+ `license_type`).
+Tables principales : `users`, `vehicles`, `vehicle_access`, `contracts_loa`, `contracts_insurance`, `mileage_log`, `vehicle_share_codes`, `user_preferences`, `companies`, `organizations`, `company_members`, `fleet_roles`, `license_tokens`, `license_requests`, `planned_trips`, `maintenance_types`, `maintenance_entries`, `maintenance_entry_types` (relation multi-points), `maintenance_attachments`, `broadcasts`. Détail complet dans [`CLAUDE.md`](CLAUDE.md#base-de-données).
 
 ### 4. Lancer le backend
 
@@ -266,7 +297,7 @@ trunk serve
 # App disponible sur http://127.0.0.1:8080
 ```
 
-### 7. Gérer les jetons de licence
+### 6. Gérer les jetons de licence (désactivé par défaut, cf. section Licences)
 
 ```bash
 cd backend
@@ -398,6 +429,26 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 | `DELETE`       | `/api/vehicles/:id/mileage/:entry_id`              | Supprimer un relevé km             |
 | `POST/DELETE`  | `/api/vehicles/:id/fleet`                          | Assigner / retirer d'une flotte    |
 
+### Voyages planifiés
+
+| Méthode        | Route                                          | Description                                    |
+| -------------- | ----------------------------------------------- | ----------------------------------------------- |
+| `GET/POST`     | `/api/vehicles/:id/trips`                       | Liste / création d'un voyage planifié           |
+| `PATCH/DELETE` | `/api/vehicles/:id/trips/:trip_id`              | Modifier / supprimer un voyage                  |
+| `GET`          | `/api/vehicles/:id/usage-forecast`              | Projection km/jour disponible (voyages inclus)  |
+
+### Carnet d'entretien
+
+| Méthode        | Route                                                                    | Description                                  |
+| -------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| `GET/POST`     | `/api/vehicles/:id/maintenance-types`                                       | Liste / création d'un type d'entretien         |
+| `PATCH/DELETE` | `/api/vehicles/:id/maintenance-types/:type_id`                              | Modifier / supprimer un type                   |
+| `GET/POST`     | `/api/vehicles/:id/maintenance-entries`                                     | Liste / création d'une fiche (multi-points via `maintenance_type_ids`) |
+| `DELETE`       | `/api/vehicles/:id/maintenance-entries/:entry_id`                           | Supprimer une fiche                            |
+| `GET`          | `/api/vehicles/:id/maintenance-status`                                      | Échéance estimée par type actif                |
+| `GET/POST`     | `/api/vehicles/:id/maintenance-entries/:entry_id/attachments`               | Liste / upload de pièces jointes (multipart)   |
+| `GET/DELETE`   | `/api/vehicles/:id/attachments/:attachment_id`                              | Téléchargement / suppression d'une pièce jointe |
+
 ### Gestion de flotte
 
 | Méthode      | Route                                            | Description                      |
@@ -414,15 +465,26 @@ Puis sélectionner le Simulator dans Xcode et cliquer **▶ Run**.
 | `GET`        | `/api/companies/:id/organizations/:oid/vehicles` | Véhicules par organisation       |
 | `GET`        | `/api/companies/:id/fleet-report`                | Rapport flotte complet (PDF/CSV) |
 
-### Administration
+### Administration (`is_admin = true` requis)
 
 | Méthode  | Route                           | Description                              |
 | -------- | ------------------------------- | ---------------------------------------- |
 | `GET`    | `/api/admin/stats`              | Statistiques globales                    |
 | `GET`    | `/api/admin/users`              | Liste des utilisateurs                   |
+| `PATCH`  | `/api/admin/users/:id`          | Édition admin (rôle, licence, accès...)  |
+| `GET`    | `/api/admin/growth`             | Croissance hebdomadaire (12 semaines)    |
 | `GET`    | `/api/admin/license-requests`   | Demandes de licences gratuites           |
 | `POST`   | `/api/admin/generate-token`     | Générer un jeton depuis le dashboard     |
+| `POST`   | `/api/admin/assign-license`     | Assigner un jeton existant à un compte   |
+| `POST`   | `/api/admin/notify-expiry`      | Déclencher manuellement les emails d'expiration |
+| `POST`   | `/api/admin/broadcasts`         | Créer un message broadcast               |
 | `GET`    | `/api/admin/companies`          | Liste des entreprises (admin)            |
+
+### Broadcasts
+
+| Méthode | Route                     | Description                                          |
+| ------- | ------------------------- | ----------------------------------------------------- |
+| `GET`   | `/api/broadcasts/active`  | Message broadcast actif (filtré selon compte iOS)     |
 
 ---
 
@@ -438,9 +500,9 @@ Le déploiement backend est automatisé via GitHub Actions : tout push sur `main
 
 ---
 
-## Licence gratuite
+## Application gratuite
 
-LimTrack est open source et gratuit. Demandez un jeton de licence (365 jours) sur **[limtrack.app/request-license](https://limtrack.app/request-license)**.
+LimTrack est open source et **gratuit pour tout le monde** (web/PWA) depuis la v1.4.0 — aucune inscription à un système de licence n'est nécessaire, le système de jetons reste dans le code mais est désactivé. Seule la version iOS App Store reste payante (achat unique, accès à vie).
 
 ---
 
