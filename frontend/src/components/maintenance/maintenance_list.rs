@@ -8,6 +8,73 @@ use uuid::Uuid;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 
+// Résout le libellé affiché d'une clé de sélection ("type:<uuid>" ou "generic:<idx>") pour
+// l'affichage en puce dans EntryModal.
+fn resolve_selection_label(key: &str, types: &[MaintenanceType]) -> String {
+    if let Some(uuid_str) = key.strip_prefix("type:") {
+        return Uuid::parse_str(uuid_str).ok()
+            .and_then(|id| types.iter().find(|t| t.id == id))
+            .map(|t| t.label.clone())
+            .unwrap_or_else(|| "Type inconnu".to_string());
+    }
+    if let Some(idx_str) = key.strip_prefix("generic:") {
+        if let Some(tpl) = idx_str.parse::<usize>().ok().and_then(|i| GENERIC_CATALOG.get(i)) {
+            return tpl.label.to_string();
+        }
+    }
+    key.to_string()
+}
+
+// Catégories du sélecteur en deux étapes de EntryModal ("Vos types" + catalogue générique),
+// ne conservant que celles ayant encore au moins un item non déjà sélectionné.
+fn compute_categories(
+    types: &[MaintenanceType],
+    available_generic: &[(usize, &'static GenericTemplate)],
+    selected: &[String],
+) -> Vec<&'static str> {
+    let mut cats = Vec::new();
+    if types.iter().any(|t| !selected.contains(&format!("type:{}", t.id))) {
+        cats.push("Vos types");
+    }
+    for cat in CATEGORY_ORDER {
+        if available_generic.iter().any(|(i, tpl)| tpl.category == *cat && !selected.contains(&format!("generic:{}", i))) {
+            cats.push(*cat);
+        }
+    }
+    cats
+}
+
+// Items (clé, libellé affiché) d'une catégorie donnée, hors items déjà sélectionnés.
+fn compute_items_for_category(
+    cat: &str,
+    types: &[MaintenanceType],
+    available_generic: &[(usize, &'static GenericTemplate)],
+    selected: &[String],
+    show_fuel_tag: bool,
+) -> Vec<(String, String)> {
+    if cat == "Vos types" {
+        types.iter()
+            .map(|t| (format!("type:{}", t.id), t.label.clone()))
+            .filter(|(k, _)| !selected.contains(k))
+            .collect()
+    } else {
+        available_generic.iter()
+            .filter(|(_, tpl)| tpl.category == cat)
+            .map(|(i, tpl)| {
+                let tag = if show_fuel_tag {
+                    match tpl.fuel_type {
+                        Some("thermique") => " · ⛽ thermique",
+                        Some("electrique") => " · 🔋 électrique",
+                        _ => "",
+                    }
+                } else { "" };
+                (format!("generic:{}", i), format!("{}{}", tpl.label, tag))
+            })
+            .filter(|(k, _)| !selected.contains(k))
+            .collect()
+    }
+}
+
 fn interval_summary(t: &MaintenanceType) -> String {
     match (t.interval_km, t.interval_months) {
         (Some(km), Some(m)) => format!("Tous les {} ou {} mois", format_km(km), m),
@@ -528,6 +595,77 @@ fn EntryModal(
         });
     };
 
+    // Sélecteur en deux étapes (catégorie → type → "+ Ajouter") plutôt qu'une longue liste
+    // de cases à cocher toujours dépliée : avec ~7 catégories et une quarantaine d'items au
+    // total (types du véhicule + catalogue générique), la checklist rendait le formulaire
+    // très long à parcourir même une fois le modal rendu correctement scrollable/fermable
+    // (cf. fix v1.5.12) — signalé par un utilisateur ("il faut peut-être collapser les
+    // catégories, ou agir en deux étapes"). Les items déjà sélectionnés disparaissent des
+    // options (pas de doublon possible) et sont affichés en dessous sous forme de puces
+    // retirables.
+    // Memo plutôt que closures brutes : un Memo est Copy et réutilisable dans plusieurs
+    // slots réactifs de la vue sans piège de capture par `move` (une closure `move`
+    // imbriquée dans un slot qui doit rester `Fn` — réévaluable plusieurs fois — ne peut
+    // pas consommer une valeur non-Copy capturée depuis l'extérieur ; elle ne compilerait
+    // qu'en `FnOnce`).
+    let types_for_categories = types.clone();
+    let generic_for_categories = available_generic.clone();
+    let categories = create_memo(move |_| {
+        compute_categories(&types_for_categories, &generic_for_categories, &selected.get())
+    });
+
+    let initial_category = categories.get_untracked().first().map(|s| s.to_string()).unwrap_or_default();
+    let (current_category, set_current_category) = create_signal(initial_category);
+
+    let types_for_items = types.clone();
+    let generic_for_items = available_generic.clone();
+    let items = create_memo(move |_| {
+        compute_items_for_category(&current_category.get(), &types_for_items, &generic_for_items, &selected.get(), show_fuel_tag)
+    });
+
+    let initial_pick = items.get_untracked().first().map(|(k, _)| k.clone()).unwrap_or_default();
+    let (current_pick, set_current_pick) = create_signal(initial_pick);
+
+    // Maintient catégorie/choix courants valides après chaque ajout (l'item ajouté disparaît
+    // des options, donc le choix courant peut devenir invalide) ou changement de catégorie.
+    create_effect(move |_| {
+        let cats = categories.get();
+        let cur_cat = current_category.get();
+        if !cats.contains(&cur_cat.as_str()) {
+            set_current_category.set(cats.first().map(|s| s.to_string()).unwrap_or_default());
+        }
+    });
+    create_effect(move |_| {
+        let available = items.get();
+        let cur_pick = current_pick.get_untracked();
+        if !available.iter().any(|(k, _)| k == &cur_pick) {
+            set_current_pick.set(available.first().map(|(k, _)| k.clone()).unwrap_or_default());
+        }
+    });
+
+    // (clé, libellé affiché) de chaque item sélectionné, pour les puces retirables.
+    let types_for_chips = types.clone();
+    let chips = create_memo(move |_| {
+        selected.get().into_iter()
+            .map(|key| {
+                let label = resolve_selection_label(&key, &types_for_chips);
+                (key, label)
+            })
+            .collect::<Vec<_>>()
+    });
+
+    let add_selected = move |_| {
+        let key = current_pick.get_untracked();
+        if key.is_empty() {
+            return;
+        }
+        set_selected.update(|s| {
+            if !s.contains(&key) {
+                s.push(key);
+            }
+        });
+    };
+
     // Compresse les photos côté client avant l'envoi (redimensionnement + ré-encodage JPEG) —
     // réduit une photo de smartphone de plusieurs Mo à quelques centaines de Ko sans passer
     // par un format intermédiaire type PDF (qui n'apporterait aucun gain). Les PDF (factures
@@ -673,65 +811,55 @@ fn EntryModal(
     view! {
         <Modal title="Nouvel entretien" on_close=on_close>
             <form on:submit=on_submit class="space-y-4">
-                <Field label="Types concernés (un ou plusieurs — ex: révision = vidange + filtres)">
-                    <div class="space-y-3 border border-gray-200 rounded-lg p-3">
-                        {(!types.is_empty()).then(|| {
-                            let items = types.clone();
-                            view! {
-                                <div class="space-y-1">
-                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">"Vos types"</p>
-                                    {items.into_iter().map(|t| {
-                                        let value = format!("type:{}", t.id);
-                                        let value_for_checked = value.clone();
-                                        let value_for_toggle = value.clone();
-                                        let label = t.label.clone();
-                                        view! {
-                                            <label class="flex items-center gap-2 text-sm text-gray-700 py-0.5 cursor-pointer">
-                                                <input type="checkbox"
-                                                    prop:checked=move || selected.get().contains(&value_for_checked)
-                                                    on:change=move |_| toggle_selected(value_for_toggle.clone())
-                                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                                {label}
-                                            </label>
-                                        }
-                                    }).collect_view()}
-                                </div>
-                            }
-                        })}
-                        {CATEGORY_ORDER.iter().map(|cat| {
-                            let items: Vec<_> = available_generic.iter().filter(|(_, tpl)| tpl.category == *cat).collect();
-                            if items.is_empty() {
-                                return view! { <></> }.into_view();
-                            }
-                            view! {
-                                <div class="space-y-1">
-                                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">{*cat}</p>
-                                    {items.into_iter().map(|(i, tpl)| {
-                                        let value = format!("generic:{}", i);
-                                        let value_for_checked = value.clone();
-                                        let value_for_toggle = value.clone();
-                                        let tag = if show_fuel_tag {
-                                            match tpl.fuel_type {
-                                                Some("thermique") => " · ⛽ thermique",
-                                                Some("electrique") => " · 🔋 électrique",
-                                                _ => "",
-                                            }
-                                        } else { "" };
-                                        let label = format!("{}{}", tpl.label, tag);
-                                        view! {
-                                            <label class="flex items-center gap-2 text-sm text-gray-700 py-0.5 cursor-pointer">
-                                                <input type="checkbox"
-                                                    prop:checked=move || selected.get().contains(&value_for_checked)
-                                                    on:change=move |_| toggle_selected(value_for_toggle.clone())
-                                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                                {label}
-                                            </label>
-                                        }
-                                    }).collect_view()}
-                                </div>
-                            }.into_view()
-                        }).collect_view()}
-                    </div>
+                <Field label="Types concernés (optionnel — un ou plusieurs, ex: révision = vidange + filtres)">
+                    <Show
+                        when=move || !categories.get().is_empty()
+                        fallback=|| view! { <p class="text-xs text-gray-400">"Aucun type disponible — renseignez un libellé ci-dessous."</p> }
+                    >
+                        <div class="flex gap-2">
+                            <select
+                                prop:value=current_category
+                                on:change=move |ev| set_current_category.set(event_target_value(&ev))
+                                class="w-[9.5rem] flex-shrink-0 appearance-none px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
+                            >
+                                {move || categories.get().into_iter().map(|cat| {
+                                    view! { <option value=cat>{cat}</option> }
+                                }).collect_view()}
+                            </select>
+                            <select
+                                prop:value=current_pick
+                                on:change=move |ev| set_current_pick.set(event_target_value(&ev))
+                                class="flex-1 min-w-0 appearance-none px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
+                            >
+                                {move || items.get().into_iter().map(|(key, label)| {
+                                    view! { <option value=key>{label}</option> }
+                                }).collect_view()}
+                            </select>
+                            <button type="button"
+                                on:click=add_selected
+                                prop:disabled=move || current_pick.get().is_empty()
+                                class="flex-shrink-0 px-3 py-2 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition duration-150"
+                            >
+                                "+ Ajouter"
+                            </button>
+                        </div>
+                    </Show>
+                    <Show when=move || !chips.get().is_empty() fallback=|| ()>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            {move || chips.get().into_iter().map(|(key, display)| {
+                                let key_for_remove = key.clone();
+                                view! {
+                                    <span class="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
+                                        {display}
+                                        <button type="button"
+                                            on:click=move |_| toggle_selected(key_for_remove.clone())
+                                            class="text-indigo-400 hover:text-indigo-700 text-sm leading-none"
+                                        >"✕"</button>
+                                    </span>
+                                }
+                            }).collect_view()}
+                        </div>
+                    </Show>
                 </Field>
                 <Field label="Libellé (optionnel si un type est sélectionné ci-dessus)">
                     <input type="text" prop:required=label_required prop:value=custom_label

@@ -421,12 +421,15 @@ Deux tables : `maintenance_types` (définition récurrente — label + `interval
 `vehicles.fuel_type` (`TEXT NULL`, `thermique`/`electrique`/`hybride`) — éditable **uniquement à la création** du véhicule (`add_vehicle_button.rs`) : il n'existe pas de formulaire d'édition véhicule dans le frontend aujourd'hui (`update_vehicle` dans `vehicles_handler.rs` existe côté backend mais n'est appelé par aucune page — warning de compilation "never used" à ne pas confondre avec du code mort à supprimer). Les véhicules existants restent `fuel_type = NULL` : c'est le cas de repli explicitement voulu, pas un bug — le catalogue générique affiche alors tous les items avec une étiquette (⛽/🔋) au lieu de filtrer.
 
 ### Catalogue générique (`components/maintenance/catalog.rs`)
-`GENERIC_CATALOG: &[GenericTemplate]` — liste statique (label, `fuel_type: Option<&str>` où `None` = commun aux deux motorisations, `interval_km`, `interval_months`). `GenericTemplate::is_periodic()` = au moins un intervalle défini. Proposé en **cases à cocher** (multi-sélection) dans `EntryModal` (`maintenance_list.rs`), groupées par catégorie, en plus des types déjà créés pour le véhicule :
-- Clés préfixées pour lever l'ambiguïté : `type:<uuid>` (type existant), `generic:<index>` (item du catalogue). Sélection maintenue dans un `Vec<String>` (pas un `HashSet`) pour préserver l'ordre de coche et générer un libellé auto reproductible.
+`GENERIC_CATALOG: &[GenericTemplate]` — liste statique (label, `fuel_type: Option<&str>` où `None` = commun aux deux motorisations, `interval_km`, `interval_months`). `GenericTemplate::is_periodic()` = au moins un intervalle défini. Proposé dans `EntryModal` (`maintenance_list.rs`), en plus des types déjà créés pour le véhicule.
+
+**Sélecteur en deux étapes (catégorie → type → "+ Ajouter"), pas une checklist toujours dépliée** (v1.5.13) — avec ~7 catégories et une quarantaine d'items au total, une checklist permanente rendait le formulaire extrêmement long à parcourir, au point qu'un utilisateur ne trouvait plus les boutons Annuler/Enregistrer même après le fix du scroll (v1.5.12, en-tête/pied `sticky`) : le vrai problème était la longueur du formulaire, pas le scroll en lui-même. Deux `<select>` (catégorie, puis type filtré par catégorie) + bouton "+ Ajouter" ; les items déjà sélectionnés disparaissent des options et s'affichent en dessous sous forme de puces retirables (✕). Le modal entier tient désormais sur un seul écran sans scroll dans la plupart des cas.
+- Clés préfixées pour lever l'ambiguïté : `type:<uuid>` (type existant), `generic:<index>` (item du catalogue). Sélection maintenue dans un `Vec<String>` (pas un `HashSet`) pour préserver l'ordre d'ajout et générer un libellé auto reproductible.
 - Dédoublonnage : un item générique déjà instancié (label identique, insensible à la casse, à un type existant du véhicule) disparaît de la liste.
 - Filtrage : si `vehicle_fuel_type` est renseigné, seuls les items `None` ou de la même motorisation sont proposés (sans étiquette) ; sinon tous les items sont montrés avec suffixe " · ⛽ thermique"/" · 🔋 électrique".
-- Un champ "Libellé" texte est toujours visible (pas seulement pour "Autre") — `prop:required` dynamique : requis uniquement si aucune case n'est cochée. Rempli par l'utilisateur → override envoyé tel quel ; vide → le frontend calcule lui-même le libellé auto (join des labels résolus, types existants + génériques, avec `", "`) plutôt que de compter sur la génération côté backend, pour couvrir le cas des items génériques **ponctuels** cochés (qui ne créent pas de type, donc absents de tout `maintenance_type_ids` renvoyé par le backend).
-- À la soumission, pour chaque item coché : `type:<uuid>` → ajouté tel quel à `maintenance_type_ids` ; `generic:<index>` **périodique** → `POST .../maintenance-types` (instancie le template comme type réutilisable) **puis** son id ajouté à `maintenance_type_ids` ; `generic:<index>` **ponctuel** (aucun intervalle, ex. Pneus) → contribue seulement son label au libellé auto, jamais transformé en type ni ajouté à `maintenance_type_ids`.
+- Un champ "Libellé" texte est toujours visible (pas seulement pour "Autre") — `prop:required` dynamique : requis uniquement si rien n'est sélectionné. Rempli par l'utilisateur → override envoyé tel quel ; vide → le frontend calcule lui-même le libellé auto (join des labels résolus, avec `", "`) plutôt que de compter sur la génération côté backend, pour couvrir le cas des items génériques **ponctuels** (qui ne créent pas de type, donc absents de tout `maintenance_type_ids` renvoyé par le backend).
+- À la soumission, pour chaque item sélectionné : `type:<uuid>` → ajouté tel quel à `maintenance_type_ids` ; `generic:<index>` **périodique** → `POST .../maintenance-types` (instancie le template comme type réutilisable) **puis** son id ajouté à `maintenance_type_ids` ; `generic:<index>` **ponctuel** (aucun intervalle, ex. Pneus) → contribue seulement son label au libellé auto, jamais transformé en type ni ajouté à `maintenance_type_ids`.
+- **Piège Leptos (closures `move` imbriquées dans un slot de vue qui doit rester `Fn`)** : calculer les catégories/items disponibles via une closure brute capturant `types`/`available_generic` par `move` échoue à la compilation dès qu'elle est utilisée dans plusieurs slots réactifs (`error[E0525]: expected Fn, found FnOnce` — la closure ne peut être "consommée" qu'une fois). Fix : `create_memo` (`Memo<T>` est `Copy`, réutilisable librement dans autant de slots qu'on veut) plutôt que des closures brutes ou des fonctions locales capturant l'environnement — logique de calcul extraite en fonctions pures top-level (`compute_categories`, `compute_items_for_category`) prenant tout en paramètres, appelées depuis l'intérieur du `create_memo`.
 
 ### `GET /api/vehicles/:id/maintenance-status`
 Pour chaque type **actif**, cherche sa dernière entrée (`ORDER BY performed_at DESC, created_at DESC LIMIT 1`). Sans entrée → `last_performed_at: null`, pas d'échéance calculable. Avec entrée :
@@ -477,6 +480,16 @@ let is_pending = create_memo(move |_| action.pending().get());
 // PartialEq requis pour create_memo sur structs custom
 #[derive(Clone, PartialEq)]
 pub struct Vehicle { ... }
+
+// Une closure `move` brute capturant une valeur non-Copy (Vec, String...), utilisée dans
+// PLUSIEURS slots réactifs de la vue (children de <Show>, options calculées, etc.), ne
+// compile pas : "error[E0525]: expected Fn, found FnOnce" (chaque slot doit pouvoir être
+// réévalué plusieurs fois, mais la closure ne peut déplacer sa capture qu'une fois).
+// Fix : create_memo (Memo<T> est Copy, réutilisable dans autant de slots qu'on veut) plutôt
+// que la closure brute — extraire le calcul en fonction pure top-level si besoin.
+let types_for_memo = types.clone();
+let derived = create_memo(move |_| compute_something(&types_for_memo, &selected.get()));
+// `derived` peut ensuite être lu (`derived.get()`) dans n'importe quel nombre de `{move || ...}`.
 
 // Déclencher .click() sur un <input type="file"> caché depuis un bouton stylé :
 // TOUJOURS différer via set_timeout, jamais appeler .click() en synchrone dans le
@@ -682,7 +695,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 **En production, c'est presque toujours le fallback `CARGO_PKG_VERSION` qui s'applique** : `deploy-frontend.yml` utilise `actions/checkout@v4` sans `fetch-depth`, donc un clone superficiel (profondeur 1, aucun tag récupéré) — `git describe` échoue systématiquement en CI. Les tags (`v1.3.2` etc.) ne sont créés que pour les soumissions App Store iOS, pas pour les déploiements web, donc ce fallback est en réalité la source pertinente pour la version affichée sur le web (`Cargo.toml` → `workspace.package.version`, à jour à chaque commit versionné). **Piège** : `CARGO_PKG_VERSION` ne contient jamais de préfixe `v` (contrairement à un tag `git describe`) — les endroits qui affichent `APP_VERSION` doivent préfixer `"v"` eux-mêmes s'ils veulent ce format (voir `home.rs`), `about.rs` l'affiche brut sans préfixe. Vérifié en confrontant le WASM réellement servi en prod (`strings frontend-*.wasm`) à cette hypothèse.
 
 ## Version actuelle
-`1.5.12` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.13` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

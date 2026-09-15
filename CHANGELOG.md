@@ -17,6 +17,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.13] — 2026-09-15
+
+### Changé
+- **Redesign du sélecteur de types d'entretien** : la checklist toujours dépliée (~7 catégories, une quarantaine d'items) rendait le formulaire "Nouvel entretien" extrêmement long — même avec l'en-tête/pied fixes du fix v1.5.12, le vrai problème était la longueur du formulaire, pas le scroll. Remplacée par un sélecteur en deux étapes : choisir une catégorie, choisir un type dans cette catégorie, "+ Ajouter" — les items sélectionnés s'affichent en dessous sous forme de puces retirables (✕), disparaissent des options tant qu'ils sont sélectionnés. Le modal tient désormais sur un seul écran sans scroll dans la plupart des cas. Suggéré par l'utilisateur.
+- Refactor interne : logique de calcul des catégories/items disponibles extraite en fonctions pures (`compute_categories`, `compute_items_for_category`) et exposée via `create_memo` (plutôt que des closures brutes, qui ne compilaient pas dans plusieurs slots réactifs — `Memo` est `Copy` et réutilisable librement).
+
+---
+
 ## [1.5.12] — 2026-09-15
 
 ### Corrigé
