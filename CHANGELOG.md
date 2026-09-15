@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.12] — 2026-09-15
+
+### Corrigé
+- **Modal d'entretien impossible à fermer une fois scrollé** : le titre/bouton ✕ et les boutons Annuler/Enregistrer faisaient partie du contenu scrollable du modal (`Modal`/`ModalActions`, `maintenance_list.rs`) — ils défilaient hors champ dans un formulaire long (ex. la checklist de types dans "Nouvel entretien"), laissant l'utilisateur sans moyen visible de fermer ou valider sans remonter tout en haut. Signalé via capture d'écran (desktop) après le fix v1.5.8 (scroll tactile), qui n'était probablement pas la vraie cause. En-tête et pied du modal fixés (`sticky top-0` / `sticky bottom-0`), seul le contenu central défile désormais. Vérifié via Chromium headless : après un scroll profond, ✕ et "Enregistrer" restent visibles, et fermer depuis cet état fonctionne.
+
+---
+
 ## [1.5.11] — 2026-09-15
 
 ### Ajouté

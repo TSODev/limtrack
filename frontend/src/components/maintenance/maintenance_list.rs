@@ -1379,17 +1379,24 @@ fn ViewerModal(url: String, content_type: String, filename: String, on_close: Ca
     }
 }
 
+// En-tête (titre + ✕) et pied (ModalActions) restent fixes pendant le défilement — seul le
+// contenu central scrolle. Sans ça, sur un formulaire long (ex. la liste de cases à cocher
+// de EntryModal), le bouton de fermeture et les boutons Annuler/Enregistrer défilent hors
+// champ dès qu'on scrolle, sans aucun moyen visible de sortir du modal sans remonter tout
+// en haut — signalé par un utilisateur ("on ne peut plus en sortir").
 #[component]
 fn Modal(title: &'static str, on_close: Callback<()>, children: Children) -> impl IntoView {
     view! {
         <button type="button" class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default" on:click=move |_| on_close.call(()) />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6 max-h-[90vh] overflow-y-auto overscroll-contain touch-pan-y">
-                <div class="flex items-center justify-between">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md max-h-[90vh] overflow-y-auto overscroll-contain touch-pan-y">
+                <div class="sticky top-0 z-10 bg-white flex items-center justify-between px-8 pt-8 pb-4">
                     <h2 class="text-xl font-bold text-gray-900">{title}</h2>
                     <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
                 </div>
-                {children()}
+                <div class="px-8 space-y-6">
+                    {children()}
+                </div>
             </div>
         </div>
     }
@@ -1413,14 +1420,16 @@ fn ModalActions(
     error: ReadSignal<String>,
 ) -> impl IntoView {
     view! {
-        <Show when=move || !error.get().is_empty() fallback=|| ()>
-            <p class="text-sm text-center text-red-600">{move || error.get()}</p>
-        </Show>
-        <div class="flex gap-3 pt-2">
-            <button type="button" on:click=move |_| on_cancel.call(()) class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150">"Annuler"</button>
-            <button type="submit" prop:disabled=move || pending.get() class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150">
-                {move || if pending.get() { "Envoi..." } else { label_submit }}
-            </button>
+        <div class="sticky bottom-0 -mx-8 px-8 pt-3 pb-8 bg-white border-t border-gray-100 space-y-3">
+            <Show when=move || !error.get().is_empty() fallback=|| ()>
+                <p class="text-sm text-center text-red-600">{move || error.get()}</p>
+            </Show>
+            <div class="flex gap-3">
+                <button type="button" on:click=move |_| on_cancel.call(()) class="flex-1 py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-150">"Annuler"</button>
+                <button type="submit" prop:disabled=move || pending.get() class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150">
+                    {move || if pending.get() { "Envoi..." } else { label_submit }}
+                </button>
+            </div>
         </div>
     }
 }
