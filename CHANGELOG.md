@@ -17,7 +17,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
-## [1.6.0] — 2026-09-15
+## [1.5.11] — 2026-09-15
 
 ### Ajouté
 - **Impression PDF du carnet d'entretien** : chaque fiche individuelle (bouton 🖨 dans l'historique) et le carnet complet du véhicule (bouton "🖨 Imprimer le carnet" — types avec statut/échéance + historique complet) peuvent être imprimés/exportés en PDF via le dialogue d'impression du navigateur. Les photos de facture jointes sont intégrées directement dans le document (les PDF joints sont listés par nom, non intégrables sans bibliothèque dédiée côté client).
