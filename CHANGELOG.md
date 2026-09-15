@@ -20,7 +20,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [1.5.1] — 2026-09-15
 
 ### Ajouté
-- **Catalogue générique d'entretien** : le sélecteur "Type" du formulaire d'ajout d'entretien propose désormais, en plus des types déjà créés, une quinzaine d'items génériques (Vidange, Filtre à air, Courroie de distribution, Diagnostic batterie de traction, etc.), filtrés selon la motorisation du véhicule si elle est renseignée. Sélectionner un item périodique l'instancie automatiquement comme type réutilisable pour le véhicule ; un item ponctuel (Pneus, Essuie-glaces...) log directement une entrée sans créer de type. Catalogue statique embarqué (`frontend/src/components/maintenance/catalog.rs`), aucune API constructeur utilisée.
+- **Catalogue générique d'entretien** : le sélecteur "Type" du formulaire d'ajout d'entretien propose désormais, en plus des types déjà créés, une vingtaine d'items génériques regroupés par catégorie (Général, Pneumatiques & Freinage, Carrosserie, Mécanique moteur, Mécanique de transmission, Vitrage, Électrique), filtrés selon la motorisation du véhicule si elle est renseignée. Sélectionner un item périodique l'instancie automatiquement comme type réutilisable pour le véhicule ; un item ponctuel (Pneus, Essuie-glaces, Réparation carrosserie...) log directement une entrée sans créer de type. Catalogue statique embarqué (`frontend/src/components/maintenance/catalog.rs`), aucune API constructeur utilisée.
 - **Motorisation du véhicule** : nouveau champ `fuel_type` (thermique/électrique/hybride, optionnel) renseignable à la création d'un véhicule. Migration `016`. Sans valeur (cas de tous les véhicules existants), le catalogue générique reste affiché en entier avec une étiquette par item.
 
 ---
