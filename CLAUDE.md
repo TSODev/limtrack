@@ -441,6 +441,16 @@ Pour chaque type **actif**, cherche sa dernière entrée (`ORDER BY performed_at
 - `maintenance_list.rs` : section "Types" (badge À jour/Bientôt/En retard/Jamais fait calculé côté client depuis `maintenance-status`) + section "Historique" (tableau chronologique). `TypeModal`/`EntryModal`/`Modal`/`Field`/`ModalActions` dupliqués localement (convention du projet).
 - `maintenance_widget.rs` : résumé dashboard de l'échéance la plus urgente (en retard prioritaire, sinon date la plus proche).
 
+### Export PDF / impression (fiche + carnet complet)
+`vehicle_dashboard.rs` dérive `vehicle_label` (`"{make} {model} — {plate_number}"`) depuis le `VehicleWithAccess` déjà chargé et le passe en prop à `MaintenanceList` (comme `vehicle_fuel_type`).
+
+- **`print_html_in_iframe()`** : génère le PDF via impression navigateur (`window.print()`), pas de bibliothèque PDF côté client. Contrairement à `open_print_window()` (`contract_list.rs`/`fleet.rs`, `window.open(url, "_blank")`), ceci utilise un `<iframe>` **caché** (`srcdoc`, position fixed, taille 0) et appelle `print()` sur son propre `contentWindow` — reste dans la page, aucun risque de fermeture d'app sur mobile PWA standalone (cf. piège `window.open` déjà rencontré pour les pièces jointes). Cible future : migrer aussi `open_print_window()` vers ce pattern.
+- **Piège rencontré** : un `<iframe>` déclenche parfois l'événement `load` **deux fois** (document vide initial, puis le contenu réel) — un `Closure::once` panique alors avec `"FnOnce called more than once"` au second déclenchement. Fix : `Closure::<dyn FnMut()>` réutilisable + garde d'idempotence (`Rc<Cell<bool>>`), et `srcdoc` posé **avant** l'insertion dans le DOM (évite qu'un document `about:blank` ne se charge une première fois).
+- **Pièces jointes intégrées "si possible"** : `fetch_entry_attachments_html()` réutilise `fetch_attachment_object_url()` — les images (`image/*`) sont embarquées en `<img src="blob:...">` (fonctionne dans l'iframe `srcdoc`, même origine) ; les autres types (PDF) sont seulement listés par nom (les intégrer nécessiterait une bibliothèque de manipulation PDF côté client, hors de portée).
+- **Fiche unique** : bouton 🖨 par ligne dans le tableau "Historique" → `print_single_entry()`.
+- **Carnet complet** : bouton "🖨 Imprimer le carnet" (visible si au moins une entrée existe) → `print_full_carnet()` — table des types avec statut/échéance (réutilise les données déjà chargées de `maintenance-status`) + historique complet + pièces jointes groupées par entrée. Récupère les pièces jointes **séquentiellement par entrée** (`attachment_count > 0` uniquement, pas de N+1 inutile) — potentiellement lent si beaucoup d'entrées avec beaucoup de photos, signal `printing` affiche "Génération..." et désactive les boutons pendant l'opération.
+- Tout texte utilisateur interpolé dans le HTML généré passe par `html_escape()` (label, garage, notes, nom de fichier) — état absent côté `contract_list.rs`/`fleet.rs` (non traité ici, hors scope).
+
 ### Pièces jointes (migration 017)
 Table `maintenance_attachments` (`entry_id` FK `ON DELETE CASCADE`, `vehicle_id` dénormalisé). **Le fichier sur disque n'est jamais nettoyé par la CASCADE SQL** — `attachments_handler.rs::delete_attachment` et `maintenance_handler.rs::delete_maintenance_entry` font l'unlink explicitement (best-effort, log si échec).
 
@@ -671,7 +681,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 **En production, c'est presque toujours le fallback `CARGO_PKG_VERSION` qui s'applique** : `deploy-frontend.yml` utilise `actions/checkout@v4` sans `fetch-depth`, donc un clone superficiel (profondeur 1, aucun tag récupéré) — `git describe` échoue systématiquement en CI. Les tags (`v1.3.2` etc.) ne sont créés que pour les soumissions App Store iOS, pas pour les déploiements web, donc ce fallback est en réalité la source pertinente pour la version affichée sur le web (`Cargo.toml` → `workspace.package.version`, à jour à chaque commit versionné). **Piège** : `CARGO_PKG_VERSION` ne contient jamais de préfixe `v` (contrairement à un tag `git describe`) — les endroits qui affichent `APP_VERSION` doivent préfixer `"v"` eux-mêmes s'ils veulent ce format (voir `home.rs`), `about.rs` l'affiche brut sans préfixe. Vérifié en confrontant le WASM réellement servi en prod (`strings frontend-*.wasm`) à cette hypothèse.
 
 ## Version actuelle
-`1.5.10` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.6.0` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

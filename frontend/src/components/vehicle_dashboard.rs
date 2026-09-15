@@ -43,6 +43,11 @@ pub fn VehicleDashboard(
     });
 
     let vehicle_fuel_type = Signal::derive(move || vehicle.get().and_then(|v| v.fuel_type));
+    let vehicle_label = Signal::derive(move || {
+        vehicle.get()
+            .map(|v| format!("{} {} — {}", v.make, v.model, v.plate_number))
+            .unwrap_or_default()
+    });
 
     let can_manage_contracts = create_memo(move |_| {
         vehicle
@@ -251,6 +256,7 @@ pub fn VehicleDashboard(
                                 vehicle_id=selected_id
                                 can_manage_maintenance=can_manage_maintenance
                                 vehicle_fuel_type=vehicle_fuel_type
+                                vehicle_label=vehicle_label
                             />
                         }.into_view(),
                     }}

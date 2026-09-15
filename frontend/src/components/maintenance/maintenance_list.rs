@@ -50,9 +50,11 @@ pub fn MaintenanceList(
     vehicle_id: ReadSignal<Option<Uuid>>,
     can_manage_maintenance: Memo<bool>,
     vehicle_fuel_type: Signal<Option<String>>,
+    vehicle_label: Signal<String>,
 ) -> impl IntoView {
     let (data, set_data) = create_signal(Option::<MaintenanceData>::None);
     let (loading, set_loading) = create_signal(false);
+    let (printing, set_printing) = create_signal(false);
     let (show_type_modal, set_show_type_modal) = create_signal(false);
     let (editing_type, set_editing_type) = create_signal(Option::<MaintenanceType>::None);
     let (show_entry_modal, set_show_entry_modal) = create_signal(false);
@@ -163,16 +165,36 @@ pub fn MaintenanceList(
 
             // ─── Historique ─────────────────────────────────────
             <div class="flex flex-col gap-4">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                     <h2 class="text-lg font-bold text-gray-900">"Historique"</h2>
-                    <Show when=move || can_manage_maintenance.get() fallback=|| ()>
-                        <button
-                            on:click=move |_| set_show_entry_modal.set(true)
-                            class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
-                        >
-                            "+ Entretien"
-                        </button>
-                    </Show>
+                    <div class="flex items-center gap-2">
+                        <Show when=move || data.get().map(|d| !d.entries.is_empty()).unwrap_or(false) fallback=|| ()>
+                            <button
+                                on:click=move |_| {
+                                    let Some(vid) = vehicle_id.get_untracked() else { return };
+                                    let Some(d) = data.get_untracked() else { return };
+                                    let label = vehicle_label.get_untracked();
+                                    set_printing.set(true);
+                                    spawn_local(async move {
+                                        print_full_carnet(vid, label, d.types, d.statuses, d.entries).await;
+                                        set_printing.set(false);
+                                    });
+                                }
+                                prop:disabled=move || printing.get()
+                                class="text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {move || if printing.get() { "Génération...".to_string() } else { "🖨 Imprimer le carnet".to_string() }}
+                            </button>
+                        </Show>
+                        <Show when=move || can_manage_maintenance.get() fallback=|| ()>
+                            <button
+                                on:click=move |_| set_show_entry_modal.set(true)
+                                class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
+                            >
+                                "+ Entretien"
+                            </button>
+                        </Show>
+                    </div>
                 </div>
 
                 <Show when=move || data.get().map(|d| d.entries.is_empty()).unwrap_or(false) fallback=|| ()>
@@ -194,6 +216,7 @@ pub fn MaintenanceList(
                                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Garage"</th>
                                         <th class="px-4 py-3"></th>
                                         <th class="px-4 py-3"></th>
+                                        <th class="px-4 py-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -205,6 +228,7 @@ pub fn MaintenanceList(
                                             let entry_id = e.id;
                                             let entry_label = label.clone();
                                             let attachment_count = e.attachment_count;
+                                            let entry_for_print = e.clone();
                                             view! {
                                                 <tr class="border-b border-gray-50 last:border-0">
                                                     <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{format_date_fr(e.performed_at)}</td>
@@ -224,6 +248,25 @@ pub fn MaintenanceList(
                                                                 "📎 "{attachment_count}
                                                             </button>
                                                         })}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-right">
+                                                        <button
+                                                            on:click=move |_| {
+                                                                let Some(vid) = vehicle_id.get_untracked() else { return };
+                                                                let entry = entry_for_print.clone();
+                                                                let label = vehicle_label.get_untracked();
+                                                                set_printing.set(true);
+                                                                spawn_local(async move {
+                                                                    print_single_entry(vid, label, entry).await;
+                                                                    set_printing.set(false);
+                                                                });
+                                                            }
+                                                            prop:disabled=move || printing.get()
+                                                            class="text-xs text-gray-400 hover:text-indigo-600 transition duration-150 disabled:opacity-50"
+                                                            title="Imprimer cette fiche"
+                                                        >
+                                                            "🖨"
+                                                        </button>
                                                     </td>
                                                     <td class="px-4 py-3 text-right">
                                                         <Show when=move || can_manage fallback=|| ()>
@@ -918,6 +961,262 @@ async fn fetch_attachment_object_url(vehicle_id: Uuid, attachment_id: Uuid) -> R
     let blob_value = wasm_bindgen_futures::JsFuture::from(blob_promise).await.map_err(|e| format!("{:?}", e))?;
     let blob: web_sys::Blob = blob_value.dyn_into().map_err(|e| format!("{:?}", e))?;
     web_sys::Url::create_object_url_with_blob(&blob).map_err(|e| format!("{:?}", e))
+}
+
+// ─── Export PDF / impression du carnet d'entretien ───────────────────
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+// Imprime un document HTML via un <iframe> caché (srcdoc) + window.print() sur son propre
+// contentWindow — reste dans la page (pas de window.open) : évite le risque de fermeture
+// d'app sur mobile en PWA standalone (cf. fetch_attachment_object_url / ViewerModal).
+fn print_html_in_iframe(html: &str) {
+    let Some(document) = leptos::window().document() else { return };
+    let Ok(el) = document.create_element("iframe") else { return };
+    let Ok(iframe) = el.dyn_into::<web_sys::HtmlIFrameElement>() else { return };
+    let style = iframe.style();
+    let _ = style.set_property("position", "fixed");
+    let _ = style.set_property("right", "0");
+    let _ = style.set_property("bottom", "0");
+    let _ = style.set_property("width", "0");
+    let _ = style.set_property("height", "0");
+    let _ = style.set_property("border", "0");
+    let _ = style.set_property("visibility", "hidden");
+
+    // Un <iframe> déclenche parfois `load` deux fois (document vide initial, puis le
+    // contenu réel) — garde d'idempotence + closure réutilisable (pas Closure::once, qui
+    // panique "FnOnce called more than once" au second déclenchement).
+    let already_printed = std::rc::Rc::new(std::cell::Cell::new(false));
+    let iframe_for_load = iframe.clone();
+    let onload = Closure::<dyn FnMut()>::new(move || {
+        if already_printed.replace(true) {
+            return;
+        }
+        if let Some(win) = iframe_for_load.content_window() {
+            let _ = win.print();
+        }
+        let iframe_for_cleanup = iframe_for_load.clone();
+        set_timeout(move || {
+            iframe_for_cleanup.remove();
+        }, std::time::Duration::from_secs(60));
+    });
+    iframe.set_onload(Some(onload.as_ref().unchecked_ref()));
+    onload.forget();
+
+    // srcdoc AVANT l'insertion dans le DOM : évite qu'un document vide ("about:blank")
+    // ne se charge d'abord lorsque l'iframe est attachée sans contenu défini.
+    iframe.set_srcdoc(html);
+    if let Some(body) = document.body() {
+        let _ = body.append_child(&iframe);
+    }
+}
+
+const PRINT_STYLE: &str = r#"
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:40px auto;color:#1e293b;font-size:14px}
+h1{color:#4f46e5;font-size:22px;margin-bottom:4px}
+.sub{color:#94a3b8;font-size:12px;margin-bottom:32px}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:28px 0 12px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:left}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#94a3b8}
+.detail-table td:first-child{color:#64748b;width:40%}
+.detail-table td:last-child{font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-ok{background:#dcfce7;color:#15803d}
+.badge-warn{background:#fef3c7;color:#b45309}
+.badge-danger{background:#fee2e2;color:#b91c1c}
+.badge-none{background:#f1f5f9;color:#64748b}
+.attachments{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+.attachment img{max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;display:block}
+.attachment .caption{font-size:11px;color:#94a3b8;margin-top:4px;max-width:200px;word-break:break-word}
+.entry-attachments{margin:10px 0}
+.entry-attachments-title{font-size:12px;font-weight:600;color:#475569;margin-bottom:4px}
+.note{font-size:12px;color:#94a3b8}
+footer{margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:12px}
+@media print{@page{margin:20mm}}
+"#;
+
+// Récupère les pièces jointes d'une entrée : les images sont converties en URL Blob pour
+// être embarquées (<img>) dans le document imprimé ; les autres types (PDF) sont juste
+// listés par nom — les intégrer nécessiterait une bibliothèque de manipulation PDF côté
+// client, hors de portée ici ("si possible" — cf. demande initiale).
+async fn fetch_entry_attachments_html(vehicle_id: Uuid, entry_id: Uuid) -> String {
+    let token = get_token().unwrap_or_default();
+    let attachments = api_get::<Vec<MaintenanceAttachment>>(
+        &format!("{}/api/vehicles/{}/maintenance-entries/{}/attachments", crate::config::API_BASE, vehicle_id, entry_id),
+        &token,
+    ).await.unwrap_or_default();
+
+    if attachments.is_empty() {
+        return String::new();
+    }
+
+    let mut images_html = String::new();
+    let mut other_files = Vec::new();
+    for att in &attachments {
+        if att.content_type.starts_with("image/") {
+            if let Ok(obj_url) = fetch_attachment_object_url(vehicle_id, att.id).await {
+                images_html.push_str(&format!(
+                    r#"<div class="attachment"><img src="{}" /><div class="caption">{}</div></div>"#,
+                    obj_url, html_escape(&att.original_filename),
+                ));
+            }
+        } else {
+            other_files.push(html_escape(&att.original_filename));
+        }
+    }
+
+    let other_note = if !other_files.is_empty() {
+        format!(r#"<p class="note">Autre(s) fichier(s) joint(s) (non intégrés à l'impression) : {}</p>"#, other_files.join(", "))
+    } else {
+        String::new()
+    };
+
+    if images_html.is_empty() && other_note.is_empty() {
+        String::new()
+    } else {
+        format!(r#"<div class="attachments">{}</div>{}"#, images_html, other_note)
+    }
+}
+
+// Fiche d'impression d'une seule entrée d'entretien.
+async fn print_single_entry(vehicle_id: Uuid, vehicle_label: String, entry: MaintenanceEntry) {
+    let attachments_html = if entry.attachment_count > 0 {
+        fetch_entry_attachments_html(vehicle_id, entry.id).await
+    } else {
+        String::new()
+    };
+    let attachments_section = if attachments_html.is_empty() {
+        String::new()
+    } else {
+        format!("<h2>Pièces jointes</h2>{}", attachments_html)
+    };
+    let notes_row = entry.notes.as_deref()
+        .filter(|n| !n.is_empty())
+        .map(|n| format!("<tr><td>Notes</td><td>{}</td></tr>", html_escape(n)))
+        .unwrap_or_default();
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/>
+<title>Fiche d'entretien — LimTrack</title>
+<style>{}</style></head>
+<body>
+<h1>Fiche d'entretien</h1>
+<div class="sub">{} — Généré le {}</div>
+<h2>Détails</h2>
+<table class="detail-table">
+<tr><td>Intitulé</td><td>{}</td></tr>
+<tr><td>Date</td><td>{}</td></tr>
+<tr><td>Kilométrage</td><td>{}</td></tr>
+<tr><td>Coût</td><td>{}</td></tr>
+<tr><td>Garage</td><td>{}</td></tr>
+{}
+</table>
+{}
+<footer>LimTrack · limtrack.app · Rapport généré automatiquement</footer>
+</body></html>"#,
+        PRINT_STYLE,
+        html_escape(&vehicle_label), chrono::Local::now().format("%d/%m/%Y"),
+        html_escape(&entry.label),
+        format_date_fr(entry.performed_at),
+        format_km(entry.km_at_service),
+        entry.cost.map(|c| format!("{:.2} €", c)).unwrap_or_else(|| "—".to_string()),
+        entry.provider.as_deref().map(html_escape).unwrap_or_else(|| "—".to_string()),
+        notes_row,
+        attachments_section,
+    );
+    print_html_in_iframe(&html);
+}
+
+// Carnet d'entretien complet : types + statut, historique, pièces jointes par entrée.
+async fn print_full_carnet(
+    vehicle_id: Uuid,
+    vehicle_label: String,
+    types: Vec<MaintenanceType>,
+    statuses: Vec<MaintenanceStatus>,
+    entries: Vec<MaintenanceEntry>,
+) {
+    let mut types_rows = String::new();
+    for t in &types {
+        let status = statuses.iter().find(|s| s.type_id == t.id);
+        let (badge_class, badge_label, detail) = match status {
+            None => ("badge-none", "Jamais fait", "—".to_string()),
+            Some(s) if s.last_performed_at.is_none() => ("badge-none", "Jamais fait", "—".to_string()),
+            Some(s) if s.overdue => ("badge-danger", "En retard", s.next_due_date.map(format_date_fr).unwrap_or_else(|| "—".to_string())),
+            Some(s) => ("badge-ok", "À jour", s.next_due_date.map(format_date_fr).unwrap_or_else(|| "—".to_string())),
+        };
+        types_rows.push_str(&format!(
+            r#"<tr><td>{}</td><td>{}</td><td><span class="badge {}">{}</span></td><td>{}</td></tr>"#,
+            html_escape(&t.label), interval_summary(t), badge_class, badge_label, detail,
+        ));
+    }
+
+    let mut history_rows = String::new();
+    let mut attachments_sections = String::new();
+    for e in &entries {
+        history_rows.push_str(&format!(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+            format_date_fr(e.performed_at), html_escape(&e.label), format_km(e.km_at_service),
+            e.cost.map(|c| format!("{:.2} €", c)).unwrap_or_else(|| "—".to_string()),
+            e.provider.as_deref().map(html_escape).unwrap_or_else(|| "—".to_string()),
+        ));
+
+        if e.attachment_count > 0 {
+            let images_html = fetch_entry_attachments_html(vehicle_id, e.id).await;
+            if !images_html.is_empty() {
+                attachments_sections.push_str(&format!(
+                    r#"<div class="entry-attachments"><p class="entry-attachments-title">{} — {}</p>{}</div>"#,
+                    format_date_fr(e.performed_at), html_escape(&e.label), images_html,
+                ));
+            }
+        }
+    }
+
+    let attachments_section = if attachments_sections.is_empty() {
+        String::new()
+    } else {
+        format!("<h2>Pièces jointes</h2>{}", attachments_sections)
+    };
+    let types_section = if types_rows.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<h2>Types d'entretien</h2><table><tr><th>Type</th><th>Intervalle</th><th>Statut</th><th>Échéance</th></tr>{}</table>"#,
+            types_rows,
+        )
+    };
+    let history_section = if history_rows.is_empty() {
+        r#"<p class="note">Aucun entretien enregistré.</p>"#.to_string()
+    } else {
+        format!(
+            r#"<table><tr><th>Date</th><th>Intitulé</th><th>Km</th><th>Coût</th><th>Garage</th></tr>{}</table>"#,
+            history_rows,
+        )
+    };
+
+    let html = format!(r#"<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/>
+<title>Carnet d'entretien — LimTrack</title>
+<style>{}</style></head>
+<body>
+<h1>Carnet d'entretien</h1>
+<div class="sub">{} — Généré le {}</div>
+{}
+<h2>Historique</h2>
+{}
+{}
+<footer>LimTrack · limtrack.app · Rapport généré automatiquement</footer>
+</body></html>"#,
+        PRINT_STYLE,
+        html_escape(&vehicle_label), chrono::Local::now().format("%d/%m/%Y"),
+        types_section, history_section, attachments_section,
+    );
+    print_html_in_iframe(&html);
 }
 
 #[component]

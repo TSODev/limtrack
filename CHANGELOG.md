@@ -17,6 +17,14 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.6.0] — 2026-09-15
+
+### Ajouté
+- **Impression PDF du carnet d'entretien** : chaque fiche individuelle (bouton 🖨 dans l'historique) et le carnet complet du véhicule (bouton "🖨 Imprimer le carnet" — types avec statut/échéance + historique complet) peuvent être imprimés/exportés en PDF via le dialogue d'impression du navigateur. Les photos de facture jointes sont intégrées directement dans le document (les PDF joints sont listés par nom, non intégrables sans bibliothèque dédiée côté client).
+- Nouveau pattern d'impression (`print_html_in_iframe`, `maintenance_list.rs`) : `<iframe>` caché (`srcdoc`) + `window.print()` sur son propre `contentWindow`, plutôt que `window.open(url, "_blank")` (pattern existant de `contract_list.rs`/`fleet.rs`) — évite le risque de fermeture d'app sur mobile en PWA standalone. Piège rencontré et corrigé : un `<iframe>` peut déclencher `load` deux fois, faisant paniquer un `Closure::once` ("FnOnce called more than once") — remplacé par une garde d'idempotence.
+
+---
+
 ## [1.5.10] — 2026-09-15
 
 ### Ajouté
