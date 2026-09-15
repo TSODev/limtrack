@@ -34,12 +34,13 @@
 | [1.3.1] | 2026-06-11 | Correctif flash modal essai iOS au premier lancement — **APPROUVÉ App Store** |
 | [1.3.2] | 2026-06-13 | Race condition iOS, modal essai conditionné au statut licence, onboarding nouvel utilisateur — **PUBLIÉ App Store** ✅ |
 | [1.4.0] | 2026-09-14 | App gratuite pour tout le monde (licence masquée), planification de voyages futurs (ponctuels/récurrents), courbe de progression enrichie (trajectoire idéale complète + projection) |
+| [1.5.0] | 2026-09-15 | Carnet d'entretien — types récurrents + journal d'interventions, échéances estimées à partir du rythme km réel |
 
 ---
 
 ## En cours — [Unreleased]
 
-**Prochaine étape :** build & soumission App Store de la 1.4.0 (web déjà déployée le 2026-09-14).
+**Prochaine étape :** build & soumission App Store (web déjà déployée le 2026-09-15).
 
 - [x] Web (limtrack.app + api.limtrack.app) — déployé
 - [ ] Build iOS (`cargo tauri ios build`) + soumission via Transporter — **bloqué** : MacBook Pro en panne, pas de Mac disponible. Options envisagées : location cloud (MacinCloud pay-as-you-go) ou OpenCore Legacy Patcher sur un vieux MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026 pour toute soumission App Store).

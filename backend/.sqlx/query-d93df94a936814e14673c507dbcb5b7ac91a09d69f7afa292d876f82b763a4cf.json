@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT performed_at, km_at_service FROM public.maintenance_entries\n               WHERE maintenance_type_id = $1 ORDER BY performed_at DESC, created_at DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "performed_at",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 1,
+        "name": "km_at_service",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "d93df94a936814e14673c507dbcb5b7ac91a09d69f7afa292d876f82b763a4cf"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM public.maintenance_entries WHERE id = $1 AND vehicle_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "79ff409cd760948e58bfe50d46f8190e1a7794fc2387b4d48bf8081b47a482e2"
+}

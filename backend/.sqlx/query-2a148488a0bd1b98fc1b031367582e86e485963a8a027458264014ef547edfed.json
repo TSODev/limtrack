@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE public.maintenance_types SET\n            label = $1, interval_km = $2, interval_months = $3, active = $4\n        WHERE id = $5 AND vehicle_id = $6\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int4",
+        "Bool",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2a148488a0bd1b98fc1b031367582e86e485963a8a027458264014ef547edfed"
+}

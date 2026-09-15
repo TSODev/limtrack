@@ -3,6 +3,7 @@ pub mod broadcast_banner;
 pub mod contracts;
 pub mod join_vehicle_button;
 pub mod mileage;
+pub mod maintenance;
 pub mod notification_bell;
 pub mod trips;
 pub mod ui;

@@ -8,6 +8,7 @@ mod company_handler;
 mod contracts_handler;
 mod license_handler;
 mod license_middleware;
+mod maintenance_handler;
 mod mileage_handler;
 mod notifier;
 mod request_license_handler;
@@ -21,6 +22,11 @@ mod vehicles_handler;
 use crate::contracts_handler::{
     create_insurance, create_loa, delete_insurance, delete_loa, list_insurance, list_loa,
     renew_insurance, run_insurance_renewals, update_insurance, update_loa,
+};
+use crate::maintenance_handler::{
+    create_maintenance_entry, create_maintenance_type, delete_maintenance_entry,
+    delete_maintenance_type, list_maintenance_entries, list_maintenance_types,
+    maintenance_status, update_maintenance_type,
 };
 use crate::mileage_handler::{create_mileage, delete_mileage, list_mileage};
 use crate::trips_handler::{create_trip, delete_trip, list_trips, update_trip, usage_forecast};
@@ -174,6 +180,27 @@ async fn main() {
         .route(
             "/api/vehicles/:vehicle_id/usage-forecast",
             get(usage_forecast),
+        )
+        // Carnet d'entretien
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-types",
+            get(list_maintenance_types).post(create_maintenance_type),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-types/:type_id",
+            axum::routing::patch(update_maintenance_type).delete(delete_maintenance_type),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-entries",
+            get(list_maintenance_entries).post(create_maintenance_entry),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-entries/:entry_id",
+            axum::routing::delete(delete_maintenance_entry),
+        )
+        .route(
+            "/api/vehicles/:vehicle_id/maintenance-status",
+            get(maintenance_status),
         )
         .route("/api/vehicles/:id/share", post(create_share_code))
         .route("/api/vehicles/join", post(join_with_code))

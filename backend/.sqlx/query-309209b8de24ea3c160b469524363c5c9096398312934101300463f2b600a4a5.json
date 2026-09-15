@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT label, interval_km, interval_months, active\n           FROM public.maintenance_types WHERE id = $1 AND vehicle_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "label",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "interval_km",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "interval_months",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "active",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "309209b8de24ea3c160b469524363c5c9096398312934101300463f2b600a4a5"
+}

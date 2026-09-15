@@ -454,3 +454,75 @@ pub struct UsageForecast {
     pub unavailable_days: Option<i64>,
     pub points: Vec<ForecastPoint>,
 }
+
+// ═══════════════════════════════════════════════════════════════
+// CARNET D'ENTRETIEN
+// ═══════════════════════════════════════════════════════════════
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct MaintenanceType {
+    pub id: Uuid,
+    pub vehicle_id: Uuid,
+    pub label: String,
+    pub interval_km: Option<i32>,
+    pub interval_months: Option<i32>,
+    pub active: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateMaintenanceTypePayload {
+    pub label: String,
+    pub interval_km: Option<i32>,
+    pub interval_months: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateMaintenanceTypePayload {
+    pub label: Option<String>,
+    pub interval_km: Option<i32>,
+    pub interval_months: Option<i32>,
+    pub active: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "backend", derive(sqlx::FromRow))]
+pub struct MaintenanceEntry {
+    pub id: Uuid,
+    pub vehicle_id: Uuid,
+    pub maintenance_type_id: Option<Uuid>,
+    pub label: String,
+    pub performed_at: chrono::NaiveDate,
+    pub km_at_service: i32,
+    pub cost: Option<f64>,
+    pub provider: Option<String>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateMaintenanceEntryPayload {
+    pub maintenance_type_id: Option<Uuid>,
+    /// Requis si maintenance_type_id est absent (entrée "Autre" libre)
+    pub label: Option<String>,
+    pub performed_at: chrono::NaiveDate,
+    pub km_at_service: i32,
+    pub cost: Option<f64>,
+    pub provider: Option<String>,
+    pub notes: Option<String>,
+}
+
+/// Statut agrégé d'un type d'entretien : dernière intervention + prochaine échéance estimée
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct MaintenanceStatus {
+    pub type_id: Uuid,
+    pub label: String,
+    pub interval_km: Option<i32>,
+    pub interval_months: Option<i32>,
+    pub last_performed_at: Option<chrono::NaiveDate>,
+    pub last_km: Option<i32>,
+    pub next_due_km: Option<i32>,
+    pub next_due_date: Option<chrono::NaiveDate>,
+    pub overdue: bool,
+}

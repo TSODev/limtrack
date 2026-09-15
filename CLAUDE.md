@@ -35,6 +35,7 @@ limtrack/
 │   ├── contracts_handler.rs
 │   ├── mileage_handler.rs
 │   ├── trips_handler.rs       ← CRUD voyages planifiés + GET .../usage-forecast (projection km/jour)
+│   ├── maintenance_handler.rs ← CRUD carnet d'entretien + GET .../maintenance-status (échéances estimées)
 │   ├── share_handler.rs
 │   ├── company_handler.rs     ← gestion flotte : entreprises, orgs, membres, rôles
 │   ├── license_handler.rs     ← GET /api/profile/license + POST /api/profile/redeem
@@ -77,9 +78,12 @@ limtrack/
 │       ├── mileage/
 │       │   ├── mileage_list.rs
 │       │   └── mileage_widget.rs      ← trajectoire idéale + overlay projection (usage-forecast)
-│       └── trips/
-│           ├── trip_list.rs           ← CRUD voyages + TripModal (récurrence)
-│           └── trip_widget.rs         ← widget dashboard "Capacité kilométrique" (jour/semaine/mois)
+│       ├── trips/
+│       │   ├── trip_list.rs           ← CRUD voyages + TripModal (récurrence)
+│       │   └── trip_widget.rs         ← widget dashboard "Capacité kilométrique" (jour/semaine/mois)
+│       └── maintenance/
+│           ├── maintenance_list.rs    ← CRUD types + journal d'interventions
+│           └── maintenance_widget.rs  ← widget dashboard échéance la plus urgente
 ├── frontend/src-tauri/        ← Tauri iOS
 │   ├── tauri.conf.json
 │   ├── gen/apple/             ← Projet Xcode généré
@@ -127,6 +131,9 @@ license_requests       -- email (UNIQUE), token_hash, requested_at — anti-doub
 planned_trips          -- vehicle_id, label, estimated_km, start_date, end_date, recurrence
                        -- (none/daily/weekly/monthly), recurrence_interval, days_of_week SMALLINT[],
                        -- day_of_month, recurrence_end_date, active (ON DELETE CASCADE)
+maintenance_types      -- vehicle_id, label, interval_km, interval_months, active (ON DELETE CASCADE)
+maintenance_entries    -- vehicle_id, maintenance_type_id (ON DELETE SET NULL), label (snapshot),
+                       -- performed_at, km_at_service, cost, provider, notes
 -- users.is_admin BOOLEAN DEFAULT FALSE — migration 005, accès dashboard admin
 -- contracts_loa.price_per_extra_km FLOAT NULL — migration 006, coût dépassement km
 -- users.is_ios BOOLEAN DEFAULT FALSE — migration 007, version Personal iOS (sans flotte)
@@ -138,6 +145,7 @@ planned_trips          -- vehicle_id, label, estimated_km, start_date, end_date,
 -- VIEW v_contract_status (vehicle_id, status) — migration 012, calcul danger/warning/ok centralisé (utilisé via LEFT JOIN dans vehicles_handler.rs)
 -- users.license_type TEXT NOT NULL DEFAULT 'personal' — migration 013, type de licence centralisé sur users (backfill depuis dernier jeton, éditable via PATCH /api/admin/users/:id)
 -- planned_trips (voir ci-dessus) — migration 014, voyages planifiés (ponctuels/récurrents) pour la projection d'usage futur
+-- maintenance_types / maintenance_entries (voir ci-dessus) — migration 015, carnet d'entretien
 ```
 
 ## Routes API
@@ -182,6 +190,13 @@ POST/DELETE /api/vehicles/:id/fleet                           ← assigner/retir
 GET/POST    /api/vehicles/:id/trips
 PATCH/DELETE /api/vehicles/:id/trips/:trip_id
 GET         /api/vehicles/:id/usage-forecast                  ← km/jour disponible + date d'indisponibilité prévisible (voyages inclus)
+
+# Carnet d'entretien
+GET/POST    /api/vehicles/:id/maintenance-types
+PATCH/DELETE /api/vehicles/:id/maintenance-types/:type_id
+GET/POST    /api/vehicles/:id/maintenance-entries
+DELETE      /api/vehicles/:id/maintenance-entries/:entry_id
+GET         /api/vehicles/:id/maintenance-status               ← échéance estimée (km/date) + statut "en retard" par type actif
 
 # Flotte
 GET/POST    /api/companies
@@ -368,6 +383,28 @@ Combine `daily_rate = km_consumed / days_elapsed` (même formule que `estimate_l
 - `trip_widget.rs` : widget dashboard "Capacité kilométrique" — 3 tuiles (par jour / semaine / mois) + badge "Indisponible à partir du [date] (voyages inclus)" si applicable
 - `mileage_widget.rs` : trajectoire idéale prolongée jusqu'à `end_date` (au lieu de s'arrêter à aujourd'hui) + overlay pointillé violet de la projection avec voyages (`GET .../usage-forecast`)
 
+## Carnet d'entretien
+
+### Modèle (migration 015)
+Deux tables : `maintenance_types` (définition récurrente — label + `interval_km` et/ou `interval_months`, au moins un des deux requis) et `maintenance_entries` (journal — une intervention réelle, avec `label` **copié/snapshot** du type au moment de la création pour que l'historique reste lisible même si le type est renommé ou supprimé). `maintenance_type_id` est en `ON DELETE SET NULL` (pas CASCADE) : supprimer un type ne doit jamais effacer l'historique des interventions déjà loggées.
+
+**Seed par défaut** (`vehicles_handler.rs::create_vehicle`) : à la création d'un véhicule, deux types sont insérés automatiquement (best-effort, ne bloque pas la création si l'insert échoue) — "Vidange" (15 000 km / 12 mois) et "Contrôle technique" (24 mois). Éditables/supprimables ensuite normalement.
+
+**Pas d'API constructeur** : aucune API publique/gratuite n'existe pour les recommandations d'entretien OEM (les offres commerciales type Vehicle Databases/CarScan/MOTOR sont centrées marché US, couverture Europe faible) — l'utilisateur déclare lui-même ses intervalles.
+
+### `GET /api/vehicles/:id/maintenance-status`
+Pour chaque type **actif**, cherche sa dernière entrée (`ORDER BY performed_at DESC, created_at DESC LIMIT 1`). Sans entrée → `last_performed_at: null`, pas d'échéance calculable. Avec entrée :
+- `next_due_km = last.km_at_service + interval_km` (si `interval_km` défini)
+- `next_due_date` = la plus proche entre l'échéance par temps (`last.performed_at + interval_months`) et l'échéance par km, cette dernière projetée via `estimate_date_for_km` — **rythme moyen calculé sur tout l'historique `mileage_log` du véhicule** (premier → dernier relevé), volontairement **indépendant** de `estimate_limit_date` (`contracts_handler.rs`) qui lui est borné à un contrat.
+- `overdue` = km actuel du véhicule ≥ `next_due_km`, OU date du jour ≥ échéance par temps.
+
+**Piège à ne pas réintroduire** (cf. bug `usage-forecast` du 2026-09-14) : toutes les comparaisons ici sont déjà en valeurs absolues cohérentes (`km_at_service` est un compteur absolu, pas un delta comme `km_start`/`km_allowed` des contrats) — ne pas mélanger les deux conventions si du code est partagé/réutilisé entre les deux features à l'avenir.
+
+### Frontend
+- Onglet "Entretien" dans `vehicle_dashboard.rs` (`DashboardTab::Maintenance`), `can_manage_maintenance` = owner|editor.
+- `maintenance_list.rs` : section "Types" (badge À jour/Bientôt/En retard/Jamais fait calculé côté client depuis `maintenance-status`) + section "Historique" (tableau chronologique). `TypeModal`/`EntryModal`/`Modal`/`Field`/`ModalActions` dupliqués localement (convention du projet).
+- `maintenance_widget.rs` : résumé dashboard de l'échéance la plus urgente (en retard prioritaire, sinon date la plus proche).
+
 ## Points importants Leptos
 ```rust
 // Callbacks — toujours Callback<T>
@@ -517,7 +554,7 @@ create_effect(move |_| {
 ```
 
 ## Navigation widgets → onglets
-`MileageWidget`, `ContractsWidget` et `TripsWidget` reçoivent une prop `on_navigate: Callback<()>` passée depuis `vehicle_dashboard.rs`. Clic sur le titre → `set_tab.set(DashboardTab::Kilometrage / Contracts / Trips)`.
+`MileageWidget`, `ContractsWidget`, `TripsWidget` et `MaintenanceWidget` reçoivent une prop `on_navigate: Callback<()>` passée depuis `vehicle_dashboard.rs`. Clic sur le titre → `set_tab.set(DashboardTab::Kilometrage / Contracts / Trips / Maintenance)`.
 
 ## Client HTTP partagé — `api_client.rs`
 `frontend/src/api_client.rs` centralise tous les appels réseau du frontend. Ne jamais réécrire de helper HTTP local dans un composant — utiliser ces fonctions :
@@ -571,7 +608,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.4.0` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-14
-iOS App Store : soumission 1.4.0 **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
+`1.5.0` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

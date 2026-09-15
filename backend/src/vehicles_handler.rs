@@ -226,7 +226,25 @@ pub async fn create_vehicle(
     .await;
 
     match row {
-        Ok(vehicle) => (StatusCode::CREATED, Json(vehicle)).into_response(),
+        Ok(vehicle) => {
+            // Types d'entretien par défaut — best-effort, ne bloque pas la création du véhicule
+            if let Err(e) = sqlx::query!(
+                r#"
+                INSERT INTO public.maintenance_types (vehicle_id, label, interval_km, interval_months)
+                VALUES
+                    ($1, 'Vidange', 15000, 12),
+                    ($1, 'Contrôle technique', NULL, 24)
+                "#,
+                vehicle.id,
+            )
+            .execute(&state.db)
+            .await
+            {
+                tracing::error!("Échec du seed des types d'entretien par défaut pour {} : {}", vehicle.id, e);
+            }
+
+            (StatusCode::CREATED, Json(vehicle)).into_response()
+        }
         Err(sqlx::Error::Database(e)) if e.constraint() == Some("vehicles_plate_number_key") => {
             err(
                 StatusCode::CONFLICT,

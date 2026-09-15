@@ -5,6 +5,8 @@ use wasm_bindgen::JsCast;
 
 use crate::components::contracts::contract_list::ContractList;
 use crate::components::contracts::contract_widget::ContractsWidget;
+use crate::components::maintenance::maintenance_list::MaintenanceList;
+use crate::components::maintenance::maintenance_widget::MaintenanceWidget;
 use crate::components::mileage::mileage_list::MileageList;
 use crate::components::mileage::mileage_widget::MileageWidget;
 use crate::components::trips::trip_list::TripList;
@@ -18,6 +20,7 @@ pub enum DashboardTab {
     Kilometrage,
     Contracts,
     Trips,
+    Maintenance,
 }
 
 #[component]
@@ -47,6 +50,13 @@ pub fn VehicleDashboard(
     });
 
     let can_manage_trips = create_memo(move |_| {
+        vehicle
+            .get()
+            .map(|v| matches!(v.my_role, AccessRole::Owner | AccessRole::Editor))
+            .unwrap_or(false)
+    });
+
+    let can_manage_maintenance = create_memo(move |_| {
         vehicle
             .get()
             .map(|v| matches!(v.my_role, AccessRole::Owner | AccessRole::Editor))
@@ -183,6 +193,12 @@ pub fn VehicleDashboard(
                         active=move || tab.get() == DashboardTab::Trips
                         on_click=move || set_tab.set(DashboardTab::Trips)
                     />
+                    <TabButton
+                        label="Entretien"
+                        label_md="Entretien"
+                        active=move || tab.get() == DashboardTab::Maintenance
+                        on_click=move || set_tab.set(DashboardTab::Maintenance)
+                    />
                 </div>
 
                 // Contenu de l'onglet
@@ -200,12 +216,14 @@ pub fn VehicleDashboard(
                                     can_manage_contracts=can_manage_contracts
                                     on_navigate=Callback::new(move |_| set_tab.set(DashboardTab::Contracts))
                                 />
-                                <div class="md:col-span-2">
-                                    <TripsWidget
-                                        vehicle_id=selected_id
-                                        on_navigate=Callback::new(move |_| set_tab.set(DashboardTab::Trips))
-                                    />
-                                </div>
+                                <TripsWidget
+                                    vehicle_id=selected_id
+                                    on_navigate=Callback::new(move |_| set_tab.set(DashboardTab::Trips))
+                                />
+                                <MaintenanceWidget
+                                    vehicle_id=selected_id
+                                    on_navigate=Callback::new(move |_| set_tab.set(DashboardTab::Maintenance))
+                                />
                             </div>
                         }.into_view(),
                         DashboardTab::Kilometrage => view! {
@@ -224,6 +242,12 @@ pub fn VehicleDashboard(
                             <TripList
                                 vehicle_id=selected_id
                                 can_manage_trips=can_manage_trips
+                            />
+                        }.into_view(),
+                        DashboardTab::Maintenance => view! {
+                            <MaintenanceList
+                                vehicle_id=selected_id
+                                can_manage_maintenance=can_manage_maintenance
                             />
                         }.into_view(),
                     }}

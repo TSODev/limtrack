@@ -17,6 +17,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.0] — 2026-09-15
+
+### Ajouté
+- **Carnet d'entretien** : nouvel onglet "Entretien" par véhicule. Types de maintenance récurrents (label + intervalle km et/ou mois, ex. "Vidange tous les 15 000 km ou 12 mois") avec deux valeurs par défaut pré-remplies à la création d'un véhicule (Vidange, Contrôle technique), éditables/supprimables. Journal des interventions (date, km au compteur, coût, garage, notes) — utilisable avec un type existant ou en entrée libre ("Autre"). Migration `015` — tables `maintenance_types` et `maintenance_entries` (`ON DELETE SET NULL` sur le type pour préserver l'historique si le type est supprimé). Nouveau `backend/src/maintenance_handler.rs`.
+- **Prochaine échéance estimée** : `GET /api/vehicles/:id/maintenance-status` calcule, pour chaque type actif, la date/km de la prochaine échéance à partir du rythme moyen de tout l'historique kilométrique du véhicule (`estimate_date_for_km`, indépendant des contrats) et signale un statut "en retard" (dépassement km ou date). Widget dashboard `MaintenanceWidget` affichant l'échéance la plus urgente.
+- Pas d'API constructeur utilisée (aucune n'existe en accès public/gratuit couvrant le marché européen) — intervalles déclarés par l'utilisateur.
+
+---
+
 ## [1.4.0] — 2026-09-14
 
 ### Ajouté
