@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.14] — 2026-09-15
+
+### Corrigé
+- **Sélecteur de type illisible sur mobile** : le layout en ligne (catégorie / type / "+ Ajouter") compressait le `<select>` du type à quelques caractères de large sur un petit écran. Passage en colonne (empilé pleine largeur) sous le seuil `md`, toujours en ligne au-dessus — signalé par l'utilisateur.
+
+---
+
 ## [1.5.13] — 2026-09-15
 
 ### Changé

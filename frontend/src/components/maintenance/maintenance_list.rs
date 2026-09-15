@@ -816,11 +816,11 @@ fn EntryModal(
                         when=move || !categories.get().is_empty()
                         fallback=|| view! { <p class="text-xs text-gray-400">"Aucun type disponible — renseignez un libellé ci-dessous."</p> }
                     >
-                        <div class="flex gap-2">
+                        <div class="flex flex-col md:flex-row gap-2">
                             <select
                                 prop:value=current_category
                                 on:change=move |ev| set_current_category.set(event_target_value(&ev))
-                                class="w-[9.5rem] flex-shrink-0 appearance-none px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
+                                class="w-full md:w-[9.5rem] md:flex-shrink-0 appearance-none px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
                             >
                                 {move || categories.get().into_iter().map(|cat| {
                                     view! { <option value=cat>{cat}</option> }
@@ -829,7 +829,7 @@ fn EntryModal(
                             <select
                                 prop:value=current_pick
                                 on:change=move |ev| set_current_pick.set(event_target_value(&ev))
-                                class="flex-1 min-w-0 appearance-none px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
+                                class="w-full md:flex-1 md:min-w-0 appearance-none px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150"
                             >
                                 {move || items.get().into_iter().map(|(key, label)| {
                                     view! { <option value=key>{label}</option> }
@@ -838,7 +838,7 @@ fn EntryModal(
                             <button type="button"
                                 on:click=add_selected
                                 prop:disabled=move || current_pick.get().is_empty()
-                                class="flex-shrink-0 px-3 py-2 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition duration-150"
+                                class="w-full md:w-auto md:flex-shrink-0 px-3 py-2 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition duration-150"
                             >
                                 "+ Ajouter"
                             </button>
