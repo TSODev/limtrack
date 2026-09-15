@@ -502,6 +502,7 @@ fetch_json::<T>(&format!("{}/api/profile", crate::config::API_BASE), &token)
 - Bottom sheet : boutons Ajouter/Rejoindre en `flex-row` hors du container scrollable + spacer `height: env(safe-area-inset-bottom)` en bas du panneau
 - Notification bell : position panneau `top: calc(var(--nav-top) + 3.5rem)` + bouton ✕ explicite
 - Boutons icônes seuls mobile : `hidden md:inline` sur les textes
+- **Scroll tactile dans un modal `position:fixed`** : signalé bloqué (aucun scroll du tout) sur une PWA Android installée (Samsung, mode standalone) — non reproduit malgré test avec geste tactile simulé (Chromium headless, émulation Galaxy S24, `Input.dispatchTouchEvent` via CDP), qui fonctionne. Fix défensif appliqué en attendant confirmation terrain : `overscroll-contain touch-pan-y` sur le conteneur scrollable (`Modal` dans `maintenance_list.rs`, `ViewerModal`) — pattern standard pour ce symptôme en `position:fixed`, sans effet de bord si ce n'était pas la cause réelle. **Non confirmé comme correctif définitif** — à revalider avec l'utilisateur sur son appareil.
 
 ## Tauri iOS — lancer le Simulator
 ```bash
@@ -668,7 +669,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 ```
 
 ## Version actuelle
-`1.5.7` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.8` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

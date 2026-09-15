@@ -1064,7 +1064,7 @@ fn ViewerModal(url: String, content_type: String, filename: String, on_close: Ca
                         <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
                     </div>
                 </div>
-                <div class="flex-1 overflow-auto bg-gray-50 flex items-center justify-center p-2 min-h-[50vh]">
+                <div class="flex-1 overflow-auto overscroll-contain touch-pan-y bg-gray-50 flex items-center justify-center p-2 min-h-[50vh]">
                     {move || {
                         if is_image {
                             view! { <img src=url_for_body.clone() class="max-w-full max-h-[75vh] object-contain" /> }.into_view()
@@ -1085,7 +1085,7 @@ fn Modal(title: &'static str, on_close: Callback<()>, children: Children) -> imp
     view! {
         <button type="button" class="fixed inset-0 z-40 bg-black bg-opacity-40 backdrop-blur-sm w-full cursor-default" on:click=move |_| on_close.call(()) />
         <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md p-8 space-y-6 max-h-[90vh] overflow-y-auto overscroll-contain touch-pan-y">
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-bold text-gray-900">{title}</h2>
                     <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>

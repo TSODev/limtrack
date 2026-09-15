@@ -15,6 +15,15 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Railway + NeonDB résiliés** (2026-06-13) — infrastructure entièrement sur OVH VPS depuis v1.2.0. Nettoyage du code : `railway.json` supprimé, toutes les mentions Railway/NeonDB remplacées.
 - **Backup OVH quotidien activé** — double protection : `pg_dump` cron 2h + snapshot VPS OVH automatique.
 
+---
+
+## [1.5.8] — 2026-09-15
+
+### Corrigé (non confirmé — en attente de retour terrain)
+- **Scroll tactile bloqué en PWA Android installée** : signalé sur Samsung (mode standalone, "rien ne bouge du tout"). Non reproduit via Chromium headless + émulation tactile (Galaxy S24, geste réel simulé via CDP), qui fonctionne correctement. Ajout défensif de `overscroll-contain touch-pan-y` sur les conteneurs scrollables des modaux d'entretien (`Modal`, `ViewerModal`) — pattern standard pour ce symptôme, sans effet de bord si ce n'était pas la cause.
+
+---
+
 ## [1.5.7] — 2026-09-15
 
 ### Corrigé
