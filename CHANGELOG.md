@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.5] — 2026-09-15
+
+### Corrigé
+- **Modal "Nouvel entretien" non scrollable** : la liste de cases à cocher des types (`EntryModal`, `maintenance_list.rs`) avait son propre scroll interne (`max-h-56 overflow-y-auto`) imbriqué dans le scroll du modal. Avec le curseur positionné sur cette liste — la zone la plus visible à l'ouverture —, la molette ne faisait défiler que la petite liste interne tant qu'elle n'avait pas atteint sa propre limite, donnant l'impression que le modal entier était bloqué (champs Date/Km/Coût et bouton Enregistrer inatteignables). Retrait du scroll imbriqué : la liste s'étend maintenant naturellement dans l'unique scroll du modal (`max-h-[90vh] overflow-y-auto`). Reproduit et vérifié via Chromium headless (Playwright) avant/après correctif.
+
+---
+
 ## [1.5.4] — 2026-09-15
 
 ### Corrigé

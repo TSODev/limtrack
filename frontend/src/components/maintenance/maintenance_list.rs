@@ -630,7 +630,7 @@ fn EntryModal(
         <Modal title="Nouvel entretien" on_close=on_close>
             <form on:submit=on_submit class="space-y-4">
                 <Field label="Types concernés (un ou plusieurs — ex: révision = vidange + filtres)">
-                    <div class="space-y-3 max-h-56 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                    <div class="space-y-3 border border-gray-200 rounded-lg p-3">
                         {(!types.is_empty()).then(|| {
                             let items = types.clone();
                             view! {
