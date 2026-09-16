@@ -587,8 +587,15 @@ fn build_forecast(metrics: &ContractMetrics, trips: &[TripRow], today: NaiveDate
         } else {
             None
         };
+        // N'a de sens que si arrêter complètement la conduite habituelle (hors voyages
+        // planifiés) suffirait réellement à rattraper le dépassement d'ici l'échéance —
+        // sinon le résultat dépasse `days_remaining`, ce qui est absurde ("ne pas rouler
+        // pendant plus de jours qu'il n'en reste"). Concrètement, ce cas survient quand le
+        // dépassement vient majoritairement des voyages planifiés plutôt que du rythme
+        // habituel : même à zéro km de conduite courante, ça ne suffirait pas.
         let days_off = if daily_rate > 0.0 {
-            Some((overage_km / daily_rate).ceil() as i32)
+            let raw = (overage_km / daily_rate).ceil() as i64;
+            if raw <= days_remaining { Some(raw as i32) } else { None }
         } else {
             None
         };

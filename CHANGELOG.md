@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.17] — 2026-09-16
+
+### Corrigé
+- **Recommandation "jours sans utiliser le véhicule" incohérente** : pouvait afficher un nombre de jours supérieur au temps réellement restant jusqu'à l'échéance (ex. "149 jours" alors qu'il n'en restait que 107) — repéré par un utilisateur sur un cas réel où le dépassement provenait majoritairement de voyages planifiés plutôt que du rythme de conduite habituel (arrêter de rouler normalement ne suffit alors pas à combler l'écart). La recommandation n'est désormais affichée que lorsqu'elle est réellement réalisable (≤ jours restants) ; sinon seule la réduction quotidienne à répartir reste affichée.
+
+---
+
 ## [1.5.16] — 2026-09-16
 
 ### Changé
