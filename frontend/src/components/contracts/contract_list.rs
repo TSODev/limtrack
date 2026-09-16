@@ -483,7 +483,7 @@ fn ContractInsuranceCard(contract: ContractInsurance, can_manage: bool, on_delet
                     "Risque dépassement",
                 )
             } else {
-                ("bg-indigo-500", "bg-green-100 text-green-700", "Active")
+                ("bg-indigo-500", "bg-green-100 text-green-700", "Actif")
             }
         }
     };
@@ -987,7 +987,7 @@ fn export_insurance_pdf(c: &ContractInsurance) {
     let status_label = match c.status.as_str() {
         "exceeded" => "Dépassé",
         "closed"   => "Clôturé",
-        _          => if c.overage_risk { "Risque dépassement" } else { "Active" },
+        _          => if c.overage_risk { "Risque dépassement" } else { "Actif" },
     };
     let insurer_line = c.insurer.as_deref()
         .map(|ins| format!("<tr><td>Assureur</td><td>{}</td></tr>", ins))

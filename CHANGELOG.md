@@ -18,6 +18,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.20] — 2026-09-16
+
+### Corrigé
+- **Badge de statut du contrat d'assurance en anglais** ("Active" au lieu de "Actif") — repéré lors d'une session de test complète de l'app. Le contrat LOA affichait déjà correctement "Actif" ; seule la carte assurance (`ContractInsuranceCard`, écran et export PDF) avait le libellé non traduit.
+
+---
+
 ## [1.5.19] — 2026-09-16
 
 ### Ajouté
