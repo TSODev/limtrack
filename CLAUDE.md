@@ -291,6 +291,14 @@ cargo run --bin notify-expiry -- --help
 cargo run --bin send-broadcast -- --help
 ```
 
+## Accès direct à la base de données de production
+
+`docker-compose.yml` publie le port Postgres sur `127.0.0.1:5432` du VPS (jamais exposé publiquement — uniquement joignable via tunnel SSH). Accès via tunnel :
+```bash
+ssh -i ~/.ssh/limtrack_deploy -L 5433:localhost:5432 limtrack@164.132.40.109
+```
+**Utiliser un port local ≠ 5432** (ex. `5433`) : la machine de développement a un PostgreSQL natif installé en local (`systemctl status postgresql`) pour les tests backend, qui écoute déjà en IPv4 sur `127.0.0.1:5432`. Un tunnel SSH lié à `localhost:5432` se bind en IPv6 (`[::1]:5432`) — sur cette machine, un client qui résout `localhost` en IPv4 (la plupart) tombe silencieusement sur le Postgres **local** au lieu du tunnel, avec une erreur trompeuse `password authentication failed for user "limtrack"` (aucune tentative de connexion n'atteint alors le VPS — vérifiable via `docker logs limtrack-postgres-1`, qui ne montre rien). Piège découvert en configurant `rowdy-db` (`~/.config/rowdy/config.toml`, hors dépôt) — corrigé en pointant son tunnel sur le port local `5433`.
+
 ## Accès véhicules — `vehicle_access`
 
 **Source de vérité unique** : tous les handlers (véhicules, kilométrage, contrats, voyages, entretien, pièces jointes) vérifient l'accès exclusivement via `SELECT role FROM vehicle_access WHERE vehicle_id = $1 AND user_id = $2` — jamais via `vehicles.owner_id` directement. `list_vehicles` fait un `JOIN` (pas un `LEFT JOIN`) dessus : sans ligne `vehicle_access`, un véhicule est invisible à son propre propriétaire, y compris dans sa propre liste.

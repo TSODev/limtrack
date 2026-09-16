@@ -14,6 +14,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ### Infra
 - **Railway + NeonDB résiliés** (2026-06-13) — infrastructure entièrement sur OVH VPS depuis v1.2.0. Nettoyage du code : `railway.json` supprimé, toutes les mentions Railway/NeonDB remplacées.
 - **Backup OVH quotidien activé** — double protection : `pg_dump` cron 2h + snapshot VPS OVH automatique.
+- **`docker-compose.yml` resynchronisé avec la prod** (2026-09-16) — le service `postgres` du VPS avait un mapping de port `127.0.0.1:5432:5432` ajouté manuellement, jamais reporté dans le dépôt. Repéré en configurant un accès direct (tunnel SSH) à la base pour un outil d'administration externe (`rowdy-db`).
 
 ---
 
