@@ -26,6 +26,11 @@ const MAX_LEN_LABEL: usize = 100;
 const MAX_LEN_PROVIDER: usize = 200;
 const MAX_LEN_NOTES: usize = 2000;
 
+// "prevu" (intention/rappel) | "devis" (chiffrage reçu) | "realise" (fait) — seul "realise"
+// compte pour compute_maintenance_status ; les deux autres sont équivalents pour ce calcul,
+// la distinction n'est qu'informative côté utilisateur.
+const VALID_ENTRY_STATUSES: [&str; 3] = ["prevu", "devis", "realise"];
+
 // ─── Erreur unifiée ──────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -377,6 +382,9 @@ pub async fn create_maintenance_entry(
     if payload.notes.as_deref().map(|s| s.len()).unwrap_or(0) > MAX_LEN_NOTES {
         return err(StatusCode::UNPROCESSABLE_ENTITY, format!("notes : {MAX_LEN_NOTES} caractères max")).into_response();
     }
+    if !VALID_ENTRY_STATUSES.contains(&payload.status.as_str()) {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, "status invalide (prevu, devis ou realise)").into_response();
+    }
 
     // Dédoublonne en conservant l'ordre de sélection (sert à générer le label auto ci-dessous)
     let mut type_ids: Vec<Uuid> = Vec::with_capacity(payload.maintenance_type_ids.len());
@@ -409,8 +417,8 @@ pub async fn create_maintenance_entry(
     let entry_id = match sqlx::query_scalar!(
         r#"
         INSERT INTO public.maintenance_entries
-            (vehicle_id, label, performed_at, km_at_service, cost, provider, notes)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (vehicle_id, label, performed_at, km_at_service, cost, provider, notes, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
         "#,
         vehicle_id,
@@ -420,6 +428,7 @@ pub async fn create_maintenance_entry(
         payload.cost,
         payload.provider.as_deref().map(str::trim),
         payload.notes.as_deref().map(str::trim),
+        payload.status,
     )
     .fetch_one(&mut *tx)
     .await
@@ -474,7 +483,7 @@ pub async fn list_maintenance_entries(
         r#"
         SELECT
             e.id, e.vehicle_id, e.label, e.performed_at,
-            e.km_at_service, e.cost, e.provider, e.notes, e.created_at,
+            e.km_at_service, e.cost, e.provider, e.notes, e.created_at, e.status,
             COALESCE(
                 ARRAY_AGG(met.maintenance_type_id) FILTER (WHERE met.maintenance_type_id IS NOT NULL),
                 '{}'
@@ -555,6 +564,8 @@ pub struct UpdateMaintenanceEntryPayload {
     pub cost: Option<f64>,
     pub provider: Option<String>,
     pub notes: Option<String>,
+    /// "prevu" | "devis" | "realise"
+    pub status: String,
 }
 
 pub async fn update_maintenance_entry(
@@ -578,6 +589,9 @@ pub async fn update_maintenance_entry(
     }
     if payload.notes.as_deref().map(|s| s.len()).unwrap_or(0) > MAX_LEN_NOTES {
         return err(StatusCode::UNPROCESSABLE_ENTITY, format!("notes : {MAX_LEN_NOTES} caractères max")).into_response();
+    }
+    if !VALID_ENTRY_STATUSES.contains(&payload.status.as_str()) {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, "status invalide (prevu, devis ou realise)").into_response();
     }
 
     let mut type_ids: Vec<Uuid> = Vec::with_capacity(payload.maintenance_type_ids.len());
@@ -607,8 +621,8 @@ pub async fn update_maintenance_entry(
     let updated = sqlx::query!(
         r#"
         UPDATE public.maintenance_entries
-        SET label = $1, performed_at = $2, km_at_service = $3, cost = $4, provider = $5, notes = $6
-        WHERE id = $7 AND vehicle_id = $8
+        SET label = $1, performed_at = $2, km_at_service = $3, cost = $4, provider = $5, notes = $6, status = $7
+        WHERE id = $8 AND vehicle_id = $9
         "#,
         label,
         payload.performed_at,
@@ -616,6 +630,7 @@ pub async fn update_maintenance_entry(
         payload.cost,
         payload.provider.as_deref().map(str::trim),
         payload.notes.as_deref().map(str::trim),
+        payload.status,
         entry_id,
         vehicle_id,
     )
@@ -736,7 +751,7 @@ pub async fn compute_maintenance_status(
         let last_entry = sqlx::query!(
             r#"SELECT e.performed_at, e.km_at_service FROM public.maintenance_entries e
                JOIN public.maintenance_entry_types met ON met.entry_id = e.id
-               WHERE met.maintenance_type_id = $1
+               WHERE met.maintenance_type_id = $1 AND e.status = 'realise'
                ORDER BY e.performed_at DESC, e.created_at DESC LIMIT 1"#,
             t.id,
         )

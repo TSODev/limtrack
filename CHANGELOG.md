@@ -18,6 +18,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.22] — 2026-09-16
+
+### Ajouté
+- **Statut d'une entrée d'entretien** (`prévu` / `devis` / `réalisé`, migration 021) — permet de noter une intervention à l'avance sans fausser l'échéance calculée : seul le statut "réalisé" compte pour déterminer la dernière intervention d'un type ("prévu" et "devis" sont ignorés par ce calcul). Statut choisi explicitement par l'utilisateur (jamais déduit du coût, un devis a aussi un prix). Bouton rapide "Marquer réalisé" sur les entrées non finalisées.
+
+---
+
 ## [1.5.21] — 2026-09-16
 
 ### Ajouté

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            e.id, e.vehicle_id, e.label, e.performed_at,\n            e.km_at_service, e.cost, e.provider, e.notes, e.created_at,\n            COALESCE(\n                ARRAY_AGG(met.maintenance_type_id) FILTER (WHERE met.maintenance_type_id IS NOT NULL),\n                '{}'\n            ) AS \"type_ids!: Vec<Uuid>\",\n            (SELECT COUNT(*) FROM public.maintenance_attachments a WHERE a.entry_id = e.id) AS \"attachment_count!\"\n        FROM public.maintenance_entries e\n        LEFT JOIN public.maintenance_entry_types met ON met.entry_id = e.id\n        WHERE e.vehicle_id = $1\n        GROUP BY e.id\n        ORDER BY e.performed_at DESC, e.created_at DESC\n        ",
+  "query": "\n        SELECT\n            e.id, e.vehicle_id, e.label, e.performed_at,\n            e.km_at_service, e.cost, e.provider, e.notes, e.created_at, e.status,\n            COALESCE(\n                ARRAY_AGG(met.maintenance_type_id) FILTER (WHERE met.maintenance_type_id IS NOT NULL),\n                '{}'\n            ) AS \"type_ids!: Vec<Uuid>\",\n            (SELECT COUNT(*) FROM public.maintenance_attachments a WHERE a.entry_id = e.id) AS \"attachment_count!\"\n        FROM public.maintenance_entries e\n        LEFT JOIN public.maintenance_entry_types met ON met.entry_id = e.id\n        WHERE e.vehicle_id = $1\n        GROUP BY e.id\n        ORDER BY e.performed_at DESC, e.created_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -50,11 +50,16 @@
       },
       {
         "ordinal": 9,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
         "name": "type_ids!: Vec<Uuid>",
         "type_info": "UuidArray"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "attachment_count!",
         "type_info": "Int8"
       }
@@ -74,9 +79,10 @@
       true,
       true,
       false,
+      false,
       null,
       null
     ]
   },
-  "hash": "07cbdb0d8e05c1a523c0f2a144fcd5e9242565e88a4b617a0f43777956ed1adf"
+  "hash": "437ed2d2997cd6f9db136bd21ec75773ee0bb19eb03f1a266bf53c155e8a335e"
 }

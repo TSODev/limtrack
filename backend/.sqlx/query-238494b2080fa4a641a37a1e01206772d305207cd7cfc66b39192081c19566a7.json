@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO public.maintenance_entries\n            (vehicle_id, label, performed_at, km_at_service, cost, provider, notes)\n        VALUES ($1, $2, $3, $4, $5, $6, $7)\n        RETURNING id\n        ",
+  "query": "\n        INSERT INTO public.maintenance_entries\n            (vehicle_id, label, performed_at, km_at_service, cost, provider, notes, status)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n        RETURNING id\n        ",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,7 @@
         "Int4",
         "Float8",
         "Text",
+        "Text",
         "Text"
       ]
     },
@@ -24,5 +25,5 @@
       false
     ]
   },
-  "hash": "d0456dae3e91df9c9279cc093cbf3b39eb2c4587c09c4324449c7e344b6a40e6"
+  "hash": "238494b2080fa4a641a37a1e01206772d305207cd7cfc66b39192081c19566a7"
 }

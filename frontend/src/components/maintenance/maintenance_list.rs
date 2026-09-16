@@ -105,6 +105,17 @@ fn status_badge(status: Option<&MaintenanceStatus>) -> (&'static str, &'static s
     ("bg-green-100 text-green-700", "À jour", String::new())
 }
 
+// Statut d'une entrée d'historique — distinct du badge d'échéance ci-dessus (qui porte sur un
+// type). "Prévu"/"Devis" sont traités identiquement par le calcul d'échéance côté backend
+// (seul "realise" compte) ; ici la distinction reste purement informative pour l'utilisateur.
+fn entry_status_badge(status: &str) -> (&'static str, &'static str) {
+    match status {
+        "devis" => ("bg-amber-100 text-amber-700", "Devis"),
+        "realise" => ("bg-green-100 text-green-700", "Réalisé"),
+        _ => ("bg-gray-100 text-gray-500", "Prévu"),
+    }
+}
+
 #[derive(Clone)]
 struct MaintenanceData {
     types: Vec<MaintenanceType>,
@@ -159,6 +170,32 @@ pub fn MaintenanceList(
             load(id);
         }
     };
+
+    // Bascule rapide "Prévu"/"Devis" → "Réalisé" sans rouvrir tout le formulaire d'édition —
+    // renvoie l'entrée telle quelle (PATCH exige tous les champs) avec seulement le statut
+    // changé ; le libellé est envoyé tel quel comme override pour préserver le snapshot exact.
+    let mark_realise = create_action(move |entry: &MaintenanceEntry| {
+        let entry = entry.clone();
+        async move {
+            let Some(vid) = vehicle_id.get_untracked() else { return };
+            let Some(token) = get_token() else { return };
+            let body = serde_json::json!({
+                "maintenance_type_ids": entry.type_ids,
+                "label": entry.label,
+                "performed_at": entry.performed_at,
+                "km_at_service": entry.km_at_service,
+                "cost": entry.cost,
+                "provider": entry.provider,
+                "notes": entry.notes,
+                "status": "realise",
+            });
+            let _ = api_patch(
+                &format!("{}/api/vehicles/{}/maintenance-entries/{}", crate::config::API_BASE, vid, entry.id),
+                &token, &body,
+            ).await;
+            on_saved();
+        }
+    });
 
     view! {
         <div class="flex flex-col gap-8">
@@ -279,6 +316,7 @@ pub fn MaintenanceList(
                                     <tr class="border-b border-gray-100">
                                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Date"</th>
                                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Type"</th>
+                                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Statut"</th>
                                         <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Km"</th>
                                         <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Coût"</th>
                                         <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">"Garage"</th>
@@ -298,10 +336,16 @@ pub fn MaintenanceList(
                                             let attachment_count = e.attachment_count;
                                             let entry_for_print = e.clone();
                                             let entry_for_edit = e.clone();
+                                            let entry_for_mark = e.clone();
+                                            let (status_bg, status_label) = entry_status_badge(&e.status);
+                                            let show_mark_realise = e.status != "realise";
                                             view! {
                                                 <tr class="border-b border-gray-50 last:border-0">
                                                     <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{format_date_fr(e.performed_at)}</td>
                                                     <td class="px-4 py-3 text-gray-800 font-medium">{label.clone()}</td>
+                                                    <td class="px-4 py-3">
+                                                        <span class=format!("px-2 py-0.5 rounded-full text-xs font-medium {}", status_bg)>{status_label}</span>
+                                                    </td>
                                                     <td class="px-4 py-3 text-right text-gray-600 whitespace-nowrap">{format_km(e.km_at_service)}</td>
                                                     <td class="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
                                                         {e.cost.map(|c| format!("{:.2} €", c)).unwrap_or_else(|| "—".to_string())}
@@ -340,6 +384,18 @@ pub fn MaintenanceList(
                                                     <td class="px-4 py-3 text-right">
                                                         <Show when=move || can_manage fallback=|| ()>
                                                             <div class="flex items-center justify-end gap-2">
+                                                                {show_mark_realise.then(|| view! {
+                                                                    <button
+                                                                        on:click={
+                                                                            let entry_for_mark = entry_for_mark.clone();
+                                                                            move |_| mark_realise.dispatch(entry_for_mark.clone())
+                                                                        }
+                                                                        prop:disabled=move || mark_realise.pending().get()
+                                                                        class="text-xs text-gray-400 hover:text-green-600 transition duration-150 disabled:opacity-50"
+                                                                    >
+                                                                        "Marquer réalisé"
+                                                                    </button>
+                                                                })}
                                                                 <button
                                                                     on:click={
                                                                         let entry_for_edit = entry_for_edit.clone();
@@ -607,6 +663,10 @@ fn EntryModal(
     let (cost, set_cost) = create_signal(existing.as_ref().and_then(|e| e.cost).map(|c| c.to_string()).unwrap_or_default());
     let (provider, set_provider) = create_signal(existing.as_ref().and_then(|e| e.provider.clone()).unwrap_or_default());
     let (notes, set_notes) = create_signal(existing.as_ref().and_then(|e| e.notes.clone()).unwrap_or_default());
+    // Statut par défaut "realise" en création (cas le plus fréquent : on note l'intervention
+    // juste après l'avoir fait faire) — l'utilisateur choisit explicitement "Prévu"/"Devis"
+    // quand ce n'est pas encore fait. En édition, on reprend le statut existant.
+    let (status, set_status) = create_signal(existing.as_ref().map(|e| e.status.clone()).unwrap_or_else(|| "realise".to_string()));
     let (files, set_files) = create_signal(Vec::<web_sys::File>::new());
     let (compressing, set_compressing) = create_signal(false);
     let (error, set_error) = create_signal(String::new());
@@ -739,6 +799,7 @@ fn EntryModal(
         let provider_v = provider.get();
         let notes_v = notes.get();
         let custom_label_v = custom_label.get().trim().to_string();
+        let status_v = status.get();
         let files_v = files.get();
 
         async move {
@@ -807,6 +868,7 @@ fn EntryModal(
                 "cost": cost_v,
                 "provider": if provider_v.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(provider_v) },
                 "notes": if notes_v.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(notes_v) },
+                "status": status_v,
             });
 
             if let Some(eid) = entry_id {
@@ -907,6 +969,17 @@ fn EntryModal(
                     <input type="text" prop:required=label_required prop:value=custom_label
                         on:input=move |ev| set_custom_label.set(event_target_value(&ev))
                         placeholder="ex: Révision 30 000 km" class=input_class() />
+                </Field>
+                <Field label="Statut">
+                    <select
+                        prop:value=status
+                        on:change=move |ev| set_status.set(event_target_value(&ev))
+                        class=input_class()
+                    >
+                        <option value="realise">"Réalisé"</option>
+                        <option value="prevu">"Prévu"</option>
+                        <option value="devis">"Devis"</option>
+                    </select>
                 </Field>
                 <div class="grid grid-cols-2 gap-3">
                     <Field label="Date">

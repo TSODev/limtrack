@@ -523,6 +523,15 @@ pub struct MaintenanceEntry {
     /// Nombre de pièces jointes (calculé à la lecture, absent lors de la création)
     #[serde(default)]
     pub attachment_count: i64,
+    /// "prevu" | "devis" | "realise" — seul "realise" compte pour le calcul de la
+    /// prochaine échéance (voir `compute_maintenance_status`, backend). Défaut "prevu"
+    /// si absent (compat clients plus anciens).
+    #[serde(default = "default_maintenance_entry_status")]
+    pub status: String,
+}
+
+fn default_maintenance_entry_status() -> String {
+    "prevu".to_string()
 }
 
 #[derive(Debug, Deserialize)]
@@ -537,6 +546,9 @@ pub struct CreateMaintenanceEntryPayload {
     pub cost: Option<f64>,
     pub provider: Option<String>,
     pub notes: Option<String>,
+    /// "prevu" | "devis" | "realise"
+    #[serde(default = "default_maintenance_entry_status")]
+    pub status: String,
 }
 
 /// Statut agrégé d'un type d'entretien : dernière intervention + prochaine échéance estimée

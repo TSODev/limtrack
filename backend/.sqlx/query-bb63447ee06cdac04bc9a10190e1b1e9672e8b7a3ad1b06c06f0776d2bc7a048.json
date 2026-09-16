@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE public.maintenance_entries\n        SET label = $1, performed_at = $2, km_at_service = $3, cost = $4, provider = $5, notes = $6, status = $7\n        WHERE id = $8 AND vehicle_id = $9\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Date",
+        "Int4",
+        "Float8",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bb63447ee06cdac04bc9a10190e1b1e9672e8b7a3ad1b06c06f0776d2bc7a048"
+}
