@@ -250,7 +250,7 @@ pub async fn list_trips(
         SELECT
             id, vehicle_id, label, estimated_km, start_date, end_date,
             recurrence, recurrence_interval, days_of_week, day_of_month,
-            recurrence_end_date, active, created_at
+            recurrence_end_date, active, completed, created_at
         FROM public.planned_trips
         WHERE vehicle_id = $1
         ORDER BY start_date ASC
@@ -285,7 +285,7 @@ pub async fn update_trip(
     let current = sqlx::query!(
         r#"SELECT label, estimated_km, start_date, end_date, recurrence,
                   recurrence_interval, days_of_week, day_of_month,
-                  recurrence_end_date, active
+                  recurrence_end_date, active, completed
            FROM public.planned_trips WHERE id = $1 AND vehicle_id = $2"#,
         trip_id,
         vehicle_id,
@@ -315,6 +315,7 @@ pub async fn update_trip(
     let day_of_month = payload.day_of_month.or(current.day_of_month);
     let recurrence_end_date = payload.recurrence_end_date.or(current.recurrence_end_date);
     let active = payload.active.unwrap_or(current.active);
+    let completed = payload.completed.unwrap_or(current.completed);
 
     if let Err(e) = validate_trip_fields(
         &label,
@@ -344,8 +345,9 @@ pub async fn update_trip(
             days_of_week         = $7,
             day_of_month         = $8,
             recurrence_end_date  = $9,
-            active               = $10
-        WHERE id = $11 AND vehicle_id = $12
+            active               = $10,
+            completed            = $11
+        WHERE id = $12 AND vehicle_id = $13
         "#,
         label.trim(),
         estimated_km,
@@ -357,6 +359,7 @@ pub async fn update_trip(
         day_of_month,
         recurrence_end_date,
         active,
+        completed,
         trip_id,
         vehicle_id,
     )

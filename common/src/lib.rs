@@ -404,6 +404,9 @@ pub struct PlannedTrip {
     pub day_of_month: Option<i16>,
     pub recurrence_end_date: Option<chrono::NaiveDate>,
     pub active: bool,
+    /// Marqué manuellement par l'utilisateur — purement informatif, n'affecte pas
+    /// usage-forecast (qui exclut déjà toute date passée, réalisé ou non).
+    pub completed: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -437,6 +440,7 @@ pub struct UpdateTripPayload {
     pub day_of_month: Option<i16>,
     pub recurrence_end_date: Option<chrono::NaiveDate>,
     pub active: Option<bool>,
+    pub completed: Option<bool>,
 }
 
 /// Point de la courbe de projection cumulée (échantillonnage hebdomadaire)

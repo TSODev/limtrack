@@ -1,62 +1,81 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT label, estimated_km, start_date, end_date, recurrence,\n                  recurrence_interval, days_of_week, day_of_month,\n                  recurrence_end_date, active\n           FROM public.planned_trips WHERE id = $1 AND vehicle_id = $2",
+  "query": "\n        SELECT\n            id, vehicle_id, label, estimated_km, start_date, end_date,\n            recurrence, recurrence_interval, days_of_week, day_of_month,\n            recurrence_end_date, active, completed, created_at\n        FROM public.planned_trips\n        WHERE vehicle_id = $1\n        ORDER BY start_date ASC\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "vehicle_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
         "name": "label",
         "type_info": "Text"
       },
       {
-        "ordinal": 1,
+        "ordinal": 3,
         "name": "estimated_km",
         "type_info": "Int4"
       },
       {
-        "ordinal": 2,
+        "ordinal": 4,
         "name": "start_date",
         "type_info": "Date"
       },
       {
-        "ordinal": 3,
+        "ordinal": 5,
         "name": "end_date",
         "type_info": "Date"
       },
       {
-        "ordinal": 4,
+        "ordinal": 6,
         "name": "recurrence",
         "type_info": "Text"
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "recurrence_interval",
         "type_info": "Int4"
       },
       {
-        "ordinal": 6,
+        "ordinal": 8,
         "name": "days_of_week",
         "type_info": "Int2Array"
       },
       {
-        "ordinal": 7,
+        "ordinal": 9,
         "name": "day_of_month",
         "type_info": "Int2"
       },
       {
-        "ordinal": 8,
+        "ordinal": 10,
         "name": "recurrence_end_date",
         "type_info": "Date"
       },
       {
-        "ordinal": 9,
+        "ordinal": 11,
         "name": "active",
         "type_info": "Bool"
+      },
+      {
+        "ordinal": 12,
+        "name": "completed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid",
         "Uuid"
       ]
     },
@@ -67,11 +86,15 @@
       false,
       false,
       false,
+      false,
+      false,
       true,
       true,
       true,
+      false,
+      false,
       false
     ]
   },
-  "hash": "0376988d8856c2e14bfefa885b2c69c0cdb020eb358d880956c85aa37b5b0e3f"
+  "hash": "cad51d304dbdc891e8eaa4fad8d787033ffe76053c8e8e20e5af44a8bfa3e178"
 }

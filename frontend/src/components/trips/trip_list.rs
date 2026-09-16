@@ -115,12 +115,13 @@ pub fn TripList(vehicle_id: ReadSignal<Option<Uuid>>, can_manage_trips: Memo<boo
                     {move || trips.get().into_iter().map(|trip| {
                         let can_manage = can_manage_trips.get();
                         let on_deleted = Callback::new(move |_: ()| on_saved());
+                        let on_updated = Callback::new(move |_: ()| on_saved());
                         let trip_for_edit = trip.clone();
                         let on_edit = Callback::new(move |_: ()| {
                             set_editing.set(Some(trip_for_edit.clone()));
                             set_show_modal.set(true);
                         });
-                        view! { <TripCard trip=trip can_manage=can_manage on_deleted=on_deleted on_edit=on_edit /> }
+                        view! { <TripCard trip=trip can_manage=can_manage on_deleted=on_deleted on_updated=on_updated on_edit=on_edit /> }
                     }).collect_view()}
                 </div>
             </Show>
@@ -142,6 +143,7 @@ fn TripCard(
     trip: PlannedTrip,
     can_manage: bool,
     on_deleted: Callback<()>,
+    on_updated: Callback<()>,
     on_edit: Callback<()>,
 ) -> impl IntoView {
     let (show_confirm_delete, set_show_confirm_delete) = create_signal(false);
@@ -159,6 +161,23 @@ fn TripCard(
             on_deleted.call(());
         }
         set_show_confirm_delete.set(false);
+    });
+
+    // Bascule rapide "réalisé" depuis la carte — pas besoin de rouvrir le modal d'édition
+    // pour clôturer un voyage passé (purement informatif, cf. common::PlannedTrip::completed).
+    let is_completed = trip.completed;
+    let toggle_completed_action = create_action(move |_: &()| async move {
+        let token = get_token().unwrap_or_default();
+        let url = format!(
+            "{}/api/vehicles/{}/trips/{}",
+            crate::config::API_BASE,
+            vehicle_id,
+            trip_id
+        );
+        let body = serde_json::json!({ "completed": !is_completed });
+        if api_patch(&url, &token, &body).await.is_ok() {
+            on_updated.call(());
+        }
     });
 
     let summary = recurrence_summary(&trip);
@@ -179,11 +198,23 @@ fn TripCard(
                 <span>"Du "{format_date_fr(trip.start_date)}" au "{format_date_fr(trip.end_date)}</span>
                 <span class="font-semibold text-gray-600">{trip.estimated_km}" km"</span>
             </div>
-            {(!trip.active).then(|| view! {
-                <span class="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-500">"Inactif"</span>
-            })}
+            <div class="flex items-center gap-1.5">
+                {(!trip.active).then(|| view! {
+                    <span class="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-500">"Inactif"</span>
+                })}
+                {trip.completed.then(|| view! {
+                    <span class="text-xs font-medium px-2 py-0.5 rounded bg-green-100 text-green-700">"✅ Réalisé"</span>
+                })}
+            </div>
             <Show when=move || can_manage fallback=|| ()>
                 <div class="flex items-center justify-end gap-1.5 pt-1 border-t border-gray-50">
+                    <button
+                        on:click=move |_| toggle_completed_action.dispatch(())
+                        prop:disabled=move || toggle_completed_action.pending().get()
+                        class="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-green-50 hover:text-green-700 transition duration-150 disabled:opacity-50"
+                    >
+                        {move || if is_completed { "Marquer non réalisé" } else { "Marquer réalisé" }}
+                    </button>
                     <button
                         on:click=move |_| on_edit.call(())
                         class="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition duration-150"

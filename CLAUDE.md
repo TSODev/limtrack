@@ -154,6 +154,7 @@ maintenance_entry_types -- entry_id + maintenance_type_id (ON DELETE CASCADE sur
 -- planned_trips (voir ci-dessus) — migration 014, voyages planifiés (ponctuels/récurrents) pour la projection d'usage futur
 -- maintenance_types / maintenance_entries (voir ci-dessus) — migration 015, carnet d'entretien
 -- maintenance_entry_types (voir ci-dessus) — migration 018, entretien multi-points (une entrée ↔ plusieurs types)
+-- planned_trips.completed BOOLEAN NOT NULL DEFAULT FALSE — migration 020, clôture manuelle informative (n'affecte pas usage-forecast)
 ```
 
 ## Routes API
@@ -385,6 +386,8 @@ Lancée dans `tokio::spawn` au démarrage, se déclenche chaque jour à 8h UTC. 
 `recurrence` : `"none"` (ponctuel) / `"daily"` / `"weekly"` (+ `days_of_week: Vec<i16>`, 0=lundi..6=dimanche) / `"monthly"` (+ `day_of_month: i16`, clampé au dernier jour du mois). `recurrence_end_date` optionnel (`None` = expansion jusqu'à la fin du contrat actif). Écriture réservée owner|editor (`require_editor`, comme `mileage_handler.rs`), max `MAX_TRIPS_PER_VEHICLE = 20`.
 
 **Limite connue** : `recurrence_end_date` ne peut pas être explicitement effacée via `PATCH` (un `Option<T>` ne distingue pas "champ absent" de "`null`" côté serde) — supprimer/recréer le voyage pour repasser en récurrence sans date de fin.
+
+**`completed` (migration 020)** : booléen purement informatif, marqué manuellement par l'utilisateur ("Marquer réalisé" sur la carte dans `trip_list.rs`, bascule instantanée via `PATCH`, pas de rechargement de page). **N'affecte jamais `usage-forecast`** : `build_forecast` exclut déjà automatiquement toute occurrence ≤ aujourd'hui (`from = today + 1 jour`), qu'elle soit marquée réalisée ou non — ce champ sert uniquement à distinguer dans l'historique/liste les voyages effectivement réalisés des voyages passés sans suite (l'app ne vérifie jamais la cohérence avec les relevés kilométriques réels).
 
 ### Expansion des occurrences (`trips_handler.rs::expand_occurrences`)
 Fonction pure, calculée **à la demande** (pas de job cron) — répartit `estimated_km` uniformément sur les jours de chaque occurrence pour éviter les pics verticaux dans la projection. Horizon plafonné au plus tôt de : fin du contrat actif, `recurrence_end_date`, ou 3 ans (garde-fou anti-boucle infinie, `MAX_OCCURRENCES_GUARD`).
@@ -696,7 +699,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 **En production, c'est presque toujours le fallback `CARGO_PKG_VERSION` qui s'applique** : `deploy-frontend.yml` utilise `actions/checkout@v4` sans `fetch-depth`, donc un clone superficiel (profondeur 1, aucun tag récupéré) — `git describe` échoue systématiquement en CI. Les tags (`v1.3.2` etc.) ne sont créés que pour les soumissions App Store iOS, pas pour les déploiements web, donc ce fallback est en réalité la source pertinente pour la version affichée sur le web (`Cargo.toml` → `workspace.package.version`, à jour à chaque commit versionné). **Piège** : `CARGO_PKG_VERSION` ne contient jamais de préfixe `v` (contrairement à un tag `git describe`) — les endroits qui affichent `APP_VERSION` doivent préfixer `"v"` eux-mêmes s'ils veulent ce format (voir `home.rs`), `about.rs` l'affiche brut sans préfixe. Vérifié en confrontant le WASM réellement servi en prod (`strings frontend-*.wasm`) à cette hypothèse.
 
 ## Version actuelle
-`1.5.14` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-15
+`1.5.15` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-16
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

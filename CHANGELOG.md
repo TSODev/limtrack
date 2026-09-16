@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.15] — 2026-09-16
+
+### Ajouté
+- **Clôturer un voyage planifié** : nouveau champ `completed` sur `planned_trips` (migration 020), marqué manuellement via un bouton "Marquer réalisé"/"Marquer non réalisé" directement sur la carte du voyage (`trip_list.rs`) — badge "✅ Réalisé" affiché quand actif. Purement informatif : n'affecte jamais la projection `usage-forecast`, qui exclut déjà automatiquement toute occurrence passée (réalisée ou non).
+
+---
+
 ## [1.5.14] — 2026-09-15
 
 ### Corrigé
