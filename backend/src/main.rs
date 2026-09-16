@@ -28,7 +28,7 @@ use crate::contracts_handler::{
 use crate::maintenance_handler::{
     create_maintenance_entry, create_maintenance_type, delete_maintenance_entry,
     delete_maintenance_type, list_maintenance_entries, list_maintenance_types,
-    maintenance_status, update_maintenance_type,
+    maintenance_status, update_maintenance_entry, update_maintenance_type,
 };
 use crate::mileage_handler::{create_mileage, delete_mileage, list_mileage};
 use crate::trips_handler::{create_trip, delete_trip, list_trips, update_trip, usage_forecast};
@@ -210,7 +210,7 @@ async fn main() {
         )
         .route(
             "/api/vehicles/:vehicle_id/maintenance-entries/:entry_id",
-            axum::routing::delete(delete_maintenance_entry),
+            axum::routing::patch(update_maintenance_entry).delete(delete_maintenance_entry),
         )
         .route(
             "/api/vehicles/:vehicle_id/maintenance-status",

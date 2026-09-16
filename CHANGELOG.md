@@ -18,6 +18,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.21] — 2026-09-16
+
+### Ajouté
+- **Modification d'une entrée d'entretien** : bouton "Modifier" sur chaque ligne de l'historique — permet de saisir rapidement une intervention prévue (ex. "Vidange" avec date/km approximatifs) puis de revenir corriger le prix et la date exacts une fois la facture en main. `PATCH /api/vehicles/:id/maintenance-entries/:entry_id`, mêmes champs et validation que la création. Les pièces jointes restent gérées séparément (non concernées par ce formulaire).
+
+---
+
 ## [1.5.20] — 2026-09-16
 
 ### Corrigé

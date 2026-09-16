@@ -293,6 +293,66 @@ pub async fn delete_maintenance_type(
     }
 }
 
+// ─── Résolution du label d'une entrée (création et modification) ─
+// Fourni librement (ex. "Révision 30 000 km"), ou généré depuis les types sélectionnés
+// (snapshot) s'il est absent. Requis si aucun type n'est sélectionné (entrée "Autre" libre).
+
+async fn resolve_entry_label(
+    db: &sqlx::PgPool,
+    vehicle_id: Uuid,
+    type_ids: &[Uuid],
+    label_override: Option<&str>,
+) -> Result<String, (StatusCode, Json<ApiError>)> {
+    if !type_ids.is_empty() {
+        let rows = sqlx::query!(
+            "SELECT id, label FROM public.maintenance_types WHERE vehicle_id = $1 AND id = ANY($2)",
+            vehicle_id,
+            type_ids,
+        )
+        .fetch_all(db)
+        .await
+        .map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données"))?;
+
+        if rows.len() != type_ids.len() {
+            return Err(err(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "maintenance_type_ids invalide ou n'appartient pas à ce véhicule",
+            ));
+        }
+
+        match label_override.map(str::trim) {
+            Some(l) if !l.is_empty() => {
+                if l.len() > MAX_LEN_LABEL {
+                    return Err(err(StatusCode::UNPROCESSABLE_ENTITY, format!("label : {MAX_LEN_LABEL} caractères max")));
+                }
+                Ok(l.to_string())
+            }
+            _ => {
+                let mut labels_by_id: std::collections::HashMap<Uuid, String> =
+                    rows.into_iter().map(|r| (r.id, r.label)).collect();
+                Ok(type_ids
+                    .iter()
+                    .filter_map(|id| labels_by_id.remove(id))
+                    .collect::<Vec<_>>()
+                    .join(", "))
+            }
+        }
+    } else {
+        match label_override.map(str::trim) {
+            Some(l) if !l.is_empty() => {
+                if l.len() > MAX_LEN_LABEL {
+                    return Err(err(StatusCode::UNPROCESSABLE_ENTITY, format!("label : {MAX_LEN_LABEL} caractères max")));
+                }
+                Ok(l.to_string())
+            }
+            _ => Err(err(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "label requis quand maintenance_type_ids est vide",
+            )),
+        }
+    }
+}
+
 // ─── POST /vehicles/:vehicle_id/maintenance-entries ──────────────
 
 pub async fn create_maintenance_entry(
@@ -336,61 +396,9 @@ pub async fn create_maintenance_entry(
     // Label : fourni librement (ex. "Révision 30 000 km"), ou généré depuis les types
     // sélectionnés (snapshot) s'il est absent. Requis si aucun type n'est sélectionné
     // (entrée "Autre" libre).
-    let label = if !type_ids.is_empty() {
-        let rows = sqlx::query!(
-            "SELECT id, label FROM public.maintenance_types WHERE vehicle_id = $1 AND id = ANY($2)",
-            vehicle_id,
-            &type_ids,
-        )
-        .fetch_all(&state.db)
-        .await;
-
-        let rows = match rows {
-            Ok(r) => r,
-            Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
-        };
-
-        if rows.len() != type_ids.len() {
-            return err(
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "maintenance_type_ids invalide ou n'appartient pas à ce véhicule",
-            )
-            .into_response();
-        }
-
-        match payload.label.as_deref().map(str::trim) {
-            Some(l) if !l.is_empty() => {
-                if l.len() > MAX_LEN_LABEL {
-                    return err(StatusCode::UNPROCESSABLE_ENTITY, format!("label : {MAX_LEN_LABEL} caractères max")).into_response();
-                }
-                l.to_string()
-            }
-            _ => {
-                let mut labels_by_id: std::collections::HashMap<Uuid, String> =
-                    rows.into_iter().map(|r| (r.id, r.label)).collect();
-                type_ids
-                    .iter()
-                    .filter_map(|id| labels_by_id.remove(id))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            }
-        }
-    } else {
-        match payload.label.as_deref().map(str::trim) {
-            Some(l) if !l.is_empty() => {
-                if l.len() > MAX_LEN_LABEL {
-                    return err(StatusCode::UNPROCESSABLE_ENTITY, format!("label : {MAX_LEN_LABEL} caractères max")).into_response();
-                }
-                l.to_string()
-            }
-            _ => {
-                return err(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    "label requis quand maintenance_type_ids est vide",
-                )
-                .into_response()
-            }
-        }
+    let label = match resolve_entry_label(&state.db, vehicle_id, &type_ids, payload.label.as_deref()).await {
+        Ok(l) => l,
+        Err(e) => return e.into_response(),
     };
 
     let mut tx = match state.db.begin().await {
@@ -529,6 +537,129 @@ pub async fn delete_maintenance_entry(
         }
         Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
     }
+}
+
+// ─── PATCH /vehicles/:vehicle_id/maintenance-entries/:entry_id ───
+// Permet de corriger une entrée après coup (ex. saisie rapide "Vidange" au moment du
+// rendez-vous, puis complétée plus tard avec le prix et la date exacts une fois la
+// facture en main) — même validation que la création, types remplacés intégralement
+// (delete + re-insert du pivot, plus simple qu'un diff pour au plus MAX_TYPES_PER_ENTRY lignes).
+
+#[derive(serde::Deserialize)]
+pub struct UpdateMaintenanceEntryPayload {
+    #[serde(default)]
+    pub maintenance_type_ids: Vec<Uuid>,
+    pub label: Option<String>,
+    pub performed_at: chrono::NaiveDate,
+    pub km_at_service: i32,
+    pub cost: Option<f64>,
+    pub provider: Option<String>,
+    pub notes: Option<String>,
+}
+
+pub async fn update_maintenance_entry(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path((vehicle_id, entry_id)): Path<(Uuid, Uuid)>,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateMaintenanceEntryPayload>,
+) -> impl IntoResponse {
+    if let Err(e) = require_editor(&state.db, vehicle_id, user_id).await {
+        return e.into_response();
+    }
+
+    if payload.km_at_service < 0 {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, "km_at_service ne peut pas être négatif").into_response();
+    }
+    if payload.cost.map(|c| c < 0.0).unwrap_or(false) {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, "cost ne peut pas être négatif").into_response();
+    }
+    if payload.provider.as_deref().map(|s| s.len()).unwrap_or(0) > MAX_LEN_PROVIDER {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("provider : {MAX_LEN_PROVIDER} caractères max")).into_response();
+    }
+    if payload.notes.as_deref().map(|s| s.len()).unwrap_or(0) > MAX_LEN_NOTES {
+        return err(StatusCode::UNPROCESSABLE_ENTITY, format!("notes : {MAX_LEN_NOTES} caractères max")).into_response();
+    }
+
+    let mut type_ids: Vec<Uuid> = Vec::with_capacity(payload.maintenance_type_ids.len());
+    for id in &payload.maintenance_type_ids {
+        if !type_ids.contains(id) {
+            type_ids.push(*id);
+        }
+    }
+    if type_ids.len() > MAX_TYPES_PER_ENTRY {
+        return err(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            format!("Maximum {} types par entretien", MAX_TYPES_PER_ENTRY),
+        )
+        .into_response();
+    }
+
+    let label = match resolve_entry_label(&state.db, vehicle_id, &type_ids, payload.label.as_deref()).await {
+        Ok(l) => l,
+        Err(e) => return e.into_response(),
+    };
+
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    };
+
+    let updated = sqlx::query!(
+        r#"
+        UPDATE public.maintenance_entries
+        SET label = $1, performed_at = $2, km_at_service = $3, cost = $4, provider = $5, notes = $6
+        WHERE id = $7 AND vehicle_id = $8
+        "#,
+        label,
+        payload.performed_at,
+        payload.km_at_service,
+        payload.cost,
+        payload.provider.as_deref().map(str::trim),
+        payload.notes.as_deref().map(str::trim),
+        entry_id,
+        vehicle_id,
+    )
+    .execute(&mut *tx)
+    .await;
+
+    match updated {
+        Ok(r) if r.rows_affected() == 0 => {
+            return err(StatusCode::NOT_FOUND, "Entretien introuvable").into_response();
+        }
+        Ok(_) => {}
+        Err(e) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, format!("Erreur mise à jour entretien : {}", e)).into_response();
+        }
+    }
+
+    if let Err(e) = sqlx::query!(
+        "DELETE FROM public.maintenance_entry_types WHERE entry_id = $1",
+        entry_id,
+    )
+    .execute(&mut *tx)
+    .await
+    {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, format!("Erreur mise à jour des types : {}", e)).into_response();
+    }
+
+    for type_id in &type_ids {
+        if let Err(e) = sqlx::query!(
+            "INSERT INTO public.maintenance_entry_types (entry_id, maintenance_type_id) VALUES ($1, $2)",
+            entry_id,
+            type_id,
+        )
+        .execute(&mut *tx)
+        .await
+        {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, format!("Erreur rattachement type d'entretien : {}", e)).into_response();
+        }
+    }
+
+    if tx.commit().await.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response();
+    }
+
+    StatusCode::NO_CONTENT.into_response()
 }
 
 // ─── Projection : date estimée d'atteinte d'un kilométrage cible ─

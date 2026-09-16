@@ -125,6 +125,7 @@ pub fn MaintenanceList(
     let (show_type_modal, set_show_type_modal) = create_signal(false);
     let (editing_type, set_editing_type) = create_signal(Option::<MaintenanceType>::None);
     let (show_entry_modal, set_show_entry_modal) = create_signal(false);
+    let (editing_entry, set_editing_entry) = create_signal(Option::<MaintenanceEntry>::None);
     let (confirm_delete, set_confirm_delete) = create_signal(Option::<(String, String)>::None); // (label, kind:type|entry)
     let (viewing_attachments, set_viewing_attachments) = create_signal(Option::<(Uuid, String)>::None); // (entry_id, entry_label)
 
@@ -255,7 +256,7 @@ pub fn MaintenanceList(
                         </Show>
                         <Show when=move || can_manage_maintenance.get() fallback=|| ()>
                             <button
-                                on:click=move |_| set_show_entry_modal.set(true)
+                                on:click=move |_| { set_editing_entry.set(None); set_show_entry_modal.set(true); }
                                 class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
                             >
                                 "+ Entretien"
@@ -296,6 +297,7 @@ pub fn MaintenanceList(
                                             let entry_label = label.clone();
                                             let attachment_count = e.attachment_count;
                                             let entry_for_print = e.clone();
+                                            let entry_for_edit = e.clone();
                                             view! {
                                                 <tr class="border-b border-gray-50 last:border-0">
                                                     <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{format_date_fr(e.performed_at)}</td>
@@ -337,12 +339,26 @@ pub fn MaintenanceList(
                                                     </td>
                                                     <td class="px-4 py-3 text-right">
                                                         <Show when=move || can_manage fallback=|| ()>
-                                                            <button
-                                                                on:click={let label = label.clone(); let id = e.id; move |_| set_confirm_delete.set(Some((label.clone(), format!("entry:{}", id))))}
-                                                                class="text-xs text-gray-400 hover:text-red-600 transition duration-150"
-                                                            >
-                                                                "Supprimer"
-                                                            </button>
+                                                            <div class="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    on:click={
+                                                                        let entry_for_edit = entry_for_edit.clone();
+                                                                        move |_| {
+                                                                            set_editing_entry.set(Some(entry_for_edit.clone()));
+                                                                            set_show_entry_modal.set(true);
+                                                                        }
+                                                                    }
+                                                                    class="text-xs text-gray-400 hover:text-indigo-600 transition duration-150"
+                                                                >
+                                                                    "Modifier"
+                                                                </button>
+                                                                <button
+                                                                    on:click={let label = label.clone(); let id = e.id; move |_| set_confirm_delete.set(Some((label.clone(), format!("entry:{}", id))))}
+                                                                    class="text-xs text-gray-400 hover:text-red-600 transition duration-150"
+                                                                >
+                                                                    "Supprimer"
+                                                                </button>
+                                                            </div>
                                                         </Show>
                                                     </td>
                                                 </tr>
@@ -371,7 +387,8 @@ pub fn MaintenanceList(
                 vehicle_id=vehicle_id
                 types=data.get().map(|d| d.types).unwrap_or_default()
                 vehicle_fuel_type=vehicle_fuel_type.get()
-                on_close=Callback::new(move |_| set_show_entry_modal.set(false))
+                existing=editing_entry.get()
+                on_close=Callback::new(move |_| { set_show_entry_modal.set(false); set_editing_entry.set(None); })
                 on_saved=Callback::new(move |_| on_saved())
             />
         </Show>
@@ -552,9 +569,17 @@ fn EntryModal(
     vehicle_id: ReadSignal<Option<Uuid>>,
     types: Vec<MaintenanceType>,
     vehicle_fuel_type: Option<String>,
+    existing: Option<MaintenanceEntry>,
     on_close: Callback<()>,
     on_saved: Callback<()>,
 ) -> impl IntoView {
+    // Édition : on prévoit une intervention (ex. date/km approximatifs au moment de la prise
+    // de rendez-vous) puis on revient corriger prix/date exacts une fois la facture en main.
+    // Les pièces jointes restent gérées séparément (bouton 📎 sur la ligne d'historique),
+    // pas de champ fichier ici en mode édition.
+    let is_edit = existing.is_some();
+    let entry_id = existing.as_ref().map(|e| e.id);
+
     // Items du catalogue générique pas encore instanciés pour ce véhicule (dédoublonnage
     // insensible à la casse), filtrés par motorisation si elle est renseignée.
     let available_generic: Vec<(usize, &'static GenericTemplate)> = GENERIC_CATALOG
@@ -570,13 +595,18 @@ fn EntryModal(
 
     // Sélection multiple (une "révision" peut couvrir plusieurs types) — Vec plutôt que
     // HashSet pour conserver l'ordre de sélection, réutilisé pour construire le libellé auto.
-    let (selected, set_selected) = create_signal(Vec::<String>::new());
-    let (custom_label, set_custom_label) = create_signal(String::new());
-    let (performed_at, set_performed_at) = create_signal(chrono::Local::now().date_naive().to_string());
-    let (km_at_service, set_km_at_service) = create_signal(String::new());
-    let (cost, set_cost) = create_signal(String::new());
-    let (provider, set_provider) = create_signal(String::new());
-    let (notes, set_notes) = create_signal(String::new());
+    let initial_selected: Vec<String> = existing.as_ref()
+        .map(|e| e.type_ids.iter().map(|id| format!("type:{}", id)).collect())
+        .unwrap_or_default();
+    let (selected, set_selected) = create_signal(initial_selected);
+    let (custom_label, set_custom_label) = create_signal(existing.as_ref().map(|e| e.label.clone()).unwrap_or_default());
+    let (performed_at, set_performed_at) = create_signal(
+        existing.as_ref().map(|e| e.performed_at.to_string()).unwrap_or_else(|| chrono::Local::now().date_naive().to_string()),
+    );
+    let (km_at_service, set_km_at_service) = create_signal(existing.as_ref().map(|e| e.km_at_service.to_string()).unwrap_or_default());
+    let (cost, set_cost) = create_signal(existing.as_ref().and_then(|e| e.cost).map(|c| c.to_string()).unwrap_or_default());
+    let (provider, set_provider) = create_signal(existing.as_ref().and_then(|e| e.provider.clone()).unwrap_or_default());
+    let (notes, set_notes) = create_signal(existing.as_ref().and_then(|e| e.notes.clone()).unwrap_or_default());
     let (files, set_files) = create_signal(Vec::<web_sys::File>::new());
     let (compressing, set_compressing) = create_signal(false);
     let (error, set_error) = create_signal(String::new());
@@ -779,14 +809,26 @@ fn EntryModal(
                 "notes": if notes_v.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(notes_v) },
             });
 
+            if let Some(eid) = entry_id {
+                // Édition : pièces jointes non concernées, gérées séparément (bouton 📎).
+                match api_patch(
+                    &format!("{}/api/vehicles/{}/maintenance-entries/{}", crate::config::API_BASE, vid, eid),
+                    &token, &body,
+                ).await {
+                    Ok(_) => { on_saved.call(()); on_close.call(()); }
+                    Err(e) => set_error.set(e),
+                }
+                return;
+            }
+
             match api_post_response::<serde_json::Value>(
                 &format!("{}/api/vehicles/{}/maintenance-entries", crate::config::API_BASE, vid),
                 &token, &body,
             ).await {
                 Ok(created) => {
                     if !files_v.is_empty() {
-                        if let Some(entry_id) = created["id"].as_str().and_then(|s| Uuid::parse_str(s).ok()) {
-                            if let Err(e) = upload_attachment_files(vid, entry_id, &files_v).await {
+                        if let Some(new_entry_id) = created["id"].as_str().and_then(|s| Uuid::parse_str(s).ok()) {
+                            if let Err(e) = upload_attachment_files(vid, new_entry_id, &files_v).await {
                                 // L'entretien est déjà créé — on prévient sans annuler la création
                                 set_error.set(format!("Entretien créé, mais échec de l'envoi des pièces jointes : {e}"));
                                 on_saved.call(());
@@ -809,7 +851,7 @@ fn EntryModal(
     };
 
     view! {
-        <Modal title="Nouvel entretien" on_close=on_close>
+        <Modal title=if is_edit { "Modifier l'entretien" } else { "Nouvel entretien" } on_close=on_close>
             <form on:submit=on_submit class="space-y-4">
                 <Field label="Types concernés (optionnel — un ou plusieurs, ex: révision = vidange + filtres)">
                     <Show
@@ -894,39 +936,44 @@ fn EntryModal(
                         on:input=move |ev| set_notes.set(event_target_value(&ev))
                         rows="2" class=input_class() />
                 </Field>
-                <Field label="Facture (photo ou fichier, optionnel)">
-                    <input type="file"
-                        node_ref=file_input_ref
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
-                        capture="environment"
-                        multiple
-                        on:change=on_files_change
-                        class="hidden" />
-                    <button type="button"
-                        on:click=move |_| {
-                            // Différé via set_timeout : appeler .click() de façon synchrone ici
-                            // réentre dans le closure d'event delegation de Leptos (encore en
-                            // cours d'exécution pour CE click) → panique wasm-bindgen
-                            // "closure invoked recursively or after being dropped".
-                            set_timeout(move || {
-                                if let Some(input) = file_input_ref.get() { input.click(); }
-                            }, std::time::Duration::ZERO);
-                        }
-                        class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
-                    >
-                        "📎 Ajouter une photo ou un document"
-                    </button>
-                    <Show when=move || compressing.get() fallback=|| ()>
-                        <p class="text-xs text-gray-400 animate-pulse">"Optimisation des photos..."</p>
-                    </Show>
-                    <Show when=move || !compressing.get() && !files.get().is_empty() fallback=|| ()>
-                        <p class="text-xs text-gray-400">{move || format!("{} fichier(s) sélectionné(s)", files.get().len())}</p>
-                    </Show>
-                </Field>
+                <Show when=move || !is_edit fallback=|| ()>
+                    <Field label="Facture (photo ou fichier, optionnel)">
+                        <input type="file"
+                            node_ref=file_input_ref
+                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                            capture="environment"
+                            multiple
+                            on:change=on_files_change
+                            class="hidden" />
+                        <button type="button"
+                            on:click=move |_| {
+                                // Différé via set_timeout : appeler .click() de façon synchrone ici
+                                // réentre dans le closure d'event delegation de Leptos (encore en
+                                // cours d'exécution pour CE click) → panique wasm-bindgen
+                                // "closure invoked recursively or after being dropped".
+                                set_timeout(move || {
+                                    if let Some(input) = file_input_ref.get() { input.click(); }
+                                }, std::time::Duration::ZERO);
+                            }
+                            class="text-sm px-4 py-2 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition duration-150"
+                        >
+                            "📎 Ajouter une photo ou un document"
+                        </button>
+                        <Show when=move || compressing.get() fallback=|| ()>
+                            <p class="text-xs text-gray-400 animate-pulse">"Optimisation des photos..."</p>
+                        </Show>
+                        <Show when=move || !compressing.get() && !files.get().is_empty() fallback=|| ()>
+                            <p class="text-xs text-gray-400">{move || format!("{} fichier(s) sélectionné(s)", files.get().len())}</p>
+                        </Show>
+                    </Field>
+                </Show>
+                {is_edit.then(|| view! {
+                    <p class="text-xs text-gray-400">"Les pièces jointes ne sont pas modifiables depuis ce formulaire."</p>
+                })}
                 <ModalActions
                     pending=Signal::derive(move || submit.pending().get() || compressing.get())
                     on_cancel=Callback::new(move |_| on_close.call(()))
-                    label_submit="Enregistrer"
+                    label_submit=if is_edit { "Enregistrer" } else { "Créer l'entretien" }
                     error=error
                 />
             </form>
