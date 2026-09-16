@@ -575,11 +575,35 @@ fn build_forecast(metrics: &ContractMetrics, trips: &[TripRow], today: NaiveDate
     }
 
     let unavailable_days = unavailable_from.map(|d| (metrics.end_date - d).num_days().max(0));
+    let unavailable_until = unavailable_from.map(|_| metrics.end_date);
+
+    // Dépassement projeté total à l'échéance (km au-delà du plafond, si le rythme actuel
+    // et les voyages planifiés se confirment) — utilise `cumulative` (simulation jour par
+    // jour, déjà calculée ci-dessus), pas une approximation linéaire séparée.
+    let overage_km = ((km_consumed as f64 + cumulative) - metrics.km_allowed as f64).max(0.0);
+    let (recommended_daily_reduction_km, recommended_days_off) = if unavailable_from.is_some() {
+        let daily_reduction = if days_remaining > 0 {
+            Some((overage_km / days_remaining as f64).ceil() as i32)
+        } else {
+            None
+        };
+        let days_off = if daily_rate > 0.0 {
+            Some((overage_km / daily_rate).ceil() as i32)
+        } else {
+            None
+        };
+        (daily_reduction, days_off)
+    } else {
+        (None, None)
+    };
 
     UsageForecast {
         km_per_day_available,
         unavailable_from,
         unavailable_days,
+        unavailable_until,
+        recommended_daily_reduction_km,
+        recommended_days_off,
         points,
     }
 }
@@ -667,6 +691,9 @@ pub async fn usage_forecast(
                 km_per_day_available: None,
                 unavailable_from: None,
                 unavailable_days: None,
+                unavailable_until: None,
+                recommended_daily_reduction_km: None,
+                recommended_days_off: None,
                 points: vec![],
             }),
         )

@@ -460,6 +460,16 @@ pub struct UsageForecast {
     pub unavailable_from: Option<chrono::NaiveDate>,
     /// Nombre de jours entre unavailable_from et la fin du contrat
     pub unavailable_days: Option<i64>,
+    /// Date de fin du contrat correspondant — le dépassement dure jusqu'à cette date au
+    /// rythme actuel (pas une indisponibilité temporaire qui se résorbe seule)
+    pub unavailable_until: Option<chrono::NaiveDate>,
+    /// Réduction quotidienne (km/jour) à appliquer sur le reste de la période pour
+    /// rester dans les clous, étalée sur `unavailable_days`... en réalité sur la durée
+    /// totale restante (jours_restants), pas seulement la période de dépassement
+    pub recommended_daily_reduction_km: Option<i32>,
+    /// Nombre de jours équivalent-rythme-actuel à ne pas rouler du tout pour rattraper
+    /// le dépassement projeté (None si le rythme actuel est nul — division impossible)
+    pub recommended_days_off: Option<i32>,
     pub points: Vec<ForecastPoint>,
 }
 

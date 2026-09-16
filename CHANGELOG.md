@@ -17,6 +17,16 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.16] — 2026-09-16
+
+### Changé
+- **Message "Indisponible à partir du..." clarifié** : affiche désormais explicitement la date de fin ("Du 12 déc. 2026 au 1 janv. 2027 (fin de contrat)") plutôt qu'un simple nombre de jours ambigu — un utilisateur a fait remarquer qu'on ne pouvait pas déduire facilement si "71 j" signifiait une indisponibilité temporaire ou la durée jusqu'à l'échéance (c'est cette seconde interprétation qui est correcte : au rythme actuel, le dépassement ne se résorbe jamais tout seul).
+
+### Ajouté
+- **Recommandations de récupération de trajectoire** : le widget "Capacité kilométrique" affiche maintenant, en cas de dépassement prévisible, la réduction quotidienne nécessaire ("Rouler X km/jour de moins sur le reste de la période") et l'équivalent en jours sans utiliser le véhicule ("...ou l'équivalent de Y jours"). Nouveaux champs `unavailable_until`, `recommended_daily_reduction_km`, `recommended_days_off` sur `usage-forecast`, dérivés de la même simulation jour par jour que le calcul existant (pas une approximation séparée).
+
+---
+
 ## [1.5.15] — 2026-09-16
 
 ### Ajouté

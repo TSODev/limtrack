@@ -88,10 +88,22 @@ pub fn TripsWidget(vehicle_id: ReadSignal<Option<Uuid>>, on_navigate: Callback<(
                             </p>
 
                             {f.unavailable_from.map(|date| {
-                                let days = f.unavailable_days.unwrap_or(0);
+                                let until_line = f.unavailable_until.map(|until| {
+                                    format!("Du {} au {} (fin de contrat, voyages inclus)", format_date_fr(date), format_date_fr(until))
+                                }).unwrap_or_else(|| format!("À partir du {}", format_date_fr(date)));
+
+                                let reduction_line = f.recommended_daily_reduction_km.map(|km| {
+                                    format!("Rouler {} km/jour de moins sur le reste de la période pour rester dans les clous", km)
+                                });
+                                let days_off_line = f.recommended_days_off.map(|days| {
+                                    format!("...ou l'équivalent de {} jour(s) sans utiliser le véhicule, au rythme actuel", days)
+                                });
+
                                 view! {
-                                    <div class="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700">
-                                        "⚠ Indisponible à partir du "{format_date_fr(date)}" ("{days}" j, voyages inclus)"
+                                    <div class="space-y-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700">
+                                        <div class="flex items-center gap-1.5">"⚠ Indisponible : "{until_line}</div>
+                                        {reduction_line.map(|l| view! { <p class="font-normal text-amber-600">{l}</p> })}
+                                        {days_off_line.map(|l| view! { <p class="font-normal text-amber-600">{l}</p> })}
                                     </div>
                                 }
                             })}
