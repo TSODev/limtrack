@@ -16,6 +16,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - **Backup OVH quotidien activé** — double protection : `pg_dump` cron 2h + snapshot VPS OVH automatique.
 - **`docker-compose.yml` resynchronisé avec la prod** (2026-09-16) — le service `postgres` du VPS avait un mapping de port `127.0.0.1:5432:5432` ajouté manuellement, jamais reporté dans le dépôt. Repéré en configurant un accès direct (tunnel SSH) à la base pour un outil d'administration externe (`rowdy-db`).
 
+### Données de démo
+- **`seed_appstore_review.sql` mis à jour et complété** (2026-09-16) — dates rafraîchies (décalage uniforme +105j pour préserver tous les scénarios relatifs : LOA "expire dans 28 jours", véhicule expiré, etc.) ; ajout de voyages planifiés et d'un carnet d'entretien complet (3 statuts prevu/devis/realise) sur le véhicule vitrine AR-001-AA. Deux bugs latents corrigés au passage : (1) le commentaire du script prétendait qu'un trigger DB accordait automatiquement le rôle `owner` sur `vehicle_access` — aucun trigger de ce type n'existe (vérifié), le script ne créait donc en réalité *aucun* accès propriétaire, seul le partage `viewer` explicite fonctionnait ; (2) `contracts_insurance.km_start` d'AR-001-AA (20 000) était très inférieur au kilométrage réel à la date de début du contrat (~27 800), gonflant artificiellement la consommation annuelle apparente et déclenchant un faux `overage_risk`. Revérifié de bout en bout via l'API (contrats, `maintenance-status`, `usage-forecast`, `trips`) après correctif.
+
 ---
 
 ## [1.5.22] — 2026-09-16

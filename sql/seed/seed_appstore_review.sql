@@ -7,25 +7,43 @@
 -- Importer avec psql :
 --   psql "$DATABASE_URL" -f seed_appstore_review.sql
 --
+-- ⚠️ Dates figées (pas de CURRENT_DATE) — calées sur une date de référence "aujourd'hui"
+--    (voir REFERENCE_TODAY ci-dessous) plutôt que recalculées dynamiquement, pour que les
+--    scénarios (contrat qui expire dans 28 jours, entretien en retard, etc.) restent
+--    prévisibles et reproductibles. Rejouer ce script alors que la vraie date courante s'est
+--    éloignée de la référence fait dériver ces scénarios (ex. le contrat "expire dans 28
+--    jours" devient "expire dans 5 jours" ou "a expiré") — à rafraîchir périodiquement
+--    (dernière mise à jour : REFERENCE_TODAY = 2026-09-16).
+--
 -- Comptes créés :
 --   apple.reviewer / AppReview2024!  → compte iOS principal (is_ios=true, accès lifetime)
 --   demo.friend    / DemoFriend2024! → second compte pour illustrer le partage de véhicule
 --
 -- Véhicules — cas d'usage couverts :
---   AR-001-AA  Renault Clio        — LOA saine (55% km), assurance saine           ✅
+--   AR-001-AA  Renault Clio        — LOA saine (55% km), assurance saine, véhicule vitrine
+--                                    (voyages planifiés + carnet d'entretien complets)      ✅
 --   AR-002-BB  Volkswagen Golf     — LOA à 87% km → alerte dépassement proche      ⚠️
 --   AR-003-CC  Peugeot 208         — LOA expire dans 28 jours → alerte date        ⚠️
---   AR-004-DD  Toyota C-HR         — LOA expirée + km dépassé + assurance expirée  ❌
+--   AR-004-DD  Toyota C-HR         — LOA expirée + km dépassé + assurance expirée
+--                                    + vidange en retard                                    ❌
 --   AR-005-EE  Citroën C3 Aircross — partagé par demo.friend (rôle viewer)         👁
 --
 -- Fonctionnalités illustrées :
 --   - Dashboard véhicule avec trajectoire idéale et jalons kilométriques
 --   - Contrat LOA : dates, km alloués, coût au km supplémentaire (price_per_extra_km)
 --   - Contrat assurance : assureur, limite annuelle, renouvellement
---   - Historique de relevés kilométriques (6 à 16 entrées par véhicule)
+--   - Historique de relevés kilométriques (6 à 17 entrées par véhicule)
 --   - États d'alerte : vert / orange / rouge
 --   - Partage de véhicule (vue partagée en lecture seule)
 --   - Profil utilisateur et préférences de notifications
+--   - Voyages planifiés (AR-001-AA) : trajet domicile-travail récurrent (hebdo, jours
+--     ouvrés) + road trip ponctuel à venir — alimente la projection "Capacité kilométrique"
+--   - Carnet d'entretien (AR-001-AA) : un type à jour (Vidange), un type en retard
+--     (Contrôle technique, échéance dépassée de 2 jours), un type jamais fait mais avec un
+--     devis en attente (Pneus) — illustre les 3 statuts prevu/devis/realise et le fait
+--     qu'un devis ne compte pas comme fait pour l'échéance
+--   - Carnet d'entretien (AR-004-DD) : vidange en retard, en cohérence avec le véhicule déjà
+--     signalé en défaut sur LOA/assurance
 -- =============================================================================
 
 BEGIN;
@@ -36,6 +54,15 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- NETTOYAGE (idempotent — ré-exécutable sans erreur)
 -- =============================================================================
 
+DELETE FROM public.maintenance_entry_types WHERE maintenance_type_id IN (
+    SELECT mt.id FROM public.maintenance_types mt
+    JOIN public.vehicles v ON v.id = mt.vehicle_id WHERE v.plate_number LIKE 'AR-%');
+DELETE FROM public.maintenance_entries WHERE vehicle_id IN (
+    SELECT id FROM public.vehicles WHERE plate_number LIKE 'AR-%');
+DELETE FROM public.maintenance_types WHERE vehicle_id IN (
+    SELECT id FROM public.vehicles WHERE plate_number LIKE 'AR-%');
+DELETE FROM public.planned_trips WHERE vehicle_id IN (
+    SELECT id FROM public.vehicles WHERE plate_number LIKE 'AR-%');
 DELETE FROM public.mileage_log WHERE vehicle_id IN (
     SELECT id FROM public.vehicles WHERE plate_number LIKE 'AR-%');
 DELETE FROM public.contracts_insurance WHERE vehicle_id IN (
@@ -96,7 +123,7 @@ ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO public.vehicles (id, owner_id, make, model, plate_number, year, vin)
 VALUES
-    -- v1 Renault Clio — LOA saine ✅
+    -- v1 Renault Clio — LOA saine, véhicule vitrine (voyages + entretien) ✅
     (
         'f1111111-0000-4000-8000-aaaaaa000001',
         'f0000000-0000-4000-8000-aaaaaa000001',
@@ -117,7 +144,7 @@ VALUES
         'Peugeot', '208', 'AR-003-CC', 2021,
         'VF3CCBHZ0MT000003'
     ),
-    -- v4 Toyota C-HR — LOA expirée + km dépassé + assurance expirée ❌
+    -- v4 Toyota C-HR — LOA expirée + km dépassé + assurance expirée + vidange en retard ❌
     (
         'f1111111-0000-4000-8000-aaaaaa000004',
         'f0000000-0000-4000-8000-aaaaaa000001',
@@ -135,15 +162,24 @@ VALUES
 -- =============================================================================
 -- ACCÈS VÉHICULES
 -- =============================================================================
--- Les accès 'owner' sont créés automatiquement par le trigger trg_auto_grant_owner.
--- On insère uniquement le partage viewer : demo.friend → apple.reviewer sur la C3.
+-- ⚠️ Pas de trigger DB qui accorde automatiquement le rôle 'owner' (vérifié :
+-- `SELECT * FROM pg_trigger WHERE NOT tgisinternal` ne renvoie rien — voir CLAUDE.md,
+-- bug corrigé par la migration 019 pour `create_vehicle`, mais qui concerne uniquement
+-- l'API, pas les insertions SQL directes comme ce seed). Sans cette ligne, `list_vehicles`
+-- (JOIN, pas LEFT JOIN, sur vehicle_access) ne renverrait aucun des 5 véhicules — il faut
+-- l'insérer explicitement pour chaque véhicule, y compris son propre propriétaire.
 
 INSERT INTO public.vehicle_access (vehicle_id, user_id, role)
-VALUES (
-    'f1111111-0000-4000-8000-aaaaaa000005',
-    'f0000000-0000-4000-8000-aaaaaa000001',
-    'viewer'
-)
+VALUES
+    -- apple.reviewer, propriétaire de v1 à v4
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f0000000-0000-4000-8000-aaaaaa000001', 'owner'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f0000000-0000-4000-8000-aaaaaa000001', 'owner'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f0000000-0000-4000-8000-aaaaaa000001', 'owner'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f0000000-0000-4000-8000-aaaaaa000001', 'owner'),
+    -- demo.friend, propriétaire de v5
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f0000000-0000-4000-8000-aaaaaa000002', 'owner'),
+    -- partage viewer : demo.friend → apple.reviewer sur la C3
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f0000000-0000-4000-8000-aaaaaa000001', 'viewer')
 ON CONFLICT (vehicle_id, user_id) DO NOTHING;
 
 -- =============================================================================
@@ -158,7 +194,7 @@ VALUES
         'f2222222-0000-4000-8000-aaaaaa000001',
         'f1111111-0000-4000-8000-aaaaaa000001',
         30000, 12000,
-        '2024-01-01', '2027-01-01',
+        '2024-04-15', '2027-04-16',
         0.18
     ),
     -- v2 Golf — 48 mois, 60 000 km, km_consumed=52 500 (87.5%) ⚠️
@@ -166,23 +202,23 @@ VALUES
         'f2222222-0000-4000-8000-aaaaaa000002',
         'f1111111-0000-4000-8000-aaaaaa000002',
         60000, 8000,
-        '2022-10-01', '2026-10-01',
+        '2023-01-14', '2027-01-14',
         0.22
     ),
-    -- v3 Peugeot 208 — 36 mois, expire 2026-07-01 (J-26), km_consumed=24 500 (68%)
+    -- v3 Peugeot 208 — 36 mois, expire dans 28 jours (REFERENCE_TODAY + 28j), km_consumed=24 500 (68%)
     (
         'f2222222-0000-4000-8000-aaaaaa000003',
         'f1111111-0000-4000-8000-aaaaaa000003',
         36000, 3500,
-        '2023-07-01', '2026-07-01',
+        '2023-10-14', '2026-10-14',
         0.15
     ),
-    -- v4 Toyota C-HR — expirée 2026-02-01, km_consumed=46 500 (103%) → dépassement 1 500 km ❌
+    -- v4 Toyota C-HR — expirée, km_consumed=46 500 (103%) → dépassement 1 500 km ❌
     (
         'f2222222-0000-4000-8000-aaaaaa000004',
         'f1111111-0000-4000-8000-aaaaaa000004',
         45000, 15000,
-        '2023-02-01', '2026-02-01',
+        '2023-05-17', '2026-05-17',
         0.20
     ),
     -- v5 Citroën C3 — 36 mois, km_consumed=5 500 (18%) ✅
@@ -190,7 +226,7 @@ VALUES
         'f2222222-0000-4000-8000-aaaaaa000005',
         'f1111111-0000-4000-8000-aaaaaa000005',
         30000, 22000,
-        '2024-09-01', '2027-09-01',
+        '2024-12-15', '2027-12-15',
         NULL
     );
 
@@ -201,36 +237,36 @@ VALUES
 INSERT INTO public.contracts_insurance
     (id, vehicle_id, km_annual_limit, km_start, start_date, end_date, insurer)
 VALUES
-    -- v1 Clio — AXA, renouvelée jan. 2026, saine
+    -- v1 Clio — AXA, saine (km_start ≈ kilométrage réel au 2026-04-16, cf. relevés)
     (
         'f3333333-0000-4000-8000-aaaaaa000001',
         'f1111111-0000-4000-8000-aaaaaa000001',
-        12000, 20000,
-        '2026-01-01', '2027-01-01',
+        12000, 27600,
+        '2026-04-16', '2027-04-16',
         'AXA'
     ),
-    -- v2 Golf — Groupama, renouvelée jan. 2026, saine
+    -- v2 Golf — Groupama, saine
     (
         'f3333333-0000-4000-8000-aaaaaa000002',
         'f1111111-0000-4000-8000-aaaaaa000002',
         18000, 55000,
-        '2026-01-01', '2027-01-01',
+        '2026-04-16', '2027-04-16',
         'Groupama'
     ),
-    -- v3 Peugeot 208 — MAAF, renouvelée jan. 2026, saine
+    -- v3 Peugeot 208 — MAAF, saine
     (
         'f3333333-0000-4000-8000-aaaaaa000003',
         'f1111111-0000-4000-8000-aaaaaa000003',
         12000, 24000,
-        '2026-01-01', '2027-01-01',
+        '2026-04-16', '2027-04-16',
         'MAAF'
     ),
-    -- v4 Toyota C-HR — MMA, expirée 2026-02-01 ❌
+    -- v4 Toyota C-HR — MMA, expirée ❌
     (
         'f3333333-0000-4000-8000-aaaaaa000004',
         'f1111111-0000-4000-8000-aaaaaa000004',
         15000, 46000,
-        '2025-02-01', '2026-02-01',
+        '2025-05-17', '2026-05-17',
         'MMA'
     ),
     -- v5 Citroën C3 — AXA, saine
@@ -238,7 +274,7 @@ VALUES
         'f3333333-0000-4000-8000-aaaaaa000005',
         'f1111111-0000-4000-8000-aaaaaa000005',
         12000, 23000,
-        '2025-09-01', '2026-09-01',
+        '2025-12-15', '2026-12-15',
         'AXA'
     );
 
@@ -246,87 +282,166 @@ VALUES
 -- RELEVÉS KILOMÉTRIQUES
 -- =============================================================================
 
--- ─── v1 Renault Clio (final = 28 500 — LOA 55% ✅) ───────────────────────────
--- Insurance démarre 2026-01-01 → contract_insurance_id NULL avant cette date.
+-- ─── v1 Renault Clio (final = 29 000 — LOA 55% ✅) ───────────────────────────
+-- Insurance démarre 2026-04-16 → contract_insurance_id NULL avant cette date.
 INSERT INTO public.mileage_log
     (vehicle_id, contract_loa_id, contract_insurance_id, value, recorded_at, source)
 VALUES
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    13500, '2024-02-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    16800, '2024-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    20200, '2024-10-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    22900, '2025-02-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    25500, '2025-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    27300, '2025-10-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', 'f3333333-0000-4000-8000-aaaaaa000001', 27800, '2026-01-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', 'f3333333-0000-4000-8000-aaaaaa000001', 28500, '2026-04-01', 'manual');
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    13500, '2024-05-30', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    16800, '2024-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    20200, '2025-01-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    22900, '2025-05-17', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    25500, '2025-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', NULL,                                    27300, '2026-01-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', 'f3333333-0000-4000-8000-aaaaaa000001', 27800, '2026-04-30', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', 'f3333333-0000-4000-8000-aaaaaa000001', 28500, '2026-07-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000001', 'f2222222-0000-4000-8000-aaaaaa000001', 'f3333333-0000-4000-8000-aaaaaa000001', 29000, '2026-09-10', 'manual');
 
 -- ─── v2 Volkswagen Golf (final = 60 500 — LOA 87.5% ⚠️) ─────────────────────
 INSERT INTO public.mileage_log
     (vehicle_id, contract_loa_id, contract_insurance_id, value, recorded_at, source)
 VALUES
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    10500, '2022-12-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    16000, '2023-03-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    22500, '2023-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    29000, '2023-09-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    35500, '2023-12-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    41000, '2024-03-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    46500, '2024-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    50500, '2024-09-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    54000, '2024-12-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    56500, '2025-03-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    58000, '2025-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    59000, '2025-09-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    59800, '2025-12-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', 'f3333333-0000-4000-8000-aaaaaa000002', 60000, '2026-01-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', 'f3333333-0000-4000-8000-aaaaaa000002', 60200, '2026-04-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', 'f3333333-0000-4000-8000-aaaaaa000002', 60500, '2026-06-01', 'manual');
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    10500, '2023-03-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    16000, '2023-06-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    22500, '2023-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    29000, '2023-12-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    35500, '2024-03-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    41000, '2024-06-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    46500, '2024-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    50500, '2024-12-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    54000, '2025-03-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    56500, '2025-06-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    58000, '2025-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    59000, '2025-12-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', NULL,                                    59800, '2026-03-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', 'f3333333-0000-4000-8000-aaaaaa000002', 60000, '2026-04-30', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', 'f3333333-0000-4000-8000-aaaaaa000002', 60200, '2026-07-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000002', 'f2222222-0000-4000-8000-aaaaaa000002', 'f3333333-0000-4000-8000-aaaaaa000002', 60500, '2026-09-14', 'manual');
 
--- ─── v3 Peugeot 208 (final = 28 000 — LOA J-26 ⚠️) ──────────────────────────
+-- ─── v3 Peugeot 208 (final = 28 000 — LOA expire dans 28 jours ⚠️) ──────────
 INSERT INTO public.mileage_log
     (vehicle_id, contract_loa_id, contract_insurance_id, value, recorded_at, source)
 VALUES
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                     5200, '2023-09-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                     8500, '2024-01-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    12000, '2024-05-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    15500, '2024-09-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    18800, '2025-01-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    21900, '2025-05-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    24700, '2025-09-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    26500, '2025-12-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', 'f3333333-0000-4000-8000-aaaaaa000003', 26800, '2026-01-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', 'f3333333-0000-4000-8000-aaaaaa000003', 27500, '2026-03-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', 'f3333333-0000-4000-8000-aaaaaa000003', 28000, '2026-06-01', 'manual');
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                     5200, '2023-12-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                     8500, '2024-04-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    12000, '2024-08-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    15500, '2024-12-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    18800, '2025-04-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    21900, '2025-08-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    24700, '2025-12-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', NULL,                                    26500, '2026-03-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', 'f3333333-0000-4000-8000-aaaaaa000003', 26800, '2026-04-30', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', 'f3333333-0000-4000-8000-aaaaaa000003', 27500, '2026-06-28', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000003', 'f2222222-0000-4000-8000-aaaaaa000003', 'f3333333-0000-4000-8000-aaaaaa000003', 28000, '2026-09-14', 'manual');
 
 -- ─── v4 Toyota C-HR (final = 61 500 — LOA expirée + 1 500 km dépassés ❌) ────
--- LOA expirée 2026-02-01, assurance expirée 2026-02-01.
+-- LOA expirée 2026-05-17, assurance expirée 2026-05-17.
 -- Coût dépassement : 1 500 km × 0.20 €/km = 300 €
 INSERT INTO public.mileage_log
     (vehicle_id, contract_loa_id, contract_insurance_id, value, recorded_at, source)
 VALUES
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    17000, '2023-03-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    21500, '2023-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    27000, '2023-10-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    33000, '2024-02-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    38500, '2024-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    44000, '2024-10-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 48000, '2025-02-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 53500, '2025-06-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 58500, '2025-10-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 61000, '2026-01-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 61500, '2026-03-01', 'manual');
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    17000, '2023-06-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    21500, '2023-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    27000, '2024-01-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    33000, '2024-05-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    38500, '2024-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', NULL,                                    44000, '2025-01-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 48000, '2025-05-31', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 53500, '2025-09-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 58500, '2026-01-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 61000, '2026-04-30', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000004', 'f2222222-0000-4000-8000-aaaaaa000004', 'f3333333-0000-4000-8000-aaaaaa000004', 61500, '2026-06-14', 'manual');
 
 -- ─── v5 Citroën C3 Aircross (final = 27 500 — sain 18% ✅) ───────────────────
 -- Appartient à demo.friend, partagé en viewer avec apple.reviewer.
--- Insurance démarre 2025-09-01.
+-- Insurance démarre 2025-12-15.
 INSERT INTO public.mileage_log
     (vehicle_id, contract_loa_id, contract_insurance_id, value, recorded_at, source)
 VALUES
-    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', NULL,                                    23200, '2024-10-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', NULL,                                    24500, '2025-01-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', NULL,                                    25800, '2025-04-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', 'f3333333-0000-4000-8000-aaaaaa000005', 26500, '2025-09-15', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', 'f3333333-0000-4000-8000-aaaaaa000005', 27000, '2026-01-01', 'manual'),
-    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', 'f3333333-0000-4000-8000-aaaaaa000005', 27500, '2026-05-01', 'manual');
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', NULL,                                    23200, '2025-01-14', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', NULL,                                    24500, '2025-04-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', NULL,                                    25800, '2025-07-15', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', 'f3333333-0000-4000-8000-aaaaaa000005', 26500, '2025-12-29', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', 'f3333333-0000-4000-8000-aaaaaa000005', 27000, '2026-04-16', 'manual'),
+    ('f1111111-0000-4000-8000-aaaaaa000005', 'f2222222-0000-4000-8000-aaaaaa000005', 'f3333333-0000-4000-8000-aaaaaa000005', 27500, '2026-08-14', 'manual');
+
+-- =============================================================================
+-- VOYAGES PLANIFIÉS (AR-001-AA uniquement — véhicule vitrine)
+-- =============================================================================
+-- Alimente le widget "Capacité kilométrique" et la projection usage-forecast
+-- (mileage_widget : trajectoire idéale + overlay pointillé "voyages inclus").
+
+INSERT INTO public.planned_trips
+    (id, vehicle_id, label, estimated_km, start_date, end_date,
+     recurrence, recurrence_interval, days_of_week, day_of_month, recurrence_end_date, active)
+VALUES
+    -- Trajet domicile-travail — récurrent hebdo, lun-ven, 45 km/jour
+    (
+        'f6666666-0000-4000-8000-aaaaaa000001',
+        'f1111111-0000-4000-8000-aaaaaa000001',
+        'Trajet domicile-travail', 45,
+        '2026-09-16', '2026-09-16',
+        'weekly', 1, '{0,1,2,3,4}', NULL, NULL, true
+    ),
+    -- Road trip ponctuel à venir
+    (
+        'f6666666-0000-4000-8000-aaaaaa000002',
+        'f1111111-0000-4000-8000-aaaaaa000001',
+        'Road trip Bretagne', 1200,
+        '2026-10-10', '2026-10-18',
+        'none', 1, NULL, NULL, NULL, true
+    );
+
+-- =============================================================================
+-- CARNET D'ENTRETIEN
+-- =============================================================================
+
+INSERT INTO public.maintenance_types
+    (id, vehicle_id, label, interval_km, interval_months, active)
+VALUES
+    -- AR-001-AA — 3 types, 3 statuts différents (voir entrées ci-dessous)
+    ('f4444444-0000-4000-8000-aaaaaa000001', 'f1111111-0000-4000-8000-aaaaaa000001', 'Vidange',             15000, 12,   true),
+    ('f4444444-0000-4000-8000-aaaaaa000002', 'f1111111-0000-4000-8000-aaaaaa000001', 'Contrôle technique',  NULL,  24,   true),
+    ('f4444444-0000-4000-8000-aaaaaa000003', 'f1111111-0000-4000-8000-aaaaaa000001', 'Pneus',               40000, NULL, true),
+    -- AR-004-DD — vidange en retard, cohérent avec un véhicule déjà signalé en défaut
+    ('f4444444-0000-4000-8000-aaaaaa000004', 'f1111111-0000-4000-8000-aaaaaa000004', 'Vidange',             15000, 12,   true);
+
+INSERT INTO public.maintenance_entries
+    (id, vehicle_id, label, performed_at, km_at_service, cost, provider, notes, status)
+VALUES
+    -- AR-001-AA — Vidange réalisée récemment → type "À jour"
+    (
+        'f5555555-0000-4000-8000-aaaaaa000001',
+        'f1111111-0000-4000-8000-aaaaaa000001',
+        'Vidange', '2026-01-14', 27300, 95.00, 'Renault Villeneuve', NULL, 'realise'
+    ),
+    -- AR-001-AA — Contrôle technique fait il y a 24 mois pile → échéance dépassée de 2 jours,
+    -- type "En retard" alors même que LOA/assurance sont saines (démontre le calcul indépendant)
+    (
+        'f5555555-0000-4000-8000-aaaaaa000002',
+        'f1111111-0000-4000-8000-aaaaaa000001',
+        'Contrôle technique', '2024-09-14', 16800, 78.50, 'Autovision', NULL, 'realise'
+    ),
+    -- AR-001-AA — Devis pneus reçu mais pas encore réalisé : le type "Pneus" reste "Jamais
+    -- fait" tant que ce n'est pas passé à "realise" (devis ignoré par le calcul d'échéance)
+    (
+        'f5555555-0000-4000-8000-aaaaaa000003',
+        'f1111111-0000-4000-8000-aaaaaa000001',
+        'Pneus', '2026-09-23', 29000, 380.00, 'Feu Vert', 'Devis reçu — 4 pneus été', 'devis'
+    ),
+    -- AR-004-DD — dernière vidange il y a 8 mois avec un rythme km élevé → largement en retard
+    (
+        'f5555555-0000-4000-8000-aaaaaa000004',
+        'f1111111-0000-4000-8000-aaaaaa000004',
+        'Vidange', '2025-01-14', 44000, 92.00, 'Toyota Massy', NULL, 'realise'
+    );
+
+INSERT INTO public.maintenance_entry_types (entry_id, maintenance_type_id)
+VALUES
+    ('f5555555-0000-4000-8000-aaaaaa000001', 'f4444444-0000-4000-8000-aaaaaa000001'),
+    ('f5555555-0000-4000-8000-aaaaaa000002', 'f4444444-0000-4000-8000-aaaaaa000002'),
+    ('f5555555-0000-4000-8000-aaaaaa000003', 'f4444444-0000-4000-8000-aaaaaa000003'),
+    ('f5555555-0000-4000-8000-aaaaaa000004', 'f4444444-0000-4000-8000-aaaaaa000004');
 
 COMMIT;
 
@@ -350,3 +465,13 @@ COMMIT;
 -- ) ml ON true
 -- WHERE v.plate_number LIKE 'AR-%'
 -- ORDER BY u.username, v.plate_number;
+--
+-- -- Carnet d'entretien AR-001-AA / AR-004-DD : statut par type
+-- SELECT v.plate_number, mt.label, mt.interval_km, mt.interval_months,
+--        e.performed_at, e.km_at_service, e.status
+-- FROM public.maintenance_types mt
+-- JOIN public.vehicles v ON v.id = mt.vehicle_id
+-- LEFT JOIN public.maintenance_entry_types met ON met.maintenance_type_id = mt.id
+-- LEFT JOIN public.maintenance_entries e ON e.id = met.entry_id
+-- WHERE v.plate_number IN ('AR-001-AA', 'AR-004-DD')
+-- ORDER BY v.plate_number, mt.label;
