@@ -119,6 +119,7 @@ limtrack/
 users                  -- Auth JWT + bcrypt + trial_ends_at + access_expires_at
 vehicles               -- owner_id, make, model, plate_number, company_id
 vehicle_access         -- rôles : owner, editor, viewer (ON DELETE CASCADE)
+-- vehicle_access.granted_by/granted_at + trigger trg_auto_grant_owner — migration 022 (voir section "Accès véhicules")
 contracts_loa          -- ON DELETE CASCADE
 contracts_insurance    -- ON DELETE CASCADE
 mileage_log            -- ON DELETE CASCADE
@@ -324,7 +325,9 @@ Onglet "Véhicules" (`frontend/src/pages/admin.rs`) : recherche/filtre client-si
 **Bug corrigé (migration 019, 2026-09-15)** : `create_vehicle` n'a jamais inséré cette ligne depuis son tout premier commit — seul `share_handler.rs::join_vehicle` insère dans `vehicle_access` (rejoindre via code de partage). Conséquence en production : tout véhicule créé via `POST /api/vehicles` (hors seeds SQL, qui insèrent `vehicle_access` à la main) était orphelin — invisible dans la liste, inutilisable pour kilométrage/contrats/entretien/voyages — et la limite `MAX_VEHICLES_PER_USER = 10` (comptée via `JOIN vehicle_access WHERE role = 'owner'`) n'était jamais atteinte puisque ce compteur était toujours à 0.
 - **Fix** : `create_vehicle` insère désormais `vehicles` + `vehicle_access (role='owner')` dans la même transaction (`state.db.begin()`), avant le seed best-effort des types d'entretien par défaut (qui reste hors transaction, non bloquant).
 - **Backfill** : migration `019` — `INSERT ... SELECT ... WHERE NOT EXISTS (...)`, idempotente, comble la ligne manquante pour tout véhicule existant déjà en base (à appliquer manuellement sur le VPS comme les autres migrations).
-- **Piège à ne pas réintroduire** : toute nouvelle route qui insère dans `vehicles` (import, duplication, etc.) doit insérer `vehicle_access (role='owner')` dans la même transaction — ne pas se fier à un trigger DB, il n'en existe aucun (vérifié : `SELECT * FROM pg_trigger WHERE NOT tgisinternal` ne renvoie rien).
+- **Trigger `trg_auto_grant_owner` (migration 022)** : `AFTER INSERT ON vehicles` → insère `vehicle_access (role='owner')` via la fonction `auto_grant_owner()`. **Correction d'une note précédente** : ce fichier affirmait à tort qu'aucun trigger de ce type n'existait ("vérifié : aucune ligne") — cette vérification avait été faite sur la base de dev locale, qui a divergé du schéma réel de production sans que ça soit remarqué (le trigger avait été ajouté manuellement sur le VPS, jamais capturé en migration, jusqu'à ce que la migration 022 formalise l'écart — repéré en 2026-09-16 en réappliquant `seed_appstore_review.sql` sur la prod). `vehicle_access` a aussi deux colonnes d'audit (`granted_by`, `granted_at`) découvertes au même moment, jamais utilisées côté Rust (seul `fleet_roles` les utilise réellement), ajoutées par la même migration pour que le trigger (qui les référence) puisse s'appliquer sur n'importe quel environnement.
+- **Le trigger ne dispense pas du fix applicatif** : il ne couvre que les insertions SQL qui contournent l'API (seeds, imports) — `create_vehicle` continue d'insérer explicitement `vehicle_access (role='owner')` dans sa transaction (migration 019), c'est la source de vérité pour le chemin normal de l'application ; le trigger est un filet de sécurité redondant (`ON CONFLICT DO NOTHING` des deux côtés), pas un remplacement.
+- **Piège à vérifier avant de conclure "aucun trigger n'existe"** : toujours vérifier `pg_trigger` sur la base **réellement ciblée** (prod via le tunnel SSH, pas seulement la base de dev locale) — les deux peuvent diverger silencieusement, comme ce fut le cas ici.
 
 ## Sécurité — protections anti-flood et limites métier
 
