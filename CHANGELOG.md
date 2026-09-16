@@ -17,6 +17,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.18] — 2026-09-16
+
+### Corrigé
+- **Padding vertical du modal "Nouvel entretien"** : le contenu touchait un peu trop le haut/bas du modal depuis le redesign du sélecteur en deux étapes (v1.5.13/v1.5.14) — ajout de `py-4` sur le conteneur de contenu du composant `Modal` partagé (`maintenance_list.rs`).
+
+---
+
 ## [1.5.17] — 2026-09-16
 
 ### Corrigé

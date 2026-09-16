@@ -56,7 +56,7 @@
 - [x] Web (limtrack.app + api.limtrack.app) — déployé
 - [ ] Build iOS (`cargo tauri ios build`) + soumission via Transporter — **bloqué** : MacBook Pro en panne, pas de Mac disponible. Options envisagées : location cloud (MacinCloud pay-as-you-go) ou OpenCore Legacy Patcher sur un vieux MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026 pour toute soumission App Store).
 - [ ] Broadcast "nouvelle version" (texte prêt, `cargo run --bin send-broadcast`) — à envoyer une fois la version iOS validée
-- [ ] **UI** : ajouter du padding vertical sur le modal "Nouvel entretien" (`EntryModal`, `maintenance_list.rs`) — le contenu touche un peu trop le haut/bas du modal depuis le redesign du sélecteur en deux étapes (v1.5.13/v1.5.14)
+- [x] **UI** : ajouter du padding vertical sur le modal "Nouvel entretien" (`EntryModal`, `maintenance_list.rs`) — corrigé en v1.5.18 (`py-4` sur le conteneur de contenu du composant `Modal` partagé)
 
 ---
 

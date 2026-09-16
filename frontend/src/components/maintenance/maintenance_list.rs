@@ -1522,7 +1522,7 @@ fn Modal(title: &'static str, on_close: Callback<()>, children: Children) -> imp
                     <h2 class="text-xl font-bold text-gray-900">{title}</h2>
                     <button on:click=move |_| on_close.call(()) class="text-gray-400 hover:text-gray-600 text-xl font-light">"✕"</button>
                 </div>
-                <div class="px-8 space-y-6">
+                <div class="px-8 py-4 space-y-6">
                     {children()}
                 </div>
             </div>
