@@ -1,4 +1,5 @@
-use crate::components::ui::get_token as get_jwt_token;
+use crate::components::ui::{format_date_fr, format_km, get_token as get_jwt_token};
+use common::{ContractInsurance, ContractLoa};
 use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
@@ -76,6 +77,40 @@ struct AdminCompany {
     members: Vec<AdminCompanyMember>,
     vehicles: Vec<AdminCompanyVehicle>,
     organizations: Vec<AdminCompanyOrg>,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+struct AdminVehicleListItem {
+    id: String,
+    make: String,
+    model: String,
+    plate_number: String,
+    owner_username: Option<String>,
+    owner_email: Option<String>,
+    company_name: Option<String>,
+    archived: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct AdminVehicleSummary {
+    id: String,
+    make: String,
+    model: String,
+    plate_number: String,
+    vin: Option<String>,
+    fuel_type: Option<String>,
+    owner_username: Option<String>,
+    owner_email: Option<String>,
+    company_name: Option<String>,
+    archived: bool,
+    loa_contracts: Vec<ContractLoa>,
+    insurance_contracts: Vec<ContractInsurance>,
+    last_mileage_value: Option<i32>,
+    last_mileage_date: Option<chrono::NaiveDate>,
+    maintenance_total_types: i64,
+    maintenance_overdue_count: i64,
+    maintenance_next_due_date: Option<chrono::NaiveDate>,
+    last_activity_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 // ─── HTTP helpers ─────────────────────────────────────────────
@@ -180,6 +215,16 @@ fn StatusBadge(status: String) -> impl IntoView {
 }
 
 #[component]
+fn ContractStatusBadge(status: String) -> impl IntoView {
+    let (cls, label) = match status.as_str() {
+        "exceeded" => ("bg-red-100 text-red-700",   "Dépassé"),
+        "closed"   => ("bg-gray-100 text-gray-600", "Clôturé"),
+        _          => ("bg-green-100 text-green-700", "Actif"),
+    };
+    view! { <span class=format!("px-2 py-0.5 rounded-full text-xs font-semibold {}", cls)>{label}</span> }
+}
+
+#[component]
 fn LicenseTypeBadge(lt: String) -> impl IntoView {
     let (cls, label) = if lt == "fleet" {
         ("bg-indigo-100 text-indigo-700", "Fleet")
@@ -220,6 +265,8 @@ pub fn AdminPage() -> impl IntoView {
     let (user_status, set_user_status) = create_signal(String::new());
     let (license_filter, set_license_filter) = create_signal(String::new());
     let (fleet_filter, set_fleet_filter) = create_signal(String::new());
+    let (vehicle_filter, set_vehicle_filter) = create_signal(String::new());
+    let (selected_vehicle, set_selected_vehicle) = create_signal(Option::<String>::None);
     // Édition inline utilisateur
     let (editing_id, set_editing_id) = create_signal(Option::<String>::None);
     let (edit_username, set_edit_username) = create_signal(String::new());
@@ -256,6 +303,16 @@ pub fn AdminPage() -> impl IntoView {
     let requests  = create_resource(move || refresh.get(), |_| async { api_get::<Vec<LicenseRequest>>("/api/admin/license-requests").await });
     let companies = create_resource(move || refresh.get(), |_| async { api_get::<Vec<AdminCompany>>("/api/admin/companies").await });
     let growth    = create_resource(move || refresh.get(), |_| async { api_get::<GrowthData>("/api/admin/growth").await });
+    let admin_vehicles = create_resource(move || refresh.get(), |_| async { api_get::<Vec<AdminVehicleListItem>>("/api/admin/vehicles").await });
+    let vehicle_summary = create_resource(
+        move || selected_vehicle.get(),
+        |id| async move {
+            match id {
+                Some(id) => Some(api_get::<AdminVehicleSummary>(&format!("/api/admin/vehicles/{}/summary", id)).await),
+                None => None,
+            }
+        },
+    );
 
     let save_edit = create_action(move |(id, u, e, ia, ii, lt, ex): &(String, String, String, bool, bool, String, String)| {
         let id = id.clone(); let u = u.clone(); let e = e.clone();
@@ -367,6 +424,7 @@ pub fn AdminPage() -> impl IntoView {
                         {tab_btn("users", "Utilisateurs")}
                         {tab_btn("licences", "Licences")}
                         {tab_btn("flottes", "Flottes")}
+                        {tab_btn("vehicules", "Véhicules")}
                         {tab_btn("generation", "Génération")}
                     </div>
                 </div>
@@ -859,6 +917,196 @@ pub fn AdminPage() -> impl IntoView {
                             })}
                         </Suspense>
                     </div>
+                </Show>
+
+                // ══════════════════════════════════════════════
+                // Onglet : Véhicules
+                // ══════════════════════════════════════════════
+                <Show when=move || tab.get() == "vehicules" fallback=|| ()>
+                    <input
+                        type="text"
+                        placeholder="Filtrer par immatriculation, marque, modèle ou propriétaire..."
+                        prop:value=vehicle_filter
+                        on:input=move |ev| set_vehicle_filter.set(event_target_value(&ev))
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                        <Suspense fallback=|| view! { <p class="p-4 text-sm text-gray-400">"Chargement..."</p> }>
+                            {move || admin_vehicles.get().map(|res| match res {
+                                Err(e) => view! { <p class="p-4 text-sm text-red-600">{format!("Erreur : {}", e)}</p> }.into_view(),
+                                Ok(list) => {
+                                    let f = vehicle_filter.get().to_lowercase();
+                                    let filtered: Vec<AdminVehicleListItem> = list.into_iter()
+                                        .filter(|v| {
+                                            f.is_empty()
+                                                || v.plate_number.to_lowercase().contains(&f)
+                                                || v.make.to_lowercase().contains(&f)
+                                                || v.model.to_lowercase().contains(&f)
+                                                || v.owner_username.as_deref().unwrap_or_default().to_lowercase().contains(&f)
+                                                || v.owner_email.as_deref().unwrap_or_default().to_lowercase().contains(&f)
+                                        })
+                                        .collect();
+                                    if filtered.is_empty() {
+                                        return view! { <p class="p-4 text-sm text-gray-400">"Aucun véhicule."</p> }.into_view();
+                                    }
+                                    let count = filtered.len();
+                                    view! {
+                                        <div class="px-4 py-2 border-b border-gray-100 text-xs text-gray-400">{count}" résultat(s)"</div>
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+                                                    <tr>
+                                                        <th class="px-3 py-3 text-left">"Immatriculation"</th>
+                                                        <th class="px-3 py-3 text-left">"Véhicule"</th>
+                                                        <th class="px-3 py-3 text-left">"Propriétaire"</th>
+                                                        <th class="px-3 py-3 text-left">"Flotte"</th>
+                                                        <th class="px-3 py-3 text-center">"Statut"</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-100">
+                                                    {filtered.into_iter().map(|v| {
+                                                        let vid = v.id.clone();
+                                                        let vid_click = v.id.clone();
+                                                        let is_selected = move || selected_vehicle.get().as_deref() == Some(vid.as_str());
+                                                        view! {
+                                                            <tr
+                                                                on:click=move |_| set_selected_vehicle.set(Some(vid_click.clone()))
+                                                                class=move || format!(
+                                                                    "cursor-pointer hover:bg-indigo-50 transition {}",
+                                                                    if is_selected() { "bg-indigo-50" } else { "" }
+                                                                )
+                                                            >
+                                                                <td class="px-3 py-2.5 font-mono font-semibold text-gray-900">{v.plate_number.clone()}</td>
+                                                                <td class="px-3 py-2.5 text-gray-700">{format!("{} {}", v.make, v.model)}</td>
+                                                                <td class="px-3 py-2.5 text-gray-500 text-xs">
+                                                                    {v.owner_username.clone().unwrap_or_else(|| "—".to_string())}
+                                                                    {v.owner_email.clone().map(|e| view! { <span class="text-gray-400">" ("{e}")"</span> })}
+                                                                </td>
+                                                                <td class="px-3 py-2.5 text-gray-400 text-xs">{v.company_name.clone().unwrap_or_default()}</td>
+                                                                <td class="px-3 py-2.5 text-center">
+                                                                    {if v.archived {
+                                                                        view! { <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">"Archivé"</span> }.into_view()
+                                                                    } else {
+                                                                        view! { <span></span> }.into_view()
+                                                                    }}
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }).collect_view()}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }.into_view()
+                                }
+                            })}
+                        </Suspense>
+                    </div>
+
+                    // ─── Détail du véhicule sélectionné ───────
+                    <Show when=move || selected_vehicle.get().is_some() fallback=|| ()>
+                        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6">
+                            <Suspense fallback=|| view! { <p class="text-sm text-gray-400">"Chargement..."</p> }>
+                                {move || vehicle_summary.get().flatten().map(|res| match res {
+                                    Err(e) => view! { <p class="text-sm text-red-600">{format!("Erreur : {}", e)}</p> }.into_view(),
+                                    Ok(s) => view! {
+                                        <div class="space-y-5">
+                                            <div class="flex items-start justify-between flex-wrap gap-2">
+                                                <div>
+                                                    <h2 class="text-lg font-bold text-gray-900">{format!("{} {} — {}", s.make, s.model, s.plate_number)}</h2>
+                                                    <p class="text-xs text-gray-500 mt-0.5">
+                                                        {s.owner_username.clone().unwrap_or_else(|| "Propriétaire inconnu".to_string())}
+                                                        {s.owner_email.clone().map(|e| format!(" ({})", e)).unwrap_or_default()}
+                                                        {s.company_name.clone().map(|c| format!(" — {}", c)).unwrap_or_default()}
+                                                    </p>
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    {s.fuel_type.clone().map(|f| view! { <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{f}</span> })}
+                                                    {if s.archived {
+                                                        view! { <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">"Archivé"</span> }.into_view()
+                                                    } else {
+                                                        ().into_view()
+                                                    }}
+                                                </div>
+                                            </div>
+
+                                            {s.vin.clone().map(|v| view! { <p class="text-xs text-gray-400 font-mono">"VIN : "{v}</p> })}
+
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <div class="bg-gray-50 rounded-lg p-3">
+                                                    <p class="text-xs text-gray-400 mb-1">"Kilométrage"</p>
+                                                    <p class="text-sm font-bold text-gray-800">
+                                                        {s.last_mileage_value.map(format_km).unwrap_or_else(|| "—".to_string())}
+                                                    </p>
+                                                    <p class="text-xs text-gray-400 mt-0.5">
+                                                        {s.last_mileage_date.map(format_date_fr).unwrap_or_default()}
+                                                    </p>
+                                                </div>
+                                                <div class="bg-gray-50 rounded-lg p-3">
+                                                    <p class="text-xs text-gray-400 mb-1">"Entretien"</p>
+                                                    <p class=format!("text-sm font-bold {}", if s.maintenance_overdue_count > 0 { "text-red-600" } else { "text-gray-800" })>
+                                                        {if s.maintenance_overdue_count > 0 {
+                                                            format!("{} en retard", s.maintenance_overdue_count)
+                                                        } else {
+                                                            "À jour".to_string()
+                                                        }}
+                                                    </p>
+                                                    <p class="text-xs text-gray-400 mt-0.5">
+                                                        {format!("{} type(s) suivi(s)", s.maintenance_total_types)}
+                                                    </p>
+                                                </div>
+                                                <div class="bg-gray-50 rounded-lg p-3">
+                                                    <p class="text-xs text-gray-400 mb-1">"Prochaine échéance entretien"</p>
+                                                    <p class="text-sm font-bold text-gray-800">
+                                                        {s.maintenance_next_due_date.map(format_date_fr).unwrap_or_else(|| "—".to_string())}
+                                                    </p>
+                                                </div>
+                                                <div class="bg-gray-50 rounded-lg p-3">
+                                                    <p class="text-xs text-gray-400 mb-1">"Dernière mise à jour"</p>
+                                                    <p class="text-sm font-bold text-gray-800">
+                                                        {s.last_activity_at.map(|d| format_date_fr(d.date_naive())).unwrap_or_else(|| "—".to_string())}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase mb-2">"Contrats"</p>
+                                                {if s.loa_contracts.is_empty() && s.insurance_contracts.is_empty() {
+                                                    view! { <p class="text-xs text-gray-400 italic">"Aucun contrat."</p> }.into_view()
+                                                } else {
+                                                    view! {
+                                                        <div class="space-y-2">
+                                                            {s.loa_contracts.into_iter().map(|c| view! {
+                                                                <div class="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
+                                                                    <div>
+                                                                        <span class="font-medium text-gray-800">"LOA"</span>
+                                                                        <span class="text-xs text-gray-400 ml-2">
+                                                                            {format!("{} / {} — fin {}", format_km(c.km_consumed), format_km(c.km_allowed), format_date_fr(c.end_date))}
+                                                                        </span>
+                                                                    </div>
+                                                                    <ContractStatusBadge status=c.status />
+                                                                </div>
+                                                            }).collect_view()}
+                                                            {s.insurance_contracts.into_iter().map(|c| view! {
+                                                                <div class="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
+                                                                    <div>
+                                                                        <span class="font-medium text-gray-800">"Assurance"</span>
+                                                                        <span class="text-xs text-gray-400 ml-2">
+                                                                            {format!("{} / {} — fin {}", format_km(c.km_consumed), format_km(c.km_annual_limit), format_date_fr(c.end_date))}
+                                                                        </span>
+                                                                    </div>
+                                                                    <ContractStatusBadge status=c.status />
+                                                                </div>
+                                                            }).collect_view()}
+                                                        </div>
+                                                    }.into_view()
+                                                }}
+                                            </div>
+                                        </div>
+                                    }.into_view(),
+                                })}
+                            </Suspense>
+                        </div>
+                    </Show>
                 </Show>
 
                 // ══════════════════════════════════════════════

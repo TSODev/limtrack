@@ -18,6 +18,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ---
 
+## [1.5.19] — 2026-09-16
+
+### Ajouté
+- **Dashboard admin — support véhicule par immatriculation** : nouvel onglet "Véhicules" — recherche/sélection dans la liste complète des véhicules, puis résumé lecture seule (identité, contrats actifs, dernier kilométrage, statut entretien, date de dernière activité). Deux endpoints admin dédiés (`GET /api/admin/vehicles`, `GET /api/admin/vehicles/:id/summary`), aucune modification du contrôle d'accès `vehicle_access` existant.
+
+---
+
 ## [1.5.18] — 2026-09-16
 
 ### Corrigé

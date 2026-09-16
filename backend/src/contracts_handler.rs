@@ -192,28 +192,13 @@ pub async fn create_loa(
 
 // ─── GET /vehicles/:vehicle_id/contracts/loa ─────────────────────
 
-pub async fn list_loa(
-    AuthenticatedUser(user_id): AuthenticatedUser,
-    Path(vehicle_id): Path<Uuid>,
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-    let access = sqlx::query_scalar!(
-        "SELECT role FROM public.vehicle_access
-         WHERE vehicle_id = $1 AND user_id = $2",
-        vehicle_id,
-        user_id
-    )
-    .fetch_optional(&state.db)
-    .await;
-
-    if matches!(access, Ok(None) | Err(_)) {
-        return err(
-            StatusCode::NOT_FOUND,
-            "Véhicule introuvable ou accès refusé",
-        )
-        .into_response();
-    }
-
+// Calcul pur (sans vérification d'accès) — réutilisé par le handler propriétaire
+// (`list_loa`, après `require_owner`/vérif accès) et par le dashboard admin
+// (`admin_handler.rs::get_vehicle_summary_admin`, après `AdminUser`).
+pub async fn compute_loa_contracts(
+    db: &sqlx::PgPool,
+    vehicle_id: Uuid,
+) -> Result<Vec<ContractLoa>, ()> {
     let rows = sqlx::query!(
         r#"
         SELECT
@@ -238,15 +223,10 @@ pub async fn list_loa(
         "#,
         vehicle_id
     )
-    .fetch_all(&state.db)
+    .fetch_all(db)
     .await;
 
-    let rows = match rows {
-        Ok(r) => r,
-        Err(_) => {
-            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
-        }
-    };
+    let rows = rows.map_err(|_| ())?;
 
     let today = Local::now().date_naive();
 
@@ -298,7 +278,35 @@ pub async fn list_loa(
         })
         .collect();
 
-    (StatusCode::OK, Json(contracts)).into_response()
+    Ok(contracts)
+}
+
+pub async fn list_loa(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let access = sqlx::query_scalar!(
+        "SELECT role FROM public.vehicle_access
+         WHERE vehicle_id = $1 AND user_id = $2",
+        vehicle_id,
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    if matches!(access, Ok(None) | Err(_)) {
+        return err(
+            StatusCode::NOT_FOUND,
+            "Véhicule introuvable ou accès refusé",
+        )
+        .into_response();
+    }
+
+    match compute_loa_contracts(&state.db, vehicle_id).await {
+        Ok(contracts) => (StatusCode::OK, Json(contracts)).into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
 }
 
 // ─── DELETE /vehicles/:vehicle_id/contracts/loa/:contract_id ────
@@ -501,28 +509,11 @@ pub async fn delete_insurance(
 
 // ─── GET /vehicles/:vehicle_id/contracts/insurance ───────────────
 
-pub async fn list_insurance(
-    AuthenticatedUser(user_id): AuthenticatedUser,
-    Path(vehicle_id): Path<Uuid>,
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-    let access = sqlx::query_scalar!(
-        "SELECT role FROM public.vehicle_access
-         WHERE vehicle_id = $1 AND user_id = $2",
-        vehicle_id,
-        user_id
-    )
-    .fetch_optional(&state.db)
-    .await;
-
-    if matches!(access, Ok(None) | Err(_)) {
-        return err(
-            StatusCode::NOT_FOUND,
-            "Véhicule introuvable ou accès refusé",
-        )
-        .into_response();
-    }
-
+// Calcul pur (sans vérification d'accès) — même convention que `compute_loa_contracts`.
+pub async fn compute_insurance_contracts(
+    db: &sqlx::PgPool,
+    vehicle_id: Uuid,
+) -> Result<Vec<ContractInsurance>, ()> {
     let rows = sqlx::query!(
         r#"
         SELECT
@@ -548,15 +539,10 @@ pub async fn list_insurance(
         "#,
         vehicle_id
     )
-    .fetch_all(&state.db)
+    .fetch_all(db)
     .await;
 
-    let rows = match rows {
-        Ok(r) => r,
-        Err(_) => {
-            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
-        }
-    };
+    let rows = rows.map_err(|_| ())?;
 
     let today = Local::now().date_naive();
 
@@ -609,7 +595,35 @@ pub async fn list_insurance(
         })
         .collect();
 
-    (StatusCode::OK, Json(contracts)).into_response()
+    Ok(contracts)
+}
+
+pub async fn list_insurance(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let access = sqlx::query_scalar!(
+        "SELECT role FROM public.vehicle_access
+         WHERE vehicle_id = $1 AND user_id = $2",
+        vehicle_id,
+        user_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    if matches!(access, Ok(None) | Err(_)) {
+        return err(
+            StatusCode::NOT_FOUND,
+            "Véhicule introuvable ou accès refusé",
+        )
+        .into_response();
+    }
+
+    match compute_insurance_contracts(&state.db, vehicle_id).await {
+        Ok(contracts) => (StatusCode::OK, Json(contracts)).into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
 }
 
 // ─── PATCH /vehicles/:vehicle_id/contracts/insurance/:contract_id ─

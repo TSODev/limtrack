@@ -560,15 +560,13 @@ fn estimate_date_for_km(
 
 // ─── GET /vehicles/:vehicle_id/maintenance-status ────────────────
 
-pub async fn maintenance_status(
-    AuthenticatedUser(user_id): AuthenticatedUser,
-    Path(vehicle_id): Path<Uuid>,
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-    if let Err(e) = check_read_access(&state.db, vehicle_id, user_id).await {
-        return e.into_response();
-    }
-
+// Calcul pur (sans vérification d'accès) — réutilisé par le handler propriétaire
+// (`maintenance_status`, après `check_read_access`) et par le dashboard admin
+// (`admin_handler.rs::get_vehicle_summary_admin`, après `AdminUser`).
+pub async fn compute_maintenance_status(
+    db: &sqlx::PgPool,
+    vehicle_id: Uuid,
+) -> Result<Vec<MaintenanceStatus>, ()> {
     let today = Local::now().date_naive();
 
     let mileage_bounds = sqlx::query!(
@@ -581,13 +579,10 @@ pub async fn maintenance_status(
         "#,
         vehicle_id
     )
-    .fetch_one(&state.db)
+    .fetch_one(db)
     .await;
 
-    let mileage_bounds = match mileage_bounds {
-        Ok(r) => r,
-        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
-    };
+    let mileage_bounds = mileage_bounds.map_err(|_| ())?;
 
     let types = sqlx::query_as!(
         MaintenanceType,
@@ -599,13 +594,10 @@ pub async fn maintenance_status(
         "#,
         vehicle_id
     )
-    .fetch_all(&state.db)
+    .fetch_all(db)
     .await;
 
-    let types = match types {
-        Ok(t) => t,
-        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
-    };
+    let types = types.map_err(|_| ())?;
 
     let mut statuses = Vec::with_capacity(types.len());
 
@@ -617,13 +609,10 @@ pub async fn maintenance_status(
                ORDER BY e.performed_at DESC, e.created_at DESC LIMIT 1"#,
             t.id,
         )
-        .fetch_optional(&state.db)
+        .fetch_optional(db)
         .await;
 
-        let last_entry = match last_entry {
-            Ok(e) => e,
-            Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
-        };
+        let last_entry = last_entry.map_err(|_| ())?;
 
         let Some(last) = last_entry else {
             statuses.push(MaintenanceStatus {
@@ -681,5 +670,20 @@ pub async fn maintenance_status(
         });
     }
 
-    (StatusCode::OK, Json(statuses)).into_response()
+    Ok(statuses)
+}
+
+pub async fn maintenance_status(
+    AuthenticatedUser(user_id): AuthenticatedUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    if let Err(e) = check_read_access(&state.db, vehicle_id, user_id).await {
+        return e.into_response();
+    }
+
+    match compute_maintenance_status(&state.db, vehicle_id).await {
+        Ok(statuses) => (StatusCode::OK, Json(statuses)).into_response(),
+        Err(_) => err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response(),
+    }
 }

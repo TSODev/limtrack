@@ -233,6 +233,8 @@ POST        /api/admin/assign-license                             ← assigne un
 POST        /api/admin/notify-expiry                              ← déclenche manuellement les emails d'expiration (Resend)
 POST        /api/admin/broadcasts                                 ← crée un broadcast (message, days, exclude_ios)
 GET         /api/admin/companies
+GET         /api/admin/vehicles                                   ← liste identité + propriétaire, tous véhicules (support/débogage par immatriculation)
+GET         /api/admin/vehicles/:id/summary                       ← résumé lecture seule : identité, contrats actifs, kilométrage, statut entretien, dernière activité
 
 # Broadcasts
 GET         /api/broadcasts/active                                ← message actif (filtré is_ios si exclude_ios)
@@ -298,6 +300,20 @@ cargo run --bin send-broadcast -- --help
 ssh -i ~/.ssh/limtrack_deploy -L 5433:localhost:5432 limtrack@164.132.40.109
 ```
 **Utiliser un port local ≠ 5432** (ex. `5433`) : la machine de développement a un PostgreSQL natif installé en local (`systemctl status postgresql`) pour les tests backend, qui écoute déjà en IPv4 sur `127.0.0.1:5432`. Un tunnel SSH lié à `localhost:5432` se bind en IPv6 (`[::1]:5432`) — sur cette machine, un client qui résout `localhost` en IPv4 (la plupart) tombe silencieusement sur le Postgres **local** au lieu du tunnel, avec une erreur trompeuse `password authentication failed for user "limtrack"` (aucune tentative de connexion n'atteint alors le VPS — vérifiable via `docker logs limtrack-postgres-1`, qui ne montre rien). Piège découvert en configurant `rowdy-db` (`~/.config/rowdy/config.toml`, hors dépôt) — corrigé en pointant son tunnel sur le port local `5433`.
+
+## Dashboard admin — support véhicule par immatriculation (v1.5.19)
+
+Onglet "Véhicules" (`frontend/src/pages/admin.rs`) : recherche/filtre client-side sur la liste complète des véhicules (immatriculation, marque, modèle, propriétaire), sélection d'une ligne → résumé lecture seule (identité, contrats actifs, dernier kilométrage, statut entretien agrégé, date de dernière activité).
+
+**Choix d'architecture** : plutôt que de réutiliser le vrai `VehicleDashboard` (celui d'un propriétaire) en ajoutant un bypass admin dans chaque contrôle d'accès `vehicle_access` existant (dupliqué dans ~10 fonctions à travers 7 fichiers, cf. section précédente) — trop de surface de risque pour élargir les droits par erreur — l'admin dispose de **deux endpoints dédiés en lecture seule**, gate `AdminUser` uniquement, aucune modification du contrôle d'accès existant :
+- `GET /api/admin/vehicles` — liste minimale pour la sélection.
+- `GET /api/admin/vehicles/:id/summary` — résumé complet (une seule requête, pas de round-trip par section comme le ferait le vrai dashboard).
+
+**Réutilisation du calcul, pas duplication** : plutôt que de réécrire la logique métier (risque de réintroduire un bug déjà corrigé, ex. le piège km_start/km_allowed relatif documenté ci-dessous), les fonctions de calcul pur ont été **extraites** des handlers propriétaire existants — même requête SQL et même code de calcul, juste sans le contrôle d'accès :
+- `contracts_handler.rs::compute_loa_contracts` / `compute_insurance_contracts` (extraites de `list_loa`/`list_insurance`, qui restent de simples wrappers : vérif accès + appel à la fonction pure)
+- `maintenance_handler.rs::compute_maintenance_status` (extraite de `maintenance_status`, même principe)
+
+`get_vehicle_summary_admin` agrège en plus : `maintenance_overdue_count`/`maintenance_next_due_date` (dérivés de `compute_maintenance_status`, pas recalculés), et `last_activity_at` = `GREATEST(MAX(mileage_log.recorded_at), MAX(maintenance_entries.created_at))` — Postgres caste implicitement `recorded_at` (type `date`, pas `timestamptz` malgré `sql/schema/neon_tables.sql` resté stale) vers `timestamptz` pour la comparaison, `GREATEST` ignore les `NULL` sauf si tous les arguments le sont.
 
 ## Accès véhicules — `vehicle_access`
 
@@ -714,7 +730,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 **En production, c'est presque toujours le fallback `CARGO_PKG_VERSION` qui s'applique** : `deploy-frontend.yml` utilise `actions/checkout@v4` sans `fetch-depth`, donc un clone superficiel (profondeur 1, aucun tag récupéré) — `git describe` échoue systématiquement en CI. Les tags (`v1.3.2` etc.) ne sont créés que pour les soumissions App Store iOS, pas pour les déploiements web, donc ce fallback est en réalité la source pertinente pour la version affichée sur le web (`Cargo.toml` → `workspace.package.version`, à jour à chaque commit versionné). **Piège** : `CARGO_PKG_VERSION` ne contient jamais de préfixe `v` (contrairement à un tag `git describe`) — les endroits qui affichent `APP_VERSION` doivent préfixer `"v"` eux-mêmes s'ils veulent ce format (voir `home.rs`), `about.rs` l'affiche brut sans préfixe. Vérifié en confrontant le WASM réellement servi en prod (`strings frontend-*.wasm`) à cette hypothèse.
 
 ## Version actuelle
-`1.5.18` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-16
+`1.5.19` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-16
 iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
 
 

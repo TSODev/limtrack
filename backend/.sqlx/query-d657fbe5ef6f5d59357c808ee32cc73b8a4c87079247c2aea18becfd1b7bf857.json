@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            v.id, v.make, v.model, v.plate_number, v.vin, v.fuel_type,\n            u.username AS \"owner_username?\",\n            u.email AS \"owner_email?\",\n            c.name AS \"company_name?\",\n            (v.archived_at IS NOT NULL) AS \"archived!\",\n            (SELECT value FROM public.mileage_log m WHERE m.vehicle_id = v.id\n                ORDER BY recorded_at DESC, created_at DESC LIMIT 1) AS last_mileage_value,\n            (SELECT recorded_at FROM public.mileage_log m WHERE m.vehicle_id = v.id\n                ORDER BY recorded_at DESC, created_at DESC LIMIT 1) AS last_mileage_date,\n            GREATEST(\n                (SELECT MAX(recorded_at) FROM public.mileage_log m WHERE m.vehicle_id = v.id),\n                (SELECT MAX(e.created_at) FROM public.maintenance_entries e WHERE e.vehicle_id = v.id)\n            ) AS last_activity_at\n        FROM public.vehicles v\n        LEFT JOIN public.vehicle_access va ON va.vehicle_id = v.id AND va.role = 'owner'\n        LEFT JOIN public.users u ON u.id = va.user_id\n        LEFT JOIN public.companies c ON c.id = v.company_id\n        WHERE v.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "make",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "model",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "plate_number",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "vin",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "fuel_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "owner_username?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "owner_email?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "company_name?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "archived!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "last_mileage_value",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "last_mileage_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 12,
+        "name": "last_activity_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "d657fbe5ef6f5d59357c808ee32cc73b8a4c87079247c2aea18becfd1b7bf857"
+}

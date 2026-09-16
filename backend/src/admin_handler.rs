@@ -15,8 +15,20 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::auth::Claims;
+use crate::contracts_handler::{compute_insurance_contracts, compute_loa_contracts};
+use crate::maintenance_handler::compute_maintenance_status;
 use crate::state::AppState;
+use common::{ContractInsurance, ContractLoa};
 use jsonwebtoken::{decode, DecodingKey, Validation};
+
+#[derive(Serialize)]
+struct ApiError {
+    error: String,
+}
+
+fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<ApiError>) {
+    (status, Json(ApiError { error: msg.into() }))
+}
 
 // ─── Extracteur AdminUser ─────────────────────────────────────
 
@@ -850,4 +862,186 @@ pub async fn list_companies_admin(
     }
 
     Json(result).into_response()
+}
+
+// ─── GET /api/admin/vehicles — dashboard support véhicule ────────
+//
+// Liste minimale (identité + propriétaire) pour la recherche/sélection par
+// immatriculation dans l'onglet "Véhicules" du dashboard admin. Le résumé
+// détaillé (contrat, kilométrage, entretien) est chargé à la demande via
+// `get_vehicle_summary_admin`, pour ne pas payer le coût N+1 de
+// `compute_maintenance_status` sur toute la liste.
+
+#[derive(Serialize)]
+pub struct AdminVehicleListItem {
+    pub id: Uuid,
+    pub make: String,
+    pub model: String,
+    pub plate_number: String,
+    pub owner_username: Option<String>,
+    pub owner_email: Option<String>,
+    pub company_name: Option<String>,
+    pub archived: bool,
+}
+
+pub async fn list_vehicles_admin(
+    AdminUser(_): AdminUser,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+            v.id, v.make, v.model, v.plate_number,
+            u.username AS "owner_username?",
+            u.email AS "owner_email?",
+            c.name AS "company_name?",
+            (v.archived_at IS NOT NULL) AS "archived!"
+        FROM public.vehicles v
+        LEFT JOIN public.vehicle_access va ON va.vehicle_id = v.id AND va.role = 'owner'
+        LEFT JOIN public.users u ON u.id = va.user_id
+        LEFT JOIN public.companies c ON c.id = v.company_id
+        ORDER BY v.plate_number
+        "#
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    let rows = match rows {
+        Ok(r) => r,
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
+        }
+    };
+
+    let items: Vec<AdminVehicleListItem> = rows
+        .into_iter()
+        .map(|r| AdminVehicleListItem {
+            id: r.id,
+            make: r.make,
+            model: r.model,
+            plate_number: r.plate_number,
+            owner_username: r.owner_username,
+            owner_email: r.owner_email,
+            company_name: r.company_name,
+            archived: r.archived,
+        })
+        .collect();
+
+    (StatusCode::OK, Json(items)).into_response()
+}
+
+// ─── GET /api/admin/vehicles/:id/summary — résumé lecture seule ──
+//
+// Réutilise les fonctions de calcul pures des handlers existants
+// (`compute_loa_contracts`, `compute_insurance_contracts`,
+// `compute_maintenance_status`) plutôt que de redupliquer leur logique —
+// notamment le piège km_start/km_allowed relatif documenté ailleurs dans ce
+// fichier de contexte, pour ne pas le réintroduire ici.
+
+#[derive(Serialize)]
+pub struct AdminVehicleSummary {
+    pub id: Uuid,
+    pub make: String,
+    pub model: String,
+    pub plate_number: String,
+    pub vin: Option<String>,
+    pub fuel_type: Option<String>,
+    pub owner_username: Option<String>,
+    pub owner_email: Option<String>,
+    pub company_name: Option<String>,
+    pub archived: bool,
+    pub loa_contracts: Vec<ContractLoa>,
+    pub insurance_contracts: Vec<ContractInsurance>,
+    pub last_mileage_value: Option<i32>,
+    pub last_mileage_date: Option<chrono::NaiveDate>,
+    pub maintenance_total_types: i64,
+    pub maintenance_overdue_count: i64,
+    pub maintenance_next_due_date: Option<chrono::NaiveDate>,
+    pub last_activity_at: Option<chrono::DateTime<Utc>>,
+}
+
+pub async fn get_vehicle_summary_admin(
+    AdminUser(_): AdminUser,
+    Path(vehicle_id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let identity = sqlx::query!(
+        r#"
+        SELECT
+            v.id, v.make, v.model, v.plate_number, v.vin, v.fuel_type,
+            u.username AS "owner_username?",
+            u.email AS "owner_email?",
+            c.name AS "company_name?",
+            (v.archived_at IS NOT NULL) AS "archived!",
+            (SELECT value FROM public.mileage_log m WHERE m.vehicle_id = v.id
+                ORDER BY recorded_at DESC, created_at DESC LIMIT 1) AS last_mileage_value,
+            (SELECT recorded_at FROM public.mileage_log m WHERE m.vehicle_id = v.id
+                ORDER BY recorded_at DESC, created_at DESC LIMIT 1) AS last_mileage_date,
+            GREATEST(
+                (SELECT MAX(recorded_at) FROM public.mileage_log m WHERE m.vehicle_id = v.id),
+                (SELECT MAX(e.created_at) FROM public.maintenance_entries e WHERE e.vehicle_id = v.id)
+            ) AS last_activity_at
+        FROM public.vehicles v
+        LEFT JOIN public.vehicle_access va ON va.vehicle_id = v.id AND va.role = 'owner'
+        LEFT JOIN public.users u ON u.id = va.user_id
+        LEFT JOIN public.companies c ON c.id = v.company_id
+        WHERE v.id = $1
+        "#,
+        vehicle_id
+    )
+    .fetch_optional(&state.db)
+    .await;
+
+    let identity = match identity {
+        Ok(Some(r)) => r,
+        Ok(None) => return err(StatusCode::NOT_FOUND, "Véhicule introuvable").into_response(),
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
+        }
+    };
+
+    let loa_contracts = match compute_loa_contracts(&state.db, vehicle_id).await {
+        Ok(c) => c,
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
+        }
+    };
+    let insurance_contracts = match compute_insurance_contracts(&state.db, vehicle_id).await {
+        Ok(c) => c,
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
+        }
+    };
+    let maintenance = match compute_maintenance_status(&state.db, vehicle_id).await {
+        Ok(m) => m,
+        Err(_) => {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, "Erreur base de données").into_response()
+        }
+    };
+
+    let maintenance_overdue_count = maintenance.iter().filter(|m| m.overdue).count() as i64;
+    let maintenance_next_due_date = maintenance.iter().filter_map(|m| m.next_due_date).min();
+
+    let summary = AdminVehicleSummary {
+        id: identity.id,
+        make: identity.make,
+        model: identity.model,
+        plate_number: identity.plate_number,
+        vin: identity.vin,
+        fuel_type: identity.fuel_type,
+        owner_username: identity.owner_username,
+        owner_email: identity.owner_email,
+        company_name: identity.company_name,
+        archived: identity.archived,
+        loa_contracts,
+        insurance_contracts,
+        last_mileage_value: identity.last_mileage_value,
+        last_mileage_date: identity.last_mileage_date,
+        maintenance_total_types: maintenance.len() as i64,
+        maintenance_overdue_count,
+        maintenance_next_due_date,
+        last_activity_at: identity.last_activity_at,
+    };
+
+    (StatusCode::OK, Json(summary)).into_response()
 }

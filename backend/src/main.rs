@@ -48,7 +48,7 @@ use crate::user_handler::{
     revoke_access,
     update_preferences,
 };
-use crate::admin_handler::{assign_license_handler, create_broadcast, generate_token_handler, get_growth, get_stats, list_companies_admin, list_license_requests, list_users, patch_user_admin, trigger_notify_expiry};
+use crate::admin_handler::{assign_license_handler, create_broadcast, generate_token_handler, get_growth, get_stats, get_vehicle_summary_admin, list_companies_admin, list_license_requests, list_users, list_vehicles_admin, patch_user_admin, trigger_notify_expiry};
 use crate::broadcast_handler::get_active_broadcast;
 use crate::ios_handler::ios_activate;
 use crate::license_handler::{get_license, redeem_token};
@@ -252,6 +252,8 @@ async fn main() {
         .route("/api/admin/assign-license", post(assign_license_handler))
         .route("/api/admin/notify-expiry", post(trigger_notify_expiry))
         .route("/api/admin/broadcasts", post(create_broadcast))
+        .route("/api/admin/vehicles", get(list_vehicles_admin))
+        .route("/api/admin/vehicles/:id/summary", get(get_vehicle_summary_admin))
         .route("/api/vehicles/:id/access/:user_id", delete(revoke_access))
         .route("/api/vehicles/:id/leave", delete(leave_vehicle))
         // Fleet : véhicule → entreprise
