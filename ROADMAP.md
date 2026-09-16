@@ -57,6 +57,7 @@
 - [ ] Build iOS (`cargo tauri ios build`) + soumission via Transporter — **bloqué** : MacBook Pro en panne, pas de Mac disponible. Options envisagées : location cloud (MacinCloud pay-as-you-go) ou OpenCore Legacy Patcher sur un vieux MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026 pour toute soumission App Store).
 - [ ] Broadcast "nouvelle version" (texte prêt, `cargo run --bin send-broadcast`) — à envoyer une fois la version iOS validée
 - [x] **UI** : ajouter du padding vertical sur le modal "Nouvel entretien" (`EntryModal`, `maintenance_list.rs`) — corrigé en v1.5.18 (`py-4` sur le conteneur de contenu du composant `Modal` partagé)
+- [ ] **UX (piste, à ne pas faire avant retours utilisateurs)** : trop de dates/échéances affichées en parallèle pour un même véhicule — fin de contrat, "échéance estimée (rythme actuel)" (widget Contrat), "indisponible du/au (voyages inclus)" + recommandations réduction/jours off (widget Voyages) — chacune calculée indépendamment avec sa propre nuance à lire attentivement. Piste envisagée : fusionner en un seul message de risque par véhicule (résumé court par défaut + détail dépliable) plutôt que deux widgets qui projettent chacun séparément. À attendre des retours utilisateurs concrets avant de refactorer `contract_widget.rs`/`trip_widget.rs`.
 
 ---
 
