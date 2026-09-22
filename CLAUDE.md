@@ -745,7 +745,7 @@ const APP_VERSION: &str = env!("APP_VERSION");
 
 ## Version actuelle
 `1.5.22` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-16
-iOS App Store : **1.5.22 soumise le 2026-09-22** (Waiting for Review, tag `v1.5.22`), buildée sur le MacBook Pro réparé (macOS 15.7, Xcode 26.2). Version précédente publiée : 1.3.2 build 1 (2026-06-13).
+iOS App Store : **1.5.22 publiée** (soumise et approuvée le 2026-09-22, tag `v1.5.22`), buildée sur le MacBook Pro réparé (macOS 15.7, Xcode 26.2). Version précédente publiée : 1.3.2 build 1 (2026-06-13).
 - **Signature impossible via SSH** : `codesign` échoue avec `errSecInternalComponent` dans une session SSH (isolation des Security Sessions macOS), même trousseau déverrouillé — toujours lancer `cargo tauri ios build` depuis une session graphique locale.
 - **Node.js** installé sans Homebrew dans `~/.local/node` : `export PATH=$HOME/.local/node/bin:$PATH` avant tout build (hook Tailwind de `Trunk.toml`).
 - **Numéro de build** : Tauri écrase `CFBundleVersion` avec la version de l'app (1.5.22), pas la valeur de `project.yml` — un re-upload de la même version nécessite un numéro de build distinct.
