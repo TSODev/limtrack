@@ -745,6 +745,10 @@ const APP_VERSION: &str = env!("APP_VERSION");
 
 ## Version actuelle
 `1.5.22` — déployé en production web (Cloudflare Pages + OVH VPS) le 2026-09-16
-iOS App Store : soumission **en attente** — build bloqué faute de Mac disponible (MacBook Pro en panne). Options envisagées : location cloud (MacinCloud) ou OpenCore Legacy Patcher sur MacBook Air A1466 (Xcode 26 / macOS Sequoia 15.6+ obligatoire depuis le 28/04/2026). Dernière version publiée : 1.3.2 build 1 (2026-06-13).
+iOS App Store : **1.5.22 soumise le 2026-09-22** (Waiting for Review, tag `v1.5.22`), buildée sur le MacBook Pro réparé (macOS 15.7, Xcode 26.2). Version précédente publiée : 1.3.2 build 1 (2026-06-13).
+- **Signature impossible via SSH** : `codesign` échoue avec `errSecInternalComponent` dans une session SSH (isolation des Security Sessions macOS), même trousseau déverrouillé — toujours lancer `cargo tauri ios build` depuis une session graphique locale.
+- **Node.js** installé sans Homebrew dans `~/.local/node` : `export PATH=$HOME/.local/node/bin:$PATH` avant tout build (hook Tailwind de `Trunk.toml`).
+- **Numéro de build** : Tauri écrase `CFBundleVersion` avec la version de l'app (1.5.22), pas la valeur de `project.yml` — un re-upload de la même version nécessite un numéro de build distinct.
+- **Deployment target** : passé de 14.0 à 15.0 après la soumission 1.5.22 (avertissement Transporter 90068 : iOS 15 minimum obligatoire au printemps 2027) — `tauri.conf.json` (`bundle.iOS.minimumSystemVersion`), `project.yml`, `project.pbxproj`. Pris en compte à partir de la prochaine soumission.
 
 

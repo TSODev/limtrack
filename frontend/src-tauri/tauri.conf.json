@@ -34,7 +34,8 @@
       "icons/icon.ico"
     ],
     "iOS": {
-      "developmentTeam": "9BF83RHWX9"
+      "developmentTeam": "9BF83RHWX9",
+      "minimumSystemVersion": "15.0"
     },
     "android": {
       "debugApplicationIdSuffix": ".debug"
